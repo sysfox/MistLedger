@@ -244,7 +244,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 动作前后同名：点「导入」→ 结果提示「导入完成：新增 128 笔」。
 - 错误文案说清**发生了什么 + 怎么办**，不道歉不模糊：「有 3 笔转账没选转入账户，请先补齐」。
 - 空状态是邀请，不是叹息：「还没有账户，先在下面建一个（例如：银行卡 / 零钱通）」。
-- 界面词汇表（全站一致）：账户、分类、流水、期初余额、上限、入账账户、转入账户。禁止同义漂移（如"记录/条目"混用）。
+- 界面词汇表（全站一致）：账户、分类、流水、期初余额、上限、记账账户、转入账户。禁止同义漂移（如"记录/条目/行"混用，数量一律用"笔"）。
 - 金额语境下数字永远用阿拉伯数字；月份在 eyebrow 中可用汉字数字（二零二六年九月）。
 
 ---
@@ -275,3 +275,4 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 2026-09-13 · 初版：确立「雾里点灯看账」理念、常夜模式、灯线签名、雾散转场、组件契约。
 - 2026-09-13 · 契约全站落地：globals.css 建立全部令牌与组件类；layout 接入 Noto Serif SC / Noto Sans SC / Geist Mono；新增 template.tsx（雾散显影转场）与 loading.tsx（掌灯加载）；导航激活灯线；图表骨架灯下化；总览/登录/记账/账户/导入/设置六页全部按契约重写，清除 zinc 与 red/green/indigo 标准色。lint 与 build 通过。
 - 2026-09-14 · 焦点与导航可达性：`.btn-ghost` / `.link-subtle` / `.chip` / `.chip-active` 补 `:focus-visible` 灯环（`0 0 0 2px rgba(227,179,65,.6)`），`.chip` 追加 `:focus-within` 环；`.input` / `.btn-primary` 的 `:focus` 改为 `:focus-visible` 与导航对齐；导航在 `/login` 隐藏，nav 容器加横滑（`overflow-x-auto + whitespace-nowrap`，链接 `min-h-[44px]`）；禁忌#8 明确为单次转场/微交互 > 500ms，环境类动画豁免但受 reduced-motion 约束；第八节追加 settings chip 与 import 虚线 input 例外说明。
+- 2026-09-14 · UI/UX全面修复：总览 Hero 防溢出（40px起跳）、预算行防挤压、收支补−/+前缀、进度条与图表补ARIA、图表 reduced-motion 关闭JS动画、Tooltip金额mono；记账/账户/设置表单补label、金额统一toLocaleString与.money、空状态改邀请句式、新建统一"创建"；导入"入账账户"改"记账账户"、量词统一"笔"、登录错误中文化。lint与build通过。
