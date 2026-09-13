@@ -48,3 +48,37 @@ export async function deleteCategory(id: string) {
   revalidatePath("/settings");
   revalidatePath("/ledger");
 }
+
+// 预算（V1 只做上限录入 + 进度展示，不做强拦截）
+function firstOfMonth(v: string): string {
+  const m = /^\d{4}-\d{2}/.exec(v)?.[0];
+  if (!m) throw new Error("月份格式不合法");
+  return `${m}-01`;
+}
+
+export async function createBudget(formData: FormData) {
+  const month = firstOfMonth(String(formData.get("month") ?? ""));
+  const categoryId = String(formData.get("category_id") ?? "");
+  const limit = Number(formData.get("limit_amount") ?? 0);
+  if (!categoryId) throw new Error("请选择分类");
+  if (!limit || limit <= 0) throw new Error("上限金额必须大于 0");
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("未登录");
+  const { error } = await supabase.from("budgets").upsert(
+    { user_id: userData.user.id, month, category_id: categoryId, limit_amount: limit },
+    { onConflict: "user_id,month,category_id" },
+  );
+  if (error) throw new Error(error.message);
+  revalidatePath("/settings");
+  revalidatePath("/");
+}
+
+export async function deleteBudget(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("budgets").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/settings");
+  revalidatePath("/");
+}
