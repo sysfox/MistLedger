@@ -7,6 +7,12 @@ import { createTransaction } from "./actions";
 type Account = { id: string; name: string };
 type Category = { id: string; name: string; kind: string };
 
+const TYPES = [
+  { value: "expense", label: "支出" },
+  { value: "income", label: "收入" },
+  { value: "transfer", label: "转账" },
+];
+
 export default function TransactionForm({
   accounts,
   categories,
@@ -21,23 +27,15 @@ export default function TransactionForm({
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <form
-      action={createTransaction}
-      className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-    >
-      <h2 className="font-semibold">记一笔</h2>
+    <form action={createTransaction} className="panel flex flex-col gap-3 p-5">
+      <p className="eyebrow">记一笔</p>
+      <h2 className="font-display text-[17px] font-semibold text-ink">新建流水</h2>
       <div className="flex gap-2 text-sm">
-        {[
-          { value: "expense", label: "支出" },
-          { value: "income", label: "收入" },
-          { value: "transfer", label: "转账" },
-        ].map((t) => (
+        {TYPES.map((t) => (
           <label
             key={t.value}
-            className={`cursor-pointer rounded-full border px-4 py-1.5 ${
-              type === t.value
-                ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                : "border-zinc-300 dark:border-zinc-700"
+            className={`cursor-pointer rounded-full px-3 py-1 ${
+              type === t.value ? "chip-active" : "chip"
             }`}
           >
             <input
@@ -53,13 +51,7 @@ export default function TransactionForm({
         ))}
       </div>
       <div className="flex flex-wrap gap-2">
-        <input
-          name="date"
-          type="date"
-          required
-          defaultValue={today}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        />
+        <input name="date" type="date" required defaultValue={today} className="input" />
         <input
           name="amount"
           type="number"
@@ -67,13 +59,9 @@ export default function TransactionForm({
           min="0.01"
           required
           placeholder="金额"
-          className="w-32 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="input w-32"
         />
-        <select
-          name="account_id"
-          required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        >
+        <select name="account_id" required className="input">
           <option value="">{type === "transfer" ? "转出账户" : "账户（钱从哪出）"}</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
@@ -82,11 +70,7 @@ export default function TransactionForm({
           ))}
         </select>
         {type === "transfer" ? (
-          <select
-            name="to_account_id"
-            required
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          >
+          <select name="to_account_id" required className="input">
             <option value="">转入账户</option>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
@@ -95,10 +79,7 @@ export default function TransactionForm({
             ))}
           </select>
         ) : (
-          <select
-            name="category_id"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          >
+          <select name="category_id" className="input">
             <option value="">分类（可选）</option>
             {visibleCategories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -107,10 +88,7 @@ export default function TransactionForm({
             ))}
           </select>
         )}
-        <select
-          name="channel"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        >
+        <select name="channel" className="input">
           {CHANNELS.map((c) => (
             <option key={c.value} value={c.value}>
               {c.label}
@@ -123,19 +101,11 @@ export default function TransactionForm({
           name="counterparty"
           maxLength={50}
           placeholder="交易对方（可选）"
-          className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="input flex-1"
         />
-        <input
-          name="note"
-          maxLength={100}
-          placeholder="备注（可选）"
-          className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        />
+        <input name="note" maxLength={100} placeholder="备注（可选）" className="input flex-1" />
       </div>
-      <button
-        type="submit"
-        className="w-fit rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-      >
+      <button type="submit" className="btn-primary w-fit">
         保存
       </button>
     </form>

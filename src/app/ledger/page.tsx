@@ -10,6 +10,17 @@ function formatMoney(n: number) {
 }
 
 const TYPE_LABEL: Record<string, string> = { expense: "支出", income: "收入", transfer: "转账" };
+const TYPE_COLOR: Record<string, string> = {
+  expense: "text-ember",
+  income: "text-jade",
+  transfer: "text-ink",
+};
+const AMOUNT_PREFIX: Record<string, string> = { expense: "−", income: "+", transfer: "⇄" };
+const AMOUNT_COLOR: Record<string, string> = {
+  expense: "text-ember",
+  income: "text-jade",
+  transfer: "text-ink",
+};
 
 export default async function LedgerPage() {
   const supabase = await createClient();
@@ -29,8 +40,9 @@ export default async function LedgerPage() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
-        <h1 className="text-xl font-bold">记账</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="eyebrow">流水</p>
+        <h1 className="mt-1 font-display text-[22px] font-semibold text-ink">记账</h1>
+        <p className="mt-1 text-sm text-dim">
           {(accounts ?? []).length === 0
             ? "先去「账户」页建一个账户，再回来记账"
             : "最近 100 笔流水，删改从这里走"}
@@ -46,27 +58,26 @@ export default async function LedgerPage() {
             ? t.to_account[0]?.name
             : (t.to_account as unknown as { name: string } | null)?.name;
           return (
-            <li
-              key={t.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 px-4 py-2.5 text-sm dark:border-zinc-800"
-            >
+            <li key={t.id} className="panel flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
               <div className="min-w-0">
-                <p className="truncate font-medium">
-                  {TYPE_LABEL[t.type] ?? t.type} · {cat ?? (t.type === "transfer" ? `→ ${toAcc}` : "未分类")}
-                  {t.note ? <span className="ml-2 font-normal text-zinc-500">{t.note}</span> : null}
+                <p className="truncate text-ink">
+                  <span className={`font-medium ${TYPE_COLOR[t.type] ?? "text-ink"}`}>{TYPE_LABEL[t.type] ?? t.type}</span>
+                  {" · "}
+                  {cat ?? (t.type === "transfer" ? `→ ${toAcc}` : "未分类")}
+                  {t.note ? <span className="ml-2 text-dim">{t.note}</span> : null}
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-dim">
                   {t.date} · {accountMap.get(t.account_id) ?? "未知账户"} · {channelLabel(t.channel)}
                   {t.counterparty ? ` · ${t.counterparty}` : null}
                   {t.source !== "manual" ? " · 导入" : null}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <span className={`font-mono font-semibold ${t.type === "expense" ? "text-red-600" : t.type === "income" ? "text-green-600" : ""}`}>
-                  {t.type === "expense" ? "−" : t.type === "income" ? "+" : "⇄"}¥{formatMoney(Number(t.amount))}
+                <span className={`money font-semibold ${AMOUNT_COLOR[t.type] ?? "text-ink"}`}>
+                  {AMOUNT_PREFIX[t.type] ?? ""}¥{formatMoney(Number(t.amount))}
                 </span>
                 <form action={deleteTransaction.bind(null, t.id)}>
-                  <button type="submit" className="text-xs text-zinc-400 hover:text-red-500">
+                  <button type="submit" className="text-xs text-dim hover:text-ember">
                     删除
                   </button>
                 </form>
@@ -75,7 +86,7 @@ export default async function LedgerPage() {
           );
         })}
         {(transactions ?? []).length === 0 ? (
-          <li className="rounded-lg border border-dashed border-zinc-300 px-4 py-6 text-center text-sm text-zinc-500">
+          <li className="rounded-xl border border-dashed border-fogline px-4 py-6 text-center text-sm text-dim">
             还没有流水，在上面记第一笔
           </li>
         ) : null}
