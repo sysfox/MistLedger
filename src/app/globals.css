@@ -93,7 +93,7 @@ body::after {
   color: color-mix(in oklab, var(--color-dim) 70%, transparent);
 }
 
-.input:focus {
+.input:focus-visible {
   border-color: color-mix(in oklab, var(--color-lamp) 60%, transparent);
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-lamp) 60%, transparent);
 }
@@ -116,7 +116,7 @@ body::after {
   transform: translateY(1px);
 }
 
-.btn-primary:focus {
+.btn-primary:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--color-lamp) 60%, transparent);
 }
 
@@ -131,6 +131,11 @@ body::after {
   color: var(--color-ink);
 }
 
+.btn-ghost:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(227, 179, 65, 0.6);
+}
+
 .link-subtle {
   color: var(--color-dim);
   text-decoration: underline;
@@ -139,6 +144,11 @@ body::after {
 
 .link-subtle:hover {
   color: var(--color-ink);
+}
+
+.link-subtle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(227, 179, 65, 0.6);
 }
 
 .chip {
@@ -154,6 +164,13 @@ body::after {
   border-color: color-mix(in oklab, var(--color-lamp) 70%, transparent);
   background-color: color-mix(in oklab, var(--color-lamp) 10%, transparent);
   color: var(--color-lamp);
+}
+
+.chip:focus-visible,
+.chip-active:focus-visible,
+.chip:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(227, 179, 65, 0.6);
 }
 
 .eyebrow {
