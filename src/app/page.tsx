@@ -85,18 +85,18 @@ export default async function Home() {
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
         <p className="eyebrow">{cnYearMonth(curMonth)} · 本月账</p>
-        <p className="money mt-2 text-5xl font-semibold tracking-tight text-ink">
+        <p className="money mt-2 text-[40px] font-semibold leading-none tracking-tight text-ink break-all sm:text-5xl">
           <span className="text-lamp">¥</span>
           {formatMoney(total)}
         </p>
         <div className="lamp-line mt-4" />
-        <div className="mt-3 flex items-center gap-4 text-sm">
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span className="text-dim">
-            本月支出 <span className="money font-semibold text-ember">¥{formatMoney(cur.expense)}</span>
+            本月支出 <span className="money font-semibold text-ember">−¥{formatMoney(cur.expense)}</span>
           </span>
           <span className="h-4 w-px bg-fogline" />
           <span className="text-dim">
-            本月收入 <span className="money font-semibold text-jade">¥{formatMoney(cur.income)}</span>
+            本月收入 <span className="money font-semibold text-jade">+¥{formatMoney(cur.income)}</span>
           </span>
         </div>
       </div>
@@ -125,7 +125,7 @@ export default async function Home() {
       </div>
 
       <section className="panel p-5">
-        <p className="eyebrow">资产</p>
+        <p className="eyebrow">余额</p>
         <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">各账户余额</h2>
         <ul className="mt-2 flex flex-col text-sm">
           {(accounts ?? []).map((a) => (
@@ -163,16 +163,23 @@ export default async function Home() {
             const over = used > limit;
             return (
               <li key={i} className="text-sm">
-                <div className="flex justify-between">
-                  <span className="text-ink">
+                <div className="flex justify-between gap-2">
+                  <span className="min-w-0 truncate text-ink">
                     {cat?.name ?? "未知分类"}
                     {over ? <span className="ml-2 text-xs font-semibold text-ember">超支</span> : null}
                   </span>
-                  <span className="money text-xs text-dim">
+                  <span className="money shrink-0 text-xs text-dim">
                     ¥{formatMoney(used)} / ¥{formatMoney(limit)}
                   </span>
                 </div>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-veil">
+                <div
+                  className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-veil"
+                  role="progressbar"
+                  aria-valuenow={pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuetext={`已用 ${pct}%，¥${formatMoney(used)} / ¥${formatMoney(limit)}`}
+                >
                   <div
                     className={`h-full rounded-full ${over ? "bg-ember" : "bg-ink/70"}`}
                     style={{ width: `${pct}%` }}
