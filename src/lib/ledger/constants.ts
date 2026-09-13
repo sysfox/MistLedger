@@ -10,7 +10,7 @@ export const ACCOUNT_TYPES = [
 export const CHANNELS = [
   { value: "alipay", label: "支付宝" },
   { value: "wechat", label: "微信支付" },
-  { value: "direct", label: "直接" },
+  { value: "direct", label: "其他方式" },
   { value: "other", label: "其他" },
 ] as const;
 

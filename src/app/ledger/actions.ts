@@ -17,17 +17,17 @@ export async function createTransaction(formData: FormData) {
   const counterparty = String(formData.get("counterparty") ?? "").trim() || null;
   const note = String(formData.get("note") ?? "").trim() || null;
 
-  if (!TYPES.includes(type)) throw new Error("收支类型不合法");
+  if (!TYPES.includes(type)) throw new Error("请重新选择收支类型");
   if (!amount || amount <= 0) throw new Error("金额必须大于 0");
   if (!date) throw new Error("请选择日期");
   if (!accountId) throw new Error("请选择账户");
-  if (!CHANNELS.includes(channel)) throw new Error("渠道不合法");
+  if (!CHANNELS.includes(channel)) throw new Error("请重新选择渠道");
   if (type === "transfer" && !toAccountId) throw new Error("转账请选择转入账户");
   if (type === "transfer" && toAccountId === accountId) throw new Error("转出和转入不能是同一账户");
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("未登录");
+  if (!userData.user) throw new Error("请先登录后再试");
 
   const { error } = await supabase.from("transactions").insert({
     user_id: userData.user.id,

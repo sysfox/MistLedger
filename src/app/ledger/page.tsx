@@ -77,7 +77,7 @@ export default async function LedgerPage() {
                   {AMOUNT_PREFIX[t.type] ?? ""}¥{formatMoney(Number(t.amount))}
                 </span>
                 <form action={deleteTransaction.bind(null, t.id)}>
-                  <button type="submit" className="text-xs text-dim hover:text-ember">
+                  <button type="submit" className="rounded-sm text-xs text-dim hover:text-ember focus-visible:ring-2 focus-visible:ring-lamp/60">
                     删除
                   </button>
                 </form>
