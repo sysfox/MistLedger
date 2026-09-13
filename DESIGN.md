@@ -183,6 +183,10 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 `src/app/loading.tsx`（路由级）与图表骨架：一枚**呼吸的灯点**（amber 圆点 + 呼吸辉光 keyframe `lamp-breathe`，2s ease-in-out 无限）+ 文案「掌灯…」。图表加载骨架为 `veil` 色块 + 轻微 pulse，高度与图表一致（220px），禁止布局跳动。
 
+### 2.5 离线兜底（PWA Service Worker）
+
+断网时的页面兜底由 `public/sw.js` 内联 HTML 提供，视觉复用「掌灯」语言：夜空底色 + 呼吸灯点（受 reduced-motion 约束）+ 文案「雾太浓了，暂时连不上账房」与提示「等雾散了再试一次」。不新建路由页（登录墙内页面无法被可靠预缓存），兜底样式以行内 CSS 写死并保持与令牌一致。
+
 ### 3. 微交互
 
 - 面板/行 hover：背景 `mist → veil`，150ms。
@@ -280,3 +284,4 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 2026-09-14 · UI/UX与移动端全面修复（二轮）：组件契约类包进 `@layer components` 恢复工具类覆盖权（settings chip text-ink 与表内紧凑 select 实际生效）；移动端 .input 字号 16px 防 iOS 聚焦缩放；导航移动端改固定底部 tab 栏（含 safe-area 内距、正文补 padding、桌面顶栏不变）；记账收入语义修正——账户字段随类型联动（收入=「收入账户（钱进哪）」，收入场景不出现「钱从哪出」，渠道为来源渠道）；「今天」本地时区计算；分类 select 切类型强制重建；所有 server action 改返回 { ok, message } 并接入 useActionState（pending/防重/role=alert/aria-live）；删除类操作（流水/账户/分类/预算）全部二次确认 + 44px 触控目标；预算月份改 type=date（归一化当月 1 号，入库 YYYY-MM-01）；viewport 补 themeColor 与 viewportFit=cover；图表刻度补 mono、hex 全部令牌化、饼图窄屏自适应；新增 error.tsx / global-error.tsx 兜底页。lint 与 build 通过。
 - 2026-09-13 · 新增数据页（/data）：近 12 个月收支趋势、总资产曲线（30/90/180 天切换）、常用查询预设（chip 链接）、自定义查询表单（日期/类型/分类/账户/金额区间/关键词，走 URL searchParams）与查询结果（笔数汇总 + 支出构成饼图 + 流水列表，上限 200 笔）；导航六项加入「数据」；stats.ts 新增 filterTxs / summarizeTxs 纯函数；第六节补数据页布局说明。
 - 2026-09-13 · 数据页审查修复：曲线天数 chip 改为 chip 基础类叠加 chip-active（修直角无框选中态）并统一 44px 触控目标；三个图表组件新增 label 参数（读屏描述与实际范围一致，总览页默认不变）；Bar/Line/Pie 补 animationDuration=400（守 500ms 禁忌）；天数与查询条件互保参数（切天数不清查询、点预设不重置曲线）；「上月支出」改用真实月末（date 控件不吃非法日期）；from/to 正则校验、金额下限非负、days 吸附到 30/90/180；资产曲线只计启用账户流水；5000 笔取数截断加提示；查询表单 key 随条件重挂载（修 defaultValue 陈旧）、useTransition 查询中态、分类按支出/收入 optgroup、结果区 #results 锚点与 aria-live 汇总；列表行去掉假 affordance hover；桌面 nav 补 aria-label；accountBalances 不再为停用账户流水凭空建余额（总资产口径修正）。lint 与 build 通过。
+- 2026-09-14 · PWA 支持：`src/app/manifest.ts` 生成 Web App Manifest（名称「雾夜账」、standalone、portrait、夜空/灯火令牌同值的 theme 与背景色、zh-CN）；GDI+ 生成品牌图标（夜空底 + 纸墨「雾」字 + 灯线签名，含 192/512 与 maskable 安全区版本，`src/app/icon.png`、`src/app/apple-icon.png` 走 Next 图标文件约定）；`public/sw.js` Service Worker——导航请求网络优先、失败回落缓存或内联离线兜底页（第七节 2.5），`/_next/static`、`/icons` 等静态资源缓存优先，RSC 预取与 server action 不缓存；`ServiceWorkerRegister` 客户端组件在 layout 挂载后注册；metadata 补 `applicationName` 与 `appleWebApp`（iOS 添加到主屏）。离线兜底页复用「掌灯」视觉并受 reduced-motion 约束。
