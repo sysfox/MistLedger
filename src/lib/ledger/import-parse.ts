@@ -203,7 +203,7 @@ export async function parseBillFile(file: File, source: ImportSource): Promise<P
     try {
       const wb = XLSX.read(buf, { type: "array", ...opt });
       const rows = sheetRows(wb);
-      if (rows.length === 0) throw new Error("空文件");
+      if (rows.length === 0) throw new Error("文件是空的，请换一个账单文件再试");
       const parsed =
         source === "alipay_import"
           ? parseAlipay(rows)
@@ -216,5 +216,5 @@ export async function parseBillFile(file: File, source: ImportSource): Promise<P
       lastError = e;
     }
   }
-  throw lastError instanceof Error ? lastError : new Error("解析失败");
+  throw lastError instanceof Error ? lastError : new Error("解析失败，请确认是支付宝/微信/建行导出的账单文件后重试");
 }

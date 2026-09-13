@@ -70,7 +70,7 @@ export default function ImportClient({
           note: [r.product, r.note].filter(Boolean).join(" / "),
         })),
       );
-      setResult(`导入完成：新增 ${inserted} 笔，去重跳过 ${duplicates} 笔。未分类的可去「记账」页或下次建规则。`);
+      setResult(`导入完成：新增 ${inserted} 笔，去重跳过 ${duplicates} 笔。未分类的可去记账页或下次建规则。`);
       setRows([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "导入失败");
@@ -86,7 +86,7 @@ export default function ImportClient({
           {SOURCES.map((s) => (
             <label
               key={s.value}
-              className={`cursor-pointer rounded-full px-3 py-1 ${
+              className={`cursor-pointer rounded-full px-3 py-1 focus-within:border-lamp/60 focus-within:ring-2 focus-within:ring-lamp/60 ${
                 source === s.value ? "chip-active" : "chip"
               }`}
             >
@@ -98,30 +98,36 @@ export default function ImportClient({
                   setRows([]);
                   setResult(null);
                 }}
-                className="hidden"
+                className="sr-only"
               />
               {s.label}
             </label>
           ))}
         </div>
+        <label htmlFor="import-account" className="sr-only">
+          记账账户（钱从哪出）
+        </label>
         <select
+          id="import-account"
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
           className="input"
+          aria-label="记账账户（钱从哪出）"
         >
-          <option value="">入账账户（钱从哪出）</option>
+          <option value="">记账账户（钱从哪出）</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
             </option>
           ))}
         </select>
-        <label className="input cursor-pointer border-dashed hover:border-lamp/60">
+        <label className="input cursor-pointer border-dashed focus-within:border-lamp/60 focus-within:ring-2 focus-within:ring-lamp/60 hover:border-lamp/60">
           选择账单（xlsx/xls/csv）
           <input
             type="file"
             accept=".xlsx,.xls,.csv"
-            className="hidden"
+            aria-label="选择账单文件（xlsx/xls/csv）"
+            className="sr-only"
             onChange={(e) => {
               const f = e.target.files?.[0];
               if (f) void handleFile(f);
@@ -162,12 +168,13 @@ export default function ImportClient({
                       {r.product ? <span className="text-dim"> / {r.product}</span> : null}
                     </td>
                     <td className={`money px-3 py-1.5 ${r.type === "expense" ? "text-ember" : r.type === "income" ? "text-jade" : "text-ink"}`}>
-                      {r.type === "expense" ? "−" : r.type === "income" ? "+" : "⇄"}¥{r.amount.toFixed(2)}
+                      {r.type === "expense" ? "−" : r.type === "income" ? "+" : "⇄"}¥{Number(r.amount).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-3 py-1.5">
                       {r.type === "transfer" ? (
                         <select
                           value={r.toAccountId}
+                          aria-label={`${r.date} ${r.counterparty} ${r.amount} 转入账户`}
                           onChange={(e) =>
                             setRows((prev) =>
                               prev.map((p) =>
@@ -189,6 +196,7 @@ export default function ImportClient({
                       ) : (
                         <select
                           value={r.categoryId}
+                          aria-label={`${r.date} ${r.counterparty} ${r.amount} 分类`}
                           onChange={(e) =>
                             setRows((prev) =>
                               prev.map((p) =>
@@ -215,7 +223,7 @@ export default function ImportClient({
             </table>
           </div>
           {rows.length > 200 ? (
-            <p className="text-xs text-dim">仅预览前 200 行，提交会导入全部 {rows.length} 行。</p>
+            <p className="text-xs text-dim">仅预览前 200 笔，点「确认导入」会导入全部 {rows.length} 笔。</p>
           ) : null}
           <button
             type="button"

@@ -28,12 +28,12 @@ export async function submitImport(
   rows: ImportPayloadRow[],
 ): Promise<{ inserted: number; duplicates: number }> {
   if (!accountId) throw new Error("请选择入账账户（钱实际从哪出）");
-  if (rows.length === 0) throw new Error("没有可导入的行");
-  if (rows.length > 2000) throw new Error("单次最多导入 2000 行");
+  if (rows.length === 0) throw new Error("没有可导入的笔，请确认文件解析到了有效流水");
+  if (rows.length > 2000) throw new Error("单次最多导入 2000 笔，请拆分批次再导");
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("未登录");
+  if (!userData.user) throw new Error("请先登录");
   const userId = userData.user.id;
 
   // 1. 已存在的去重键
@@ -116,7 +116,7 @@ export async function saveRule(keyword: string, categoryId: string) {
   if (!kw || !categoryId) throw new Error("关键词和分类不能为空");
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("未登录");
+  if (!userData.user) throw new Error("请先登录");
   const { error } = await supabase
     .from("category_rules")
     .upsert(
