@@ -83,7 +83,8 @@ export default async function DataPage({
   const curMonth = monthKey(new Date());
 
   // 曲线参数：资产曲线天数（吸附到 30/90/180，不影响查询条件）
-  const days = snapDays(Number(get("days")));
+  const daysParam = get("days");
+  const days = snapDays(daysParam ? Number(daysParam) : undefined);
 
   // 自定义查询条件（非法值安全降级为缺省）
   const typeRaw = get("type");
@@ -103,7 +104,14 @@ export default async function DataPage({
     q: get("q")?.slice(0, 100),
   };
   const hasFilter = Boolean(
-    filter.from || filter.to || filter.type || filter.category || filter.account || filter.q || get("min") || get("max"),
+    filter.from ||
+      filter.to ||
+      (filter.type && filter.type !== "all") ||
+      filter.category ||
+      filter.account ||
+      filter.q ||
+      filter.min != null ||
+      filter.max != null,
   );
 
   const [{ data: accounts }, { data: categories }, { data: transactions }] = await Promise.all([
@@ -123,12 +131,22 @@ export default async function DataPage({
   const accountName = new Map((accounts ?? []).map((a) => [a.id, a.name]));
   const catName = new Map((categories ?? []).map((c) => [c.id, c.name]));
 
-  // 曲线数据：资产曲线口径与总览页一致，只统计启用账户的收支
+  // 曲线数据：资产曲线口径与总览页 accountBalances 一致，只统计启用账户
   const trend = monthlyTrend(txs, lastMonths(12, new Date()));
   const activeAccounts = (accounts ?? []).filter((a) => a.is_active);
   const activeInitial = activeAccounts.reduce((s, a) => s + Number(a.initial_balance), 0);
   const activeIds = new Set(activeAccounts.map((a) => a.id));
-  const curveTxs = txs.filter((t) => t.type === "transfer" || activeIds.has(t.account_id));
+  const curveTxs = txs
+    .map((t) => {
+      if (t.type !== "transfer") return activeIds.has(t.account_id) ? t : null;
+      const fromActive = activeIds.has(t.account_id);
+      const toActive = t.to_account_id ? activeIds.has(t.to_account_id) : false;
+      if (fromActive && toActive) return t;
+      if (fromActive) return { ...t, type: "expense" };
+      if (toActive) return { ...t, type: "income" };
+      return null;
+    })
+    .filter((t) => t !== null);
   const assets = assetCurve(activeInitial, curveTxs, days, new Date());
 
   // 查询结果（默认本月全部）
@@ -156,8 +174,8 @@ export default async function DataPage({
   if (filter.type && filter.type !== "all") queryQs.set("type", filter.type);
   if (filter.category) queryQs.set("cat", filter.category);
   if (filter.account) queryQs.set("acc", filter.account);
-  if (get("min")) queryQs.set("min", get("min") as string);
-  if (get("max")) queryQs.set("max", get("max") as string);
+  if (filter.min != null) queryQs.set("min", String(filter.min));
+  if (filter.max != null) queryQs.set("max", String(filter.max));
   if (filter.q) queryQs.set("q", filter.q);
   const daysQs = days !== 90 ? `&days=${days}` : "";
 
