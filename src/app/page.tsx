@@ -10,6 +10,7 @@ import {
   lastMonths,
   monthKey,
 } from "@/lib/ledger/stats";
+import { formatMoney } from "@/lib/ledger/format";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,6 @@ function cnYearMonth(key: string) {
     .map((d) => DIGITS[Number(d)])
     .join("");
   return `${year}年${cnMonth(Number(m))}`;
-}
-
-function formatMoney(n: number) {
-  return n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default async function Home() {
@@ -53,7 +50,7 @@ export default async function Home() {
         .limit(5000),
       supabase
         .from("budgets")
-        .select("limit_amount, category:categories(id, name)")
+        .select("id, limit_amount, category:categories(id, name)")
         .eq("month", `${curMonth}-01`),
     ]);
 
@@ -84,17 +81,18 @@ export default async function Home() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
-        <p className="eyebrow">{cnYearMonth(curMonth)} · 本月账</p>
-        <p className="money mt-2 text-[40px] font-semibold leading-none tracking-tight text-ink break-all sm:text-5xl">
+        <h1 className="sr-only">总览 · {cnYearMonth(curMonth)} 本月账</h1>
+        <p className="eyebrow" aria-hidden="true">{cnYearMonth(curMonth)} · 本月账</p>
+        <p className="money mt-2 text-[clamp(40px,8vw,48px)] font-semibold leading-none tracking-tight text-ink">
           <span className="text-lamp">¥</span>
           {formatMoney(total)}
         </p>
-        <div className="lamp-line mt-4" />
+        <div className="lamp-line mt-4" aria-hidden="true" />
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
           <span className="text-dim">
             本月支出 <span className="money font-semibold text-ember">−¥{formatMoney(cur.expense)}</span>
           </span>
-          <span className="h-4 w-px bg-fogline" />
+          <span className="h-4 w-px bg-fogline" aria-hidden="true" />
           <span className="text-dim">
             本月收入 <span className="money font-semibold text-jade">+¥{formatMoney(cur.income)}</span>
           </span>
@@ -153,16 +151,16 @@ export default async function Home() {
           </Link>
         </div>
         <ul className="mt-3 flex flex-col gap-3">
-          {(budgets ?? []).map((b, i) => {
+          {(budgets ?? []).map((b) => {
             const cat = Array.isArray(b.category)
               ? b.category[0]
               : (b.category as unknown as { id: string; name: string } | null);
             const used = cat ? (spent.get(cat.id) ?? 0) : 0;
             const limit = Number(b.limit_amount);
-            const pct = Math.min(100, Math.round((used / limit) * 100));
+            const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
             const over = used > limit;
             return (
-              <li key={i} className="text-sm">
+              <li key={b.id} className="text-sm">
                 <div className="flex justify-between gap-2">
                   <span className="min-w-0 truncate text-ink">
                     {cat?.name ?? "未知分类"}

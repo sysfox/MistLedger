@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CartesianGrid,
   ResponsiveContainer,
@@ -17,21 +17,30 @@ import {
   Cell,
 } from "recharts";
 
-const COLORS = ["#E3B341", "#6FBF8F", "#E2574C", "#7EA2D6", "#B48BE0", "#5CC8C0", "#D98A4B", "#94A3B8"];
+const PALETTE = [
+  "var(--color-lamp)",
+  "var(--color-jade)",
+  "var(--color-ember)",
+  "#7EA2D6",
+  "#B48BE0",
+  "#5CC8C0",
+  "#D98A4B",
+  "#94A3B8",
+];
 
-const GRID = { horizontal: true, vertical: false, strokeDasharray: "3 3", stroke: "#28324A" } as const;
-const TICK = { fill: "#8B93A7", fontSize: 12 } as const;
-const AXIS_LINE = { stroke: "#28324A" } as const;
+const GRID = { horizontal: true, vertical: false, strokeDasharray: "3 3", stroke: "var(--color-fogline)" } as const;
+const TICK = { fill: "var(--color-dim)", fontSize: 12, fontFamily: "var(--font-mono)" } as const;
+const AXIS_LINE = { stroke: "var(--color-fogline)" } as const;
 const TOOLTIP_STYLE = {
-  background: "#1B2436",
-  border: "1px solid #28324A",
+  background: "var(--color-veil)",
+  border: "1px solid var(--color-fogline)",
   borderRadius: 8,
-  color: "#E9E4D8",
+  color: "var(--color-ink)",
   fontSize: 12,
 } as const;
-const LABEL_STYLE = { color: "#E9E4D8", fontSize: 12 } as const;
-const ITEM_STYLE = { color: "#E9E4D8", fontFamily: "var(--font-mono)" } as const;
-const LEGEND_STYLE = { color: "#8B93A7", fontSize: 12 } as const;
+const LABEL_STYLE = { color: "var(--color-ink)", fontSize: 12 } as const;
+const ITEM_STYLE = { color: "var(--color-ink)", fontFamily: "var(--font-mono)" } as const;
+const LEGEND_STYLE = { color: "var(--color-dim)", fontSize: 12 } as const;
 
 const formatMoney = (v: number | string) => `¥${Number(v).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -54,64 +63,105 @@ function usePrefersReducedMotion() {
 
 export function TrendChart({ data }: { data: { month: string; expense: number; income: number }[] }) {
   const reducedMotion = usePrefersReducedMotion();
+  const last = data[data.length - 1];
   return (
     <figure role="img" aria-label="近 6 个月每月支出与收入柱状趋势图">
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={data}>
-        <CartesianGrid {...GRID} />
-        <XAxis dataKey="month" tick={TICK} axisLine={AXIS_LINE} tickLine={false} interval="preserveStartEnd" minTickGap={8} />
-        <YAxis tick={TICK} axisLine={AXIS_LINE} tickLine={false} />
-        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoneyNode(v as number)} />
-        <Legend wrapperStyle={LEGEND_STYLE} />
-        <Bar dataKey="expense" name="支出" fill="#E2574C" isAnimationActive={!reducedMotion} />
-        <Bar dataKey="income" name="收入" fill="#6FBF8F" isAnimationActive={!reducedMotion} />
-      </BarChart>
-    </ResponsiveContainer>
+      {last ? (
+        <figcaption className="sr-only">
+          数据摘要：最近一月支出 ¥{last.expense.toLocaleString("zh-CN")}，收入 ¥{last.income.toLocaleString("zh-CN")}。
+        </figcaption>
+      ) : null}
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={data}>
+          <CartesianGrid {...GRID} />
+          <XAxis dataKey="month" tick={TICK} axisLine={AXIS_LINE} tickLine={false} interval="preserveStartEnd" minTickGap={8} />
+          <YAxis tick={TICK} axisLine={AXIS_LINE} tickLine={false} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoneyNode(v as number)} />
+          <Legend wrapperStyle={LEGEND_STYLE} />
+          <Bar dataKey="expense" name="支出" fill="var(--color-ember)" isAnimationActive={!reducedMotion} />
+          <Bar dataKey="income" name="收入" fill="var(--color-jade)" isAnimationActive={!reducedMotion} />
+        </BarChart>
+      </ResponsiveContainer>
     </figure>
   );
 }
 
 export function AssetChart({ data }: { data: { date: string; total: number }[] }) {
   const reducedMotion = usePrefersReducedMotion();
+  const last = data[data.length - 1];
   return (
     <figure role="img" aria-label="近 30 天总资产曲线图">
-    <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data}>
-        <CartesianGrid {...GRID} />
-        <XAxis dataKey="date" tick={TICK} axisLine={AXIS_LINE} tickLine={false} interval={4} />
-        <YAxis tick={TICK} axisLine={AXIS_LINE} tickLine={false} domain={["auto", "auto"]} />
-        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoneyNode(v as number)} />
-        <Line
-          type="monotone"
-          dataKey="total"
-          name="总资产"
-          stroke="#E3B341"
-          strokeWidth={2}
-          dot={false}
-          activeDot={{ r: 4, fill: "#E3B341", stroke: "#0A0E14" }}
-          isAnimationActive={!reducedMotion}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+      {last ? (
+        <figcaption className="sr-only">
+          数据摘要：期末总资产 ¥{last.total.toLocaleString("zh-CN")}。
+        </figcaption>
+      ) : null}
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={data}>
+          <CartesianGrid {...GRID} />
+          <XAxis dataKey="date" tick={TICK} axisLine={AXIS_LINE} tickLine={false} interval={4} />
+          <YAxis tick={TICK} axisLine={AXIS_LINE} tickLine={false} domain={["auto", "auto"]} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoneyNode(v as number)} />
+          <Line
+            type="monotone"
+            dataKey="total"
+            name="总资产"
+            stroke="var(--color-lamp)"
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 6, fill: "var(--color-lamp)", stroke: "var(--color-night)" }}
+            isAnimationActive={!reducedMotion}
+          />
+        </LineChart>
+      </ResponsiveContainer>
     </figure>
   );
 }
 
 export function ShareChart({ data }: { data: { name: string; value: number }[] }) {
   const reducedMotion = usePrefersReducedMotion();
+  const top = [...data].sort((a, b) => b.value - a.value)[0];
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      setWidth(Math.round(w));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const outerRadius = width > 0 ? Math.min(80, Math.max(56, width * 0.28)) : 80;
+  const labelFontSize = width > 0 ? Math.max(10, Math.min(12, width * 0.038)) : 12;
   return (
     <figure role="img" aria-label="本月支出分类占比饼图">
-    <ResponsiveContainer width="100%" height={220}>
-      <PieChart>
-        <Pie data={data} dataKey="value" nameKey="name" outerRadius={80} label={{ fill: "#E9E4D8", fontSize: 12 }} isAnimationActive={!reducedMotion}>
-          {data.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoneyNode(v as number)} />
-        <Legend wrapperStyle={LEGEND_STYLE} />
-      </PieChart>
-    </ResponsiveContainer>
+      {top ? (
+        <figcaption className="sr-only">
+          数据摘要：支出最多的分类是「{top.name}」，金额 ¥{top.value.toLocaleString("zh-CN")}。
+        </figcaption>
+      ) : null}
+      <div ref={boxRef} className="h-[220px] w-full">
+        {width > 0 ? (
+          <PieChart width={width} height={220}>
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={outerRadius}
+              label={{ fill: "var(--color-ink)", fontSize: labelFontSize }}
+              isAnimationActive={!reducedMotion}
+            >
+              {data.map((_, i) => (
+                <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+              ))}
+            </Pie>
+            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoneyNode(v as number)} />
+            <Legend wrapperStyle={LEGEND_STYLE} />
+          </PieChart>
+        ) : null}
+      </div>
     </figure>
   );
 }
