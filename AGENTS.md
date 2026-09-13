@@ -1,15 +1,16 @@
-# 工作流约定（所有 agent 必须遵守）
+# Workflow Contract (binding for all agents)
 
-- **子 agent 优先**：主 agent 应尽量把工作拆给子 agent（如代码探索、检索、独立的功能实现），主 agent 只做协调、汇总与最终把关，避免在主上下文里堆放大段探索或实现工作。
-- **提交纪律**：每完成一项功能或修复，就提交一次自己改过的文件。禁止把多个不相关的改动堆进同一个提交。
-- **提交信息要求规范详细**：
-  - 格式：`<type>(<scope>): <中文摘要>`，正文用中文说明改了什么、为什么改。
-  - type 取值：`feat` 新功能、`fix` 修复、`style` 视觉/样式、`refactor` 重构、`docs` 文档、`chore` 杂项。
-  - scope 用模块名：`design-system`（globals.css/layout/template/loading/nav）、`dashboard`（总览）、`ledger`、`accounts`、`import`、`settings`、`login`、`charts` 等。
-  - 示例：`style(design-system): 建立雾夜主题令牌与灯线签名`。
-- **设计契约**：一切界面改动遵循 `DESIGN.md`，改动后同步更新该文件（含变更记录）。
-- **提交前验证**：`npm run lint` 通过再提交；涉及构建产物的改动跑 `npm run build`。
-- 界面改动完成后对照 `DESIGN.md` 第十一节禁忌清单自查。
+- **Subagents first**: the main agent should delegate as much work as possible to subagents (code exploration, retrieval, independent feature implementation). The main agent only orchestrates, synthesizes, and does the final review — avoid piling up large chunks of exploration or implementation in the main context.
+- **Commit discipline**: after each completed feature or fix, commit the files you changed in that unit of work. Never pile unrelated changes into one commit.
+- **Commit message requirements (detailed and standardized)**:
+  - Format: `<type>(<scope>): <summary>`, with a body explaining what changed and why.
+  - Types: `feat` (new feature), `fix` (bug fix), `style` (visual/styling), `refactor`, `docs`, `chore` (misc).
+  - Scopes use module names: `design-system` (globals.css/layout/template/loading/nav), `dashboard` (overview), `ledger`, `accounts`, `import`, `settings`, `login`, `charts`, etc.
+  - Example: `style(design-system): establish mist-night theme tokens and lamp-line signature`.
+- **Project knowledge**: read `STRUCTURE.md` before working — it documents the full architecture, design system summary, data model, and conventions. Agents are allowed (and required) to keep `STRUCTURE.md` up to date: whenever your change affects routes, the data model, libs, components, or conventions, update it in the same commit.
+- **Design contract**: every UI change follows `DESIGN.md`; update that file (including its changelog) alongside the change.
+- **Pre-commit verification**: `npm run lint` must pass before committing; run `npm run build` for changes affecting build output.
+- After UI changes, self-check against the taboo list in `DESIGN.md` section 11.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
