@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { parseBillFile, type ParsedRow } from "@/lib/ledger/import-parse";
+import { parseBillFile, type ImportSource, type ParsedRow } from "@/lib/ledger/import-parse";
 import { submitImport } from "./actions";
 
 type Account = { id: string; name: string };
 type Category = { id: string; name: string; kind: string };
 
-type DraftRow = ParsedRow & { categoryId: string };
+type DraftRow = ParsedRow & { categoryId: string; toAccountId: string };
+
+const SOURCES: { value: ImportSource; label: string }[] = [
+  { value: "alipay_import", label: "支付宝" },
+  { value: "wechat_import", label: "微信支付" },
+  { value: "bank_import", label: "银行明细" },
+];
 
 export default function ImportClient({
   accounts,
@@ -16,7 +22,7 @@ export default function ImportClient({
   accounts: Account[];
   categories: Category[];
 }) {
-  const [source, setSource] = useState<"alipay_import" | "wechat_import">("alipay_import");
+  const [source, setSource] = useState<ImportSource>("alipay_import");
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [filename, setFilename] = useState("");
@@ -24,12 +30,17 @@ export default function ImportClient({
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  function guessToAccount(r: ParsedRow): string {
+    if (r.type !== "transfer" || !r.transferHint) return "";
+    return accounts.find((a) => a.name.includes(r.transferHint as string))?.id ?? "";
+  }
+
   async function handleFile(file: File) {
     setError(null);
     setResult(null);
     try {
       const parsed = await parseBillFile(file, source);
-      setRows(parsed.map((r) => ({ ...r, categoryId: "" })));
+      setRows(parsed.map((r) => ({ ...r, categoryId: "", toAccountId: guessToAccount(r) })));
       setFilename(file.name);
     } catch (e) {
       setError(e instanceof Error ? e.message : "解析失败");
@@ -42,6 +53,8 @@ export default function ImportClient({
     setResult(null);
     setBusy(true);
     try {
+      const missing = rows.filter((r) => r.type === "transfer" && (!r.toAccountId || r.toAccountId === accountId));
+      if (missing.length > 0) throw new Error(`有 ${missing.length} 笔转账没选转入账户（或与转出相同），请先补齐`);
       const { inserted, duplicates } = await submitImport(
         source,
         filename || "未命名账单",
@@ -53,6 +66,7 @@ export default function ImportClient({
           counterparty: r.counterparty,
           externalId: r.externalId,
           categoryId: r.categoryId || null,
+          toAccountId: r.type === "transfer" ? r.toAccountId : null,
           note: [r.product, r.note].filter(Boolean).join(" / "),
         })),
       );
@@ -69,12 +83,7 @@ export default function ImportClient({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <div className="flex gap-2">
-          {(
-            [
-              { value: "alipay_import", label: "支付宝" },
-              { value: "wechat_import", label: "微信支付" },
-            ] as const
-          ).map((s) => (
+          {SOURCES.map((s) => (
             <label
               key={s.value}
               className={`cursor-pointer rounded-full border px-4 py-1.5 ${
@@ -110,10 +119,10 @@ export default function ImportClient({
           ))}
         </select>
         <label className="cursor-pointer rounded-md border border-dashed border-zinc-400 px-4 py-2 text-sm">
-          选择 xlsx 账单
+          选择账单（xlsx/xls/csv）
           <input
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx,.xls,.csv"
             className="hidden"
             onChange={(e) => {
               const f = e.target.files?.[0];
@@ -130,16 +139,17 @@ export default function ImportClient({
       {rows.length > 0 ? (
         <>
           <p className="text-sm text-zinc-500">
-            解析到 {rows.length} 笔（已过滤退款/未成功行）。分类空着也没关系，服务端会按关键词规则自动归类，剩下的手动补备注即可。
+            解析到 {rows.length} 笔（已过滤退款/关闭/未成功行；银行卡出资的支付宝·微信行请走银行明细导入，避免重复）。
+            转账行需选转入账户；分类空着会按关键词规则自动归类。
           </p>
           <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800">
                   <th className="px-3 py-2">日期</th>
                   <th className="px-3 py-2">对方 / 商品</th>
                   <th className="px-3 py-2">金额</th>
-                  <th className="px-3 py-2">分类（可改）</th>
+                  <th className="px-3 py-2">分类 / 转入</th>
                 </tr>
               </thead>
               <tbody>
@@ -147,33 +157,57 @@ export default function ImportClient({
                   <tr key={r.externalId} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800">
                     <td className="px-3 py-1.5">{r.date}</td>
                     <td className="max-w-[260px] truncate px-3 py-1.5">
+                      {r.type === "transfer" ? <span className="mr-1 rounded bg-indigo-100 px-1 text-xs text-indigo-700">转账</span> : null}
                       {r.counterparty}
                       {r.product ? <span className="text-zinc-400"> / {r.product}</span> : null}
                     </td>
-                    <td className={`px-3 py-1.5 font-mono ${r.type === "expense" ? "text-red-600" : "text-green-600"}`}>
-                      {r.type === "expense" ? "−" : "+"}¥{r.amount.toFixed(2)}
+                    <td className={`px-3 py-1.5 font-mono ${r.type === "expense" ? "text-red-600" : r.type === "income" ? "text-green-600" : ""}`}>
+                      {r.type === "expense" ? "−" : r.type === "income" ? "+" : "⇄"}¥{r.amount.toFixed(2)}
                     </td>
                     <td className="px-3 py-1.5">
-                      <select
-                        value={r.categoryId}
-                        onChange={(e) =>
-                          setRows((prev) =>
-                            prev.map((p) =>
-                              p.externalId === r.externalId ? { ...p, categoryId: e.target.value } : p,
-                            ),
-                          )
-                        }
-                        className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
-                      >
-                        <option value="">自动</option>
-                        {categories
-                          .filter((c) => c.kind === r.type)
-                          .map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                      </select>
+                      {r.type === "transfer" ? (
+                        <select
+                          value={r.toAccountId}
+                          onChange={(e) =>
+                            setRows((prev) =>
+                              prev.map((p) =>
+                                p.externalId === r.externalId ? { ...p, toAccountId: e.target.value } : p,
+                              ),
+                            )
+                          }
+                          className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                        >
+                          <option value="">转入账户…</option>
+                          {accounts
+                            .filter((a) => a.id !== accountId)
+                            .map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name}
+                              </option>
+                            ))}
+                        </select>
+                      ) : (
+                        <select
+                          value={r.categoryId}
+                          onChange={(e) =>
+                            setRows((prev) =>
+                              prev.map((p) =>
+                                p.externalId === r.externalId ? { ...p, categoryId: e.target.value } : p,
+                              ),
+                            )
+                          }
+                          className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                        >
+                          <option value="">自动</option>
+                          {categories
+                            .filter((c) => c.kind === r.type)
+                            .map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                        </select>
+                      )}
                     </td>
                   </tr>
                 ))}

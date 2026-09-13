@@ -6,15 +6,23 @@ import { createClient } from "@/lib/supabase/server";
 export type ImportPayloadRow = {
   date: string;
   amount: number;
-  type: "expense" | "income";
+  type: "expense" | "income" | "transfer";
   counterparty: string;
   externalId: string;
   categoryId: string | null;
+  toAccountId: string | null;
+  channel?: string;
   note: string;
 };
 
+const SOURCE_CHANNEL: Record<string, string> = {
+  alipay_import: "alipay",
+  wechat_import: "wechat",
+  bank_import: "direct",
+};
+
 export async function submitImport(
-  source: "alipay_import" | "wechat_import",
+  source: "alipay_import" | "wechat_import" | "bank_import",
   filename: string,
   accountId: string,
   rows: ImportPayloadRow[],
@@ -61,23 +69,28 @@ export async function submitImport(
     const { data: rules } = await supabase
       .from("category_rules")
       .select("keyword, category_id");
-    const channel = source === "alipay_import" ? "alipay" : "wechat";
+    const fallbackChannel = SOURCE_CHANNEL[source] ?? "other";
     const payload = fresh.map((r) => {
       let categoryId = r.categoryId;
-      if (!categoryId) {
+      if (!categoryId && r.type !== "transfer") {
         const hit = (rules ?? []).find(
           (rule) => rule.keyword && r.counterparty.includes(rule.keyword),
         );
         if (hit) categoryId = hit.category_id;
+      }
+      if (r.type === "transfer") {
+        if (!r.toAccountId) throw new Error(`转账行 ${r.date} 缺少转入账户`);
+        if (r.toAccountId === accountId) throw new Error(`转账行 ${r.date} 转入转出是同一账户`);
       }
       return {
         user_id: userId,
         date: r.date,
         amount: r.amount,
         type: r.type,
-        category_id: categoryId,
+        category_id: r.type === "transfer" ? null : categoryId,
         account_id: accountId,
-        channel,
+        to_account_id: r.type === "transfer" ? r.toAccountId : null,
+        channel: r.channel || fallbackChannel,
         counterparty: r.counterparty || null,
         source,
         external_id: r.externalId,

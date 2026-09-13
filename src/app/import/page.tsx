@@ -17,12 +17,19 @@ export default async function ImportPage() {
         .limit(50),
     ]);
 
+  const SOURCE_LABEL: Record<string, string> = {
+    alipay_import: "支付宝",
+    wechat_import: "微信支付",
+    bank_import: "银行明细",
+  };
+
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
         <h1 className="text-xl font-bold">导入</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          支持支付宝 / 微信账单 xlsx。同一文件重复导入会自动去重；分类按关键词规则归类，空的可手动补。
+          支持支付宝 / 微信账单（xlsx/csv，含 GBK）与建行活期明细（xls）。同一文件重复导入会自动去重；
+          银行卡出资的支付宝·微信行会被跳过，请走银行明细导入，避免重复记账。
         </p>
       </div>
 
@@ -39,7 +46,7 @@ export default async function ImportPage() {
               <span>
                 {b.filename}
                 <span className="ml-2 text-xs text-zinc-500">
-                  {b.source === "alipay_import" ? "支付宝" : "微信支付"}
+                  {SOURCE_LABEL[b.source] ?? b.source}
                 </span>
               </span>
               <span className="text-xs text-zinc-500">
