@@ -12,6 +12,13 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  function toFriendlyError(err: unknown): string {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("Invalid login credentials")) return "邮箱或密码不对，请重试";
+    if (msg.includes("User already registered")) return "该邮箱已注册，去登录";
+    return "登录失败，请检查网络后重试";
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -28,7 +35,7 @@ export default function LoginPage() {
       router.push("/");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "登录失败");
+      setError(toFriendlyError(err));
     } finally {
       setLoading(false);
     }
@@ -42,7 +49,11 @@ export default function LoginPage() {
         <p className="mt-3 text-xs text-dim">看清每笔钱从哪出、还剩多少</p>
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <label htmlFor="login-email" className="sr-only">
+          邮箱
+        </label>
         <input
+          id="login-email"
           type="email"
           required
           placeholder="邮箱"
@@ -51,7 +62,11 @@ export default function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           className="input"
         />
+        <label htmlFor="login-password" className="sr-only">
+          密码
+        </label>
         <input
+          id="login-password"
           type="password"
           required
           minLength={6}
@@ -61,7 +76,11 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           className="input"
         />
-        {error ? <p className="text-sm text-ember">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-sm text-ember">
+            {error}
+          </p>
+        ) : null}
         <button type="submit" disabled={loading} className="btn-primary disabled:opacity-50">
           {loading ? "请稍候…" : mode === "signin" ? "登录" : "注册"}
         </button>
