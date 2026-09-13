@@ -13,6 +13,22 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const DIGITS = "零一二三四五六七八九";
+
+function cnMonth(m: number) {
+  if (m <= 10) return m === 10 ? "十月" : `${DIGITS[m]}月`;
+  return m === 11 ? "十一月" : "十二月";
+}
+
+function cnYearMonth(key: string) {
+  const [y, m] = key.split("-");
+  const year = y
+    .split("")
+    .map((d) => DIGITS[Number(d)])
+    .join("");
+  return `${year}年${cnMonth(Number(m))}`;
+}
+
 function formatMoney(n: number) {
   return n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -58,7 +74,6 @@ export default async function Home() {
   const assets = assetCurve(initialTotal, txs, 30, now);
   const cur = trend[trend.length - 1] ?? { expense: 0, income: 0 };
 
-  // 本月各分类已花（预算进度用）
   const spent = new Map<string, number>();
   for (const t of txs) {
     if (t.type !== "expense" || !t.date.startsWith(curMonth)) continue;
@@ -69,58 +84,75 @@ export default async function Home() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
-        <h1 className="text-xl font-bold">总览 · {curMonth}</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          总资产 ¥{formatMoney(total)} · 本月支出 ¥{formatMoney(cur.expense)} · 本月收入 ¥
-          {formatMoney(cur.income)}
+        <p className="eyebrow">{cnYearMonth(curMonth)} · 本月账</p>
+        <p className="money mt-2 text-5xl font-semibold tracking-tight text-ink">
+          <span className="text-lamp">¥</span>
+          {formatMoney(total)}
         </p>
+        <div className="lamp-line mt-4" />
+        <div className="mt-3 flex items-center gap-4 text-sm">
+          <span className="text-dim">
+            本月支出 <span className="money font-semibold text-ember">¥{formatMoney(cur.expense)}</span>
+          </span>
+          <span className="h-4 w-px bg-fogline" />
+          <span className="text-dim">
+            本月收入 <span className="money font-semibold text-jade">¥{formatMoney(cur.income)}</span>
+          </span>
+        </div>
       </div>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="mb-2 font-semibold">近 6 个月收支趋势</h2>
+      <section className="panel p-5">
+        <p className="eyebrow">趋势</p>
+        <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">近 6 个月收支趋势</h2>
         <TrendChart data={trend} />
       </section>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <h2 className="mb-2 font-semibold">本月支出占比</h2>
+        <section className="panel p-5">
+          <p className="eyebrow">构成</p>
+          <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">本月支出占比</h2>
           {share.length > 0 ? (
             <ShareChart data={share} />
           ) : (
-            <p className="text-sm text-zinc-400">本月还没有支出</p>
+            <p className="mt-2 text-sm text-dim">本月还没有支出，记一笔就有了</p>
           )}
         </section>
-        <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <h2 className="mb-2 font-semibold">近 30 天总资产曲线</h2>
+        <section className="panel p-5">
+          <p className="eyebrow">资产</p>
+          <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">近 30 天总资产曲线</h2>
           <AssetChart data={assets} />
         </section>
       </div>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="mb-2 font-semibold">各账户余额</h2>
-        <ul className="flex flex-col gap-1 text-sm">
+      <section className="panel p-5">
+        <p className="eyebrow">资产</p>
+        <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">各账户余额</h2>
+        <ul className="mt-2 flex flex-col text-sm">
           {(accounts ?? []).map((a) => (
-            <li key={a.id} className="flex justify-between">
-              <span>{a.name}</span>
-              <span className="font-mono">¥{formatMoney(balances.get(a.id) ?? 0)}</span>
+            <li key={a.id} className="flex items-center justify-between rounded-md px-2 py-2 transition-colors duration-150 hover:bg-veil">
+              <span className="text-ink">{a.name}</span>
+              <span className="money text-ink">¥{formatMoney(balances.get(a.id) ?? 0)}</span>
             </li>
           ))}
           {(accounts ?? []).length === 0 ? (
-            <li className="text-zinc-400">
-              还没有账户，去<Link href="/accounts" className="underline underline-offset-4">账户页</Link>建一个
+            <li className="px-2 py-2 text-dim">
+              还没有账户，先去<Link href="/accounts" className="link-subtle">账户页</Link>建一个（例如：银行卡 / 零钱通）
             </li>
           ) : null}
         </ul>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <section className="panel p-5">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">本月预算进度</h2>
-          <Link href="/settings" className="text-xs text-zinc-500 underline underline-offset-4">
+          <div>
+            <p className="eyebrow">预算</p>
+            <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">本月预算进度</h2>
+          </div>
+          <Link href="/settings" className="link-subtle text-xs">
             去设置上限
           </Link>
         </div>
-        <ul className="mt-2 flex flex-col gap-3">
+        <ul className="mt-3 flex flex-col gap-3">
           {(budgets ?? []).map((b, i) => {
             const cat = Array.isArray(b.category)
               ? b.category[0]
@@ -132,17 +164,17 @@ export default async function Home() {
             return (
               <li key={i} className="text-sm">
                 <div className="flex justify-between">
-                  <span>
+                  <span className="text-ink">
                     {cat?.name ?? "未知分类"}
-                    {over ? <span className="ml-2 text-xs font-semibold text-red-600">超支！</span> : null}
+                    {over ? <span className="ml-2 text-xs font-semibold text-ember">超支</span> : null}
                   </span>
-                  <span className="font-mono text-xs">
+                  <span className="money text-xs text-dim">
                     ¥{formatMoney(used)} / ¥{formatMoney(limit)}
                   </span>
                 </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-veil">
                   <div
-                    className={`h-full rounded-full ${over ? "bg-red-500" : "bg-indigo-500"}`}
+                    className={`h-full rounded-full ${over ? "bg-ember" : "bg-ink/70"}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -150,7 +182,7 @@ export default async function Home() {
             );
           })}
           {(budgets ?? []).length === 0 ? (
-            <li className="text-sm text-zinc-400">本月没设预算，在设置页加一条试试</li>
+            <li className="text-sm text-dim">本月还没设预算，在设置页给支出分类加一条上限试试</li>
           ) : null}
         </ul>
       </section>
