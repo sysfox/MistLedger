@@ -212,6 +212,11 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 **CSS 优先级纪律**：组件类只定义自身属性，页面用 Tailwind 工具类补充间距/字号；禁止在页面里用元素选择器覆盖组件类。
 
+**已批准的例外**（仅以下两处，其余一律按契约执行）：
+
+- 设置页分类列表 `chip + text-ink`：已创建的分类是用户资产的一部分，用 `text-ink` 提高可读，对比度优先于“未选中态用 dim”的默认规则。
+- 导入页文件选择 `input + border-dashed`：文件拖放/点选区用虚线雾线边框以表达“可投放”，hover 时 `border-lamp/60`；焦点环仍为灯色不变。
+
 ---
 
 ## 九、图表主题（Recharts）
@@ -253,7 +258,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 5. ❌ `dark:` 变体（全站常夜，无需变体）。
 6. ❌ zinc/neutral/slate 灰阶——用 night/mist/veil/fogline/dim。
 7. ❌ 非 mono 字体的金额。
-8. ❌ 动画时长 > 500ms；reduced-motion 下仍会动的元素。
+8. ❌ 单次转场/微交互动画 > 500ms；reduced-motion 下仍会动的元素。`fog-drift` / `lamp-breathe` / `skeleton-pulse` 为持续环境类豁免（不计入 500ms 上限），但必须受 `prefers-reduced-motion` 约束静止。
 9. ❌ 焦点环被移除或换成非灯色。
 10. ❌ 编号装饰（01/02/03）、emoji 图标、拟物阴影堆叠。
 
@@ -269,3 +274,4 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 - 2026-09-13 · 初版：确立「雾里点灯看账」理念、常夜模式、灯线签名、雾散转场、组件契约。
 - 2026-09-13 · 契约全站落地：globals.css 建立全部令牌与组件类；layout 接入 Noto Serif SC / Noto Sans SC / Geist Mono；新增 template.tsx（雾散显影转场）与 loading.tsx（掌灯加载）；导航激活灯线；图表骨架灯下化；总览/登录/记账/账户/导入/设置六页全部按契约重写，清除 zinc 与 red/green/indigo 标准色。lint 与 build 通过。
+- 2026-09-14 · 焦点与导航可达性：`.btn-ghost` / `.link-subtle` / `.chip` / `.chip-active` 补 `:focus-visible` 灯环（`0 0 0 2px rgba(227,179,65,.6)`），`.chip` 追加 `:focus-within` 环；`.input` / `.btn-primary` 的 `:focus` 改为 `:focus-visible` 与导航对齐；导航在 `/login` 隐藏，nav 容器加横滑（`overflow-x-auto + whitespace-nowrap`，链接 `min-h-[44px]`）；禁忌#8 明确为单次转场/微交互 > 500ms，环境类动画豁免但受 reduced-motion 约束；第八节追加 settings chip 与 import 虚线 input 例外说明。

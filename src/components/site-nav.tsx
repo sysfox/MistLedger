@@ -19,6 +19,8 @@ export default function SiteNav() {
   const pathname = usePathname();
   const router = useRouter();
 
+  if (pathname === "/login") return null;
+
   async function signOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -28,18 +30,18 @@ export default function SiteNav() {
 
   return (
     <header className="border-b border-fogline bg-night/80 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-4 py-3">
-        <Link href="/" className={`font-display font-semibold text-ink ${FOCUS_RING}`}>
+      <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 px-4 py-3">
+        <Link href="/" className={`shrink-0 font-display font-semibold text-ink ${FOCUS_RING}`}>
           雾夜账
         </Link>
-        <nav className="flex items-center gap-3 text-sm sm:gap-4">
+        <nav className="flex items-center gap-1 overflow-x-auto whitespace-nowrap text-sm sm:gap-2">
           {LINKS.map((l) => {
             const active = pathname === l.href;
             return (
               <Link
                 key={l.href}
                 href={l.href}
-                className={`${active ? "text-ink" : "text-dim hover:text-ink"} ${FOCUS_RING}`}
+                className={`flex min-h-[44px] items-center px-2 py-2 ${active ? "text-ink" : "text-dim hover:text-ink"} ${FOCUS_RING}`}
               >
                 <span className="flex flex-col items-center">
                   {l.label}
@@ -51,7 +53,7 @@ export default function SiteNav() {
           <button
             type="button"
             onClick={signOut}
-            className="btn-ghost outline-none focus-visible:ring-2 focus-visible:ring-lamp/60"
+            className="btn-ghost flex min-h-[44px] shrink-0 items-center px-2 py-2 outline-none focus-visible:ring-2 focus-visible:ring-lamp/60"
           >
             退出
           </button>
