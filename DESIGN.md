@@ -268,3 +268,4 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 ## 变更记录
 
 - 2026-09-13 · 初版：确立「雾里点灯看账」理念、常夜模式、灯线签名、雾散转场、组件契约。
+- 2026-09-13 · 契约全站落地：globals.css 建立全部令牌与组件类；layout 接入 Noto Serif SC / Noto Sans SC / Geist Mono；新增 template.tsx（雾散显影转场）与 loading.tsx（掌灯加载）；导航激活灯线；图表骨架灯下化；总览/登录/记账/账户/导入/设置六页全部按契约重写，清除 zinc 与 red/green/indigo 标准色。lint 与 build 通过。
