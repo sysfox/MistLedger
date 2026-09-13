@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { CHANNELS } from "@/lib/ledger/constants";
 import { createTransaction } from "./actions";
 
@@ -13,6 +13,25 @@ const TYPES = [
   { value: "transfer", label: "转账" },
 ];
 
+const ACCOUNT_LABEL: Record<string, string> = {
+  expense: "账户",
+  income: "收入账户",
+  transfer: "转出账户",
+};
+
+const ACCOUNT_PLACEHOLDER: Record<string, string> = {
+  expense: "账户（钱从哪出）",
+  income: "收入账户（钱进哪）",
+  transfer: "转出账户",
+};
+
+function localToday() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 export default function TransactionForm({
   accounts,
   categories,
@@ -21,13 +40,24 @@ export default function TransactionForm({
   categories: Category[];
 }) {
   const [type, setType] = useState("expense");
+  const dateRef = useRef<HTMLInputElement>(null);
+  const [state, formAction, pending] = useActionState(createTransaction, null);
   const visibleCategories = categories.filter((c) =>
     type === "income" ? c.kind === "income" : c.kind === "expense",
   );
-  const today = new Date().toISOString().slice(0, 10);
+
+  useEffect(() => {
+    const el = dateRef.current;
+    if (!el) return;
+    const today = localToday();
+    el.defaultValue = today;
+    el.value = today;
+  }, []);
+
+  const isIncome = type === "income";
 
   return (
-    <form action={createTransaction} className="panel flex flex-col gap-3 p-5">
+    <form action={formAction} className="panel flex flex-col gap-3 p-5">
       <p className="eyebrow">记一笔</p>
       <h2 className="font-display text-[17px] font-semibold text-ink">新建流水</h2>
       <div className="flex gap-2 text-sm">
@@ -54,7 +84,14 @@ export default function TransactionForm({
         <label className="sr-only" htmlFor="tx-date">
           日期
         </label>
-        <input id="tx-date" name="date" type="date" required defaultValue={today} className="input" />
+        <input
+          ref={dateRef}
+          id="tx-date"
+          name="date"
+          type="date"
+          required
+          className="input"
+        />
         <label className="sr-only" htmlFor="tx-amount">
           金额
         </label>
@@ -65,14 +102,16 @@ export default function TransactionForm({
           step="0.01"
           min="0.01"
           required
+          inputMode="decimal"
+          enterKeyHint="done"
           placeholder="金额"
           className="input w-32"
         />
         <label className="sr-only" htmlFor="tx-account">
-          {type === "transfer" ? "转出账户" : "账户"}
+          {ACCOUNT_LABEL[type]}
         </label>
-        <select id="tx-account" name="account_id" required className="input" aria-label={type === "transfer" ? "转出账户" : "账户（钱从哪出）"}>
-          <option value="">{type === "transfer" ? "转出账户" : "账户（钱从哪出）"}</option>
+        <select id="tx-account" name="account_id" required className="input">
+          <option value="">{ACCOUNT_PLACEHOLDER[type]}</option>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name}
@@ -84,7 +123,7 @@ export default function TransactionForm({
             <label className="sr-only" htmlFor="tx-to-account">
               转入账户
             </label>
-            <select id="tx-to-account" name="to_account_id" required className="input" aria-label="转入账户">
+            <select id="tx-to-account" name="to_account_id" required className="input">
               <option value="">转入账户</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -98,7 +137,7 @@ export default function TransactionForm({
             <label className="sr-only" htmlFor="tx-category">
               分类
             </label>
-            <select id="tx-category" name="category_id" className="input" aria-label="分类">
+            <select key={type} id="tx-category" name="category_id" className="input">
               <option value="">分类（可选）</option>
               {visibleCategories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -109,9 +148,9 @@ export default function TransactionForm({
           </>
         )}
         <label className="sr-only" htmlFor="tx-channel">
-          渠道
+          {isIncome ? "来源渠道" : "渠道"}
         </label>
-        <select id="tx-channel" name="channel" className="input" aria-label="渠道">
+        <select id="tx-channel" name="channel" className="input">
           {CHANNELS.map((c) => (
             <option key={c.value} value={c.value}>
               {c.label}
@@ -127,7 +166,7 @@ export default function TransactionForm({
           id="tx-counterparty"
           name="counterparty"
           maxLength={50}
-          placeholder="交易对方（可选）"
+          placeholder={isIncome ? "对方（可选，如：发红包的人）" : "交易对方（可选）"}
           className="input flex-1"
         />
         <label className="sr-only" htmlFor="tx-note">
@@ -135,8 +174,18 @@ export default function TransactionForm({
         </label>
         <input id="tx-note" name="note" maxLength={100} placeholder="备注（可选）" className="input flex-1" />
       </div>
-      <button type="submit" className="btn-primary w-fit">
-        保存
+      {state && !state.ok ? (
+        <p role="alert" className="rounded-md bg-veil px-3 py-2 text-sm text-ember">
+          {state.message}
+        </p>
+      ) : null}
+      {state?.ok ? (
+        <p aria-live="polite" className="rounded-md bg-veil px-3 py-2 text-sm text-jade">
+          {state.message}
+        </p>
+      ) : null}
+      <button type="submit" disabled={pending} className="btn-primary w-fit disabled:opacity-60">
+        {pending ? "保存中…" : "保存"}
       </button>
     </form>
   );

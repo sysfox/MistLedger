@@ -1,13 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { channelLabel } from "@/lib/ledger/constants";
+import { formatMoney } from "@/lib/ledger/format";
 import TransactionForm from "./transaction-form";
-import { deleteTransaction } from "./actions";
+import DeleteTransactionButton from "./delete-transaction-button";
 
 export const dynamic = "force-dynamic";
-
-function formatMoney(n: number) {
-  return n.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 const TYPE_LABEL: Record<string, string> = { expense: "支出", income: "收入", transfer: "转账" };
 const TYPE_COLOR: Record<string, string> = {
@@ -57,6 +54,7 @@ export default async function LedgerPage() {
           const toAcc = Array.isArray(t.to_account)
             ? t.to_account[0]?.name
             : (t.to_account as unknown as { name: string } | null)?.name;
+          const fromAcc = accountMap.get(t.account_id) ?? "未知账户";
           return (
             <li key={t.id} className="panel flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
               <div className="min-w-0">
@@ -67,20 +65,27 @@ export default async function LedgerPage() {
                   {t.note ? <span className="ml-2 text-dim">{t.note}</span> : null}
                 </p>
                 <p className="text-xs text-dim">
-                  {t.date} · {accountMap.get(t.account_id) ?? "未知账户"} · {channelLabel(t.channel)}
+                  {t.date} · {fromAcc} · {channelLabel(t.channel)}
                   {t.counterparty ? ` · ${t.counterparty}` : null}
                   {t.source !== "manual" ? " · 导入" : null}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                <span className={`money font-semibold ${AMOUNT_COLOR[t.type] ?? "text-ink"}`}>
-                  {AMOUNT_PREFIX[t.type] ?? ""}¥{formatMoney(Number(t.amount))}
-                </span>
-                <form action={deleteTransaction.bind(null, t.id)}>
-                  <button type="submit" className="rounded-sm text-xs text-dim hover:text-ember focus-visible:ring-2 focus-visible:ring-lamp/60">
-                    删除
-                  </button>
-                </form>
+                {t.type === "transfer" ? (
+                  <span className={`money font-semibold ${AMOUNT_COLOR[t.type] ?? "text-ink"}`}>
+                    <span className="sr-only">
+                      转账 {formatMoney(Number(t.amount))} 元，从 {fromAcc} 到 {toAcc ?? "未知账户"}
+                    </span>
+                    <span aria-hidden="true">
+                      {AMOUNT_PREFIX[t.type] ?? ""}¥{formatMoney(Number(t.amount))}
+                    </span>
+                  </span>
+                ) : (
+                  <span className={`money font-semibold ${AMOUNT_COLOR[t.type] ?? "text-ink"}`}>
+                    {AMOUNT_PREFIX[t.type] ?? ""}¥{formatMoney(Number(t.amount))}
+                  </span>
+                )}
+                <DeleteTransactionButton id={t.id} />
               </div>
             </li>
           );
