@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Serif_SC, Noto_Sans_SC, Geist_Mono } from "next/font/google";
 import SiteNav from "@/components/site-nav";
 import "./globals.css";
@@ -25,13 +25,20 @@ export const metadata: Metadata = {
   description: "看清每笔钱从哪出、还剩多少",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0a0e14",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="zh-CN"
       className={`${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col pb-[calc(57px+env(safe-area-inset-bottom))] sm:pb-0">
         <SiteNav />
         {children}
       </body>
