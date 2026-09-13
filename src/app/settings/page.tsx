@@ -14,22 +14,20 @@ type Category = { id: string; name: string };
 function CategoryGroup({ title, items }: { title: string; items: Category[] }) {
   return (
     <section>
-      <h2 className="font-semibold">{title}</h2>
-      <ul className="mt-2 flex flex-wrap gap-2">
+      <p className="eyebrow">分类</p>
+      <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">{title}</h2>
+      <ul className="mt-3 flex flex-wrap gap-2">
         {items.map((c) => (
-          <li
-            key={c.id}
-            className="flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1 text-sm dark:border-zinc-700"
-          >
+          <li key={c.id} className="chip flex items-center gap-2 text-ink">
             {c.name}
             <form action={deleteCategory.bind(null, c.id)}>
-              <button type="submit" className="text-xs text-zinc-400 hover:text-red-500" title="删除">
+              <button type="submit" className="text-xs text-dim hover:text-ember" title="删除">
                 ×
               </button>
             </form>
           </li>
         ))}
-        {items.length === 0 ? <li className="text-sm text-zinc-400">暂无</li> : null}
+        {items.length === 0 ? <li className="text-sm text-dim">暂无</li> : null}
       </ul>
     </section>
   );
@@ -54,38 +52,35 @@ export default async function SettingsPage() {
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
-        <h1 className="text-xl font-bold">设置</h1>
-        <p className="mt-1 text-sm text-zinc-500">分类可自定义；下面可设每月各分类上限</p>
+        <p className="eyebrow">账房规则</p>
+        <h1 className="mt-1 font-display text-[22px] font-semibold text-ink">设置</h1>
+        <p className="mt-1 text-sm text-dim">分类可自定义；下面可设每月各分类上限</p>
       </div>
 
       <CategoryGroup title="支出分类" items={expense} />
       <CategoryGroup title="收入分类" items={income} />
 
-      <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 sm:flex-row sm:items-end dark:border-zinc-800">
-        <form action={createCategory} className="flex flex-1 gap-2">
+      <div className="panel flex flex-col gap-3 p-5">
+        <p className="eyebrow">添加</p>
+        <h2 className="font-display text-[17px] font-semibold text-ink">新建分类</h2>
+        <form action={createCategory} className="flex flex-wrap gap-2">
           <input
             name="name"
             required
             maxLength={20}
             placeholder="新分类名称"
-            className="flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="input flex-1"
           />
-          <select
-            name="kind"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          >
+          <select name="kind" className="input">
             <option value="expense">支出</option>
             <option value="income">收入</option>
           </select>
-          <button
-            type="submit"
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-          >
+          <button type="submit" className="btn-primary">
             添加
           </button>
         </form>
         <form action={ensureDefaultCategories}>
-          <button type="submit" className="text-sm text-zinc-500 underline underline-offset-4">
+          <button type="submit" className="link-subtle text-sm">
             一键补齐默认分类
           </button>
         </form>
@@ -93,8 +88,9 @@ export default async function SettingsPage() {
 
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="font-semibold">本月预算（预留功能：只展示进度，不拦截）</h2>
-          <p className="mt-1 text-sm text-zinc-500">给支出分类设每月上限，总览页会显示进度条和超支提醒</p>
+          <p className="eyebrow">预算</p>
+          <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">本月预算（预留功能：只展示进度，不拦截）</h2>
+          <p className="mt-1 text-sm text-dim">给支出分类设每月上限，总览页会显示进度条和超支提醒</p>
         </div>
         <ul className="flex flex-col gap-2 text-sm">
           {(budgets ?? []).map((b) => {
@@ -102,16 +98,13 @@ export default async function SettingsPage() {
               ? b.category[0]?.name
               : (b.category as unknown as { name: string } | null)?.name;
             return (
-              <li
-                key={b.id}
-                className="flex items-center justify-between rounded-lg border border-zinc-200 px-4 py-2 dark:border-zinc-800"
-              >
-                <span>
+              <li key={b.id} className="panel flex items-center justify-between px-4 py-2">
+                <span className="text-ink">
                   {cat ?? "未知分类"}
-                  <span className="ml-2 font-mono">¥{Number(b.limit_amount).toFixed(2)}</span>
+                  <span className="money ml-2 text-dim">¥{Number(b.limit_amount).toFixed(2)}</span>
                 </span>
                 <form action={deleteBudget.bind(null, b.id)}>
-                  <button type="submit" className="text-xs text-zinc-400 hover:text-red-500">
+                  <button type="submit" className="text-xs text-dim hover:text-ember">
                     删除
                   </button>
                 </form>
@@ -119,25 +112,18 @@ export default async function SettingsPage() {
             );
           })}
           {(budgets ?? []).length === 0 ? (
-            <li className="text-sm text-zinc-400">本月还没设预算</li>
+            <li className="text-sm text-dim">本月还没设预算</li>
           ) : null}
         </ul>
-        <form
-          action={createBudget}
-          className="flex flex-wrap gap-2 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-        >
+        <form action={createBudget} className="panel flex flex-wrap gap-2 p-4">
           <input
             name="month"
             type="month"
             required
             defaultValue={currentMonth.slice(0, 7)}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="input"
           />
-          <select
-            name="category_id"
-            required
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          >
+          <select name="category_id" required className="input">
             <option value="">支出分类</option>
             {expense.map((c) => (
               <option key={c.id} value={c.id}>
@@ -152,12 +138,9 @@ export default async function SettingsPage() {
             min="0.01"
             required
             placeholder="上限金额"
-            className="w-32 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="input w-32"
           />
-          <button
-            type="submit"
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-          >
+          <button type="submit" className="btn-primary">
             保存
           </button>
         </form>
