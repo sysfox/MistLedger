@@ -26,6 +26,9 @@ const TYPE_COLOR: Record<string, string> = {
 const AMOUNT_PREFIX: Record<string, string> = { expense: "−", income: "+", transfer: "⇄" };
 
 const LIST_LIMIT = 200;
+const FETCH_LIMIT = 5000;
+const DAY_CHOICES = [30, 90, 180];
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function localToday() {
   const now = new Date();
@@ -48,6 +51,22 @@ function prevMonthKey(key: string) {
   return monthKey(dt);
 }
 
+function monthEnd(key: string) {
+  const [y, m] = key.split("-").map(Number);
+  const dt = new Date(y, m, 0);
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${dt.getFullYear()}-${mm}-${dd}`;
+}
+
+function snapDays(raw: number | undefined) {
+  if (raw == null || !Number.isFinite(raw)) return 90;
+  const v = Math.round(raw);
+  if (v < DAY_CHOICES[0]) return DAY_CHOICES[0];
+  if (v > 365) return DAY_CHOICES[DAY_CHOICES.length - 1];
+  return DAY_CHOICES.reduce((best, d) => (Math.abs(d - v) < Math.abs(best - v) ? d : best), DAY_CHOICES[0]);
+}
+
 export default async function DataPage({
   searchParams,
 }: {
@@ -63,24 +82,25 @@ export default async function DataPage({
   const today = localToday();
   const curMonth = monthKey(new Date());
 
-  // 曲线参数：资产曲线天数（不影响查询条件）
-  const daysRaw = Number(get("days"));
-  const days = Number.isFinite(daysRaw) && daysRaw >= 7 && daysRaw <= 365 ? Math.round(daysRaw) : 90;
+  // 曲线参数：资产曲线天数（吸附到 30/90/180，不影响查询条件）
+  const days = snapDays(Number(get("days")));
 
-  // 自定义查询条件
+  // 自定义查询条件（非法值安全降级为缺省）
   const typeRaw = get("type");
   const type = ["expense", "income", "transfer", "all"].includes(typeRaw ?? "") ? typeRaw : undefined;
+  const fromRaw = get("from");
+  const toRaw = get("to");
   const minRaw = Number(get("min"));
   const maxRaw = Number(get("max"));
   const filter = {
-    from: get("from"),
-    to: get("to"),
+    from: fromRaw && DATE_RE.test(fromRaw) ? fromRaw : undefined,
+    to: toRaw && DATE_RE.test(toRaw) ? toRaw : undefined,
     type,
     category: get("cat"),
     account: get("acc"),
-    min: Number.isFinite(minRaw) ? minRaw : undefined,
-    max: Number.isFinite(maxRaw) ? maxRaw : undefined,
-    q: get("q"),
+    min: Number.isFinite(minRaw) && minRaw >= 0 ? minRaw : undefined,
+    max: Number.isFinite(maxRaw) && maxRaw >= 0 ? maxRaw : undefined,
+    q: get("q")?.slice(0, 100),
   };
   const hasFilter = Boolean(
     filter.from || filter.to || filter.type || filter.category || filter.account || filter.q || get("min") || get("max"),
@@ -96,24 +116,23 @@ export default async function DataPage({
       )
       .order("date", { ascending: false })
       .order("created_at", { ascending: false })
-      .limit(5000),
+      .limit(FETCH_LIMIT),
   ]);
 
   const txs = (transactions ?? []).map((t) => ({ ...t, amount: Number(t.amount) }));
   const accountName = new Map((accounts ?? []).map((a) => [a.id, a.name]));
   const catName = new Map((categories ?? []).map((c) => [c.id, c.name]));
 
-  // 曲线数据
+  // 曲线数据：资产曲线口径与总览页一致，只统计启用账户的收支
   const trend = monthlyTrend(txs, lastMonths(12, new Date()));
-  const activeInitial = (accounts ?? [])
-    .filter((a) => a.is_active)
-    .reduce((s, a) => s + Number(a.initial_balance), 0);
-  const assets = assetCurve(activeInitial, txs, days, new Date());
+  const activeAccounts = (accounts ?? []).filter((a) => a.is_active);
+  const activeInitial = activeAccounts.reduce((s, a) => s + Number(a.initial_balance), 0);
+  const activeIds = new Set(activeAccounts.map((a) => a.id));
+  const curveTxs = txs.filter((t) => t.type === "transfer" || activeIds.has(t.account_id));
+  const assets = assetCurve(activeInitial, curveTxs, days, new Date());
 
   // 查询结果（默认本月全部）
-  const effective = hasFilter
-    ? filter
-    : { ...filter, from: `${curMonth}-01`, to: today };
+  const effective = hasFilter ? filter : { ...filter, from: `${curMonth}-01`, to: today };
   const matched = filterTxs(txs, effective);
   const summary = summarizeTxs(matched);
   const listed = matched.slice(0, LIST_LIMIT);
@@ -130,11 +149,24 @@ export default async function DataPage({
     }))
     .sort((a, b) => b.value - a.value);
 
+  // URL 构造：天数与查询条件互不覆盖
+  const queryQs = new URLSearchParams();
+  if (filter.from) queryQs.set("from", filter.from);
+  if (filter.to) queryQs.set("to", filter.to);
+  if (filter.type && filter.type !== "all") queryQs.set("type", filter.type);
+  if (filter.category) queryQs.set("cat", filter.category);
+  if (filter.account) queryQs.set("acc", filter.account);
+  if (get("min")) queryQs.set("min", get("min") as string);
+  if (get("max")) queryQs.set("max", get("max") as string);
+  if (filter.q) queryQs.set("q", filter.q);
+  const daysQs = days !== 90 ? `&days=${days}` : "";
+
   // 常用查询预设
+  const prevMonth = prevMonthKey(curMonth);
   const presets = [
     { label: "本月支出", params: `type=expense&from=${curMonth}-01&to=${today}` },
     { label: "本月收入", params: `type=income&from=${curMonth}-01&to=${today}` },
-    { label: "上月支出", params: `type=expense&from=${prevMonthKey(curMonth)}-01&to=${prevMonthKey(curMonth)}-31` },
+    { label: "上月支出", params: `type=expense&from=${prevMonth}-01&to=${monthEnd(prevMonth)}` },
     { label: "近 7 天支出", params: `type=expense&from=${shiftDays(today, -6)}&to=${today}` },
     { label: "近 30 天支出", params: `type=expense&from=${shiftDays(today, -29)}&to=${today}` },
     { label: "未分类支出", params: "type=expense&cat=none" },
@@ -152,7 +184,7 @@ export default async function DataPage({
       <section className="panel p-5">
         <p className="eyebrow">趋势</p>
         <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">近 12 个月收支趋势</h2>
-        <TrendChart data={trend} />
+        <TrendChart data={trend} label="近 12 个月每月支出与收入柱状趋势图" />
       </section>
 
       <section className="panel p-5">
@@ -162,19 +194,23 @@ export default async function DataPage({
             <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">总资产曲线</h2>
           </div>
           <div className="flex gap-2 text-sm" role="group" aria-label="资产曲线范围">
-            {[30, 90, 180].map((d) => (
+            {DAY_CHOICES.map((d) => (
               <Link
                 key={d}
-                href={`/data?days=${d}`}
+                href={`/data?${(() => {
+                  const qs = new URLSearchParams(queryQs);
+                  qs.set("days", String(d));
+                  return qs.toString();
+                })()}`}
                 aria-current={days === d ? "true" : undefined}
-                className={`min-h-[32px] px-3 py-1 leading-6 ${days === d ? "chip-active" : "chip"}`}
+                className={`chip inline-flex min-h-[44px] items-center px-3 ${days === d ? "chip-active" : ""}`}
               >
                 {d} 天
               </Link>
             ))}
           </div>
         </div>
-        <AssetChart data={assets} />
+        <AssetChart data={assets} label={`近 ${days} 天总资产曲线图`} />
       </section>
 
       <section className="panel p-5">
@@ -183,7 +219,10 @@ export default async function DataPage({
         <ul className="mt-3 flex flex-wrap gap-2">
           {presets.map((p) => (
             <li key={p.label}>
-              <Link href={`/data?${p.params}`} className="chip inline-flex min-h-[36px] items-center px-3 py-1">
+              <Link
+                href={`/data?${p.params}${daysQs}`}
+                className="chip inline-flex min-h-[44px] items-center px-3"
+              >
                 {p.label}
               </Link>
             </li>
@@ -200,20 +239,20 @@ export default async function DataPage({
             categories={(categories ?? []).map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
             days={days}
             current={{
-              from: get("from") ?? "",
-              to: get("to") ?? "",
+              from: filter.from ?? "",
+              to: filter.to ?? "",
               type: type ?? "all",
               cat: get("cat") ?? "",
               acc: get("acc") ?? "",
               min: get("min") ?? "",
               max: get("max") ?? "",
-              q: get("q") ?? "",
+              q: filter.q ?? "",
             }}
           />
         </Suspense>
       </section>
 
-      <section className="panel p-5">
+      <section id="results" className="panel p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <p className="eyebrow">查询结果</p>
@@ -221,16 +260,25 @@ export default async function DataPage({
               {hasFilter ? "符合条件的流水" : "本月全部流水"}
             </h2>
           </div>
-          <p className="text-sm text-dim">
-            共 <span className="money text-ink">{summary.count}</span> 笔
+          <p aria-live="polite" className="text-sm text-dim">
+            共 <span className="money text-ink">{summary.count.toLocaleString("zh-CN")}</span> 笔
             <span className="mx-2 text-fogline" aria-hidden="true">·</span>
-            支出 <span className="money text-ember">−¥{formatMoney(summary.expense)}</span>
+            <span className="money text-ember">
+              <span className="sr-only">支出 {formatMoney(summary.expense)} 元</span>
+              <span aria-hidden="true">−¥{formatMoney(summary.expense)}</span>
+            </span>
             <span className="mx-2 text-fogline" aria-hidden="true">·</span>
-            收入 <span className="money text-jade">+¥{formatMoney(summary.income)}</span>
+            <span className="money text-jade">
+              <span className="sr-only">收入 {formatMoney(summary.income)} 元</span>
+              <span aria-hidden="true">+¥{formatMoney(summary.income)}</span>
+            </span>
             {summary.transfer > 0 ? (
               <>
                 <span className="mx-2 text-fogline" aria-hidden="true">·</span>
-                转账 <span className="money text-ink">⇄¥{formatMoney(summary.transfer)}</span>
+                <span className="money text-ink">
+                  <span className="sr-only">转账 {formatMoney(summary.transfer)} 元</span>
+                  <span aria-hidden="true">⇄¥{formatMoney(summary.transfer)}</span>
+                </span>
               </>
             ) : null}
           </p>
@@ -239,8 +287,14 @@ export default async function DataPage({
         {summary.expense > 0 ? (
           <div className="mt-4">
             <p className="text-xs text-dim">支出构成</p>
-            <ShareChart data={shareData} />
+            <ShareChart data={shareData} label="查询结果支出分类占比饼图" />
           </div>
+        ) : null}
+
+        {(transactions ?? []).length >= FETCH_LIMIT ? (
+          <p className="mt-3 rounded-md bg-veil px-3 py-2 text-xs text-dim">
+            流水较多，本页仅统计最近 {FETCH_LIMIT.toLocaleString("zh-CN")} 笔，更早的流水请用更窄的日期区间查
+          </p>
         ) : null}
 
         <ul className="mt-3 flex flex-col gap-2">
@@ -249,10 +303,7 @@ export default async function DataPage({
             const toAcc = t.to_account_id ? (accountName.get(t.to_account_id) ?? "未知账户") : null;
             const fromAcc = accountName.get(t.account_id) ?? "未知账户";
             return (
-              <li
-                key={t.id}
-                className="flex items-center justify-between gap-3 rounded-md px-2 py-2 text-sm transition-colors duration-150 hover:bg-veil"
-              >
+              <li key={t.id} className="flex items-center justify-between gap-3 px-2 py-2 text-sm">
                 <div className="min-w-0">
                   <p className="truncate text-ink">
                     <span className={`font-medium ${TYPE_COLOR[t.type] ?? "text-ink"}`}>
@@ -276,12 +327,12 @@ export default async function DataPage({
           })}
           {listed.length === 0 ? (
             <li className="rounded-xl border border-dashed border-fogline px-4 py-6 text-center text-sm text-dim">
-              这个条件下还没有流水，放宽日期或换个分类试试
+              这个条件下还没有流水，试试放宽日期、金额区间或换个分类
             </li>
           ) : null}
           {matched.length > LIST_LIMIT ? (
             <li className="px-2 py-2 text-xs text-dim">
-              只显示前 {LIST_LIMIT} 笔（共 {summary.count} 笔），加个条件缩小范围
+              只显示前 {LIST_LIMIT} 笔（共 {summary.count.toLocaleString("zh-CN")} 笔），加个条件缩小范围
             </li>
           ) : null}
         </ul>

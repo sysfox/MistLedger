@@ -142,18 +142,20 @@ export function summarizeTxs(txs: TxLike[]): TxSummary {
   };
 }
 
-// 各账户当前余额
+// 各账户当前余额（只统计传入账户；停用账户的流水不凭空建条目）
 export function accountBalances(
   accounts: { id: string; initial_balance: number | string }[],
   txs: TxLike[],
 ): Map<string, number> {
   const map = new Map(accounts.map((a) => [a.id, num(a.initial_balance)]));
   for (const t of txs) {
-    if (t.type === "expense") map.set(t.account_id, (map.get(t.account_id) ?? 0) - num(t.amount));
-    else if (t.type === "income") map.set(t.account_id, (map.get(t.account_id) ?? 0) + num(t.amount));
-    else if (t.type === "transfer" && t.to_account_id) {
-      map.set(t.account_id, (map.get(t.account_id) ?? 0) - num(t.amount));
-      map.set(t.to_account_id, (map.get(t.to_account_id) ?? 0) + num(t.amount));
+    if (t.type === "expense") {
+      if (map.has(t.account_id)) map.set(t.account_id, map.get(t.account_id)! - num(t.amount));
+    } else if (t.type === "income") {
+      if (map.has(t.account_id)) map.set(t.account_id, map.get(t.account_id)! + num(t.amount));
+    } else if (t.type === "transfer" && t.to_account_id) {
+      if (map.has(t.account_id)) map.set(t.account_id, map.get(t.account_id)! - num(t.amount));
+      if (map.has(t.to_account_id)) map.set(t.to_account_id, map.get(t.to_account_id)! + num(t.amount));
     }
   }
   for (const [k, v] of map) map.set(k, round2(v));

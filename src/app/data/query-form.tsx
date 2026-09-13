@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 
 type Account = { id: string; name: string };
 type Category = { id: string; name: string; kind: string };
@@ -36,21 +37,33 @@ export default function QueryForm({
   current: QueryCurrent;
 }) {
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const expenseCats = categories.filter((c) => c.kind === "expense");
+  const incomeCats = categories.filter((c) => c.kind === "income");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const sp = new URLSearchParams();
     for (const [k, v] of fd.entries()) {
+      if (k === "days") continue;
       const s = String(v).trim();
       if (s && !(k === "type" && s === "all")) sp.set(k, s);
     }
     if (days !== 90) sp.set("days", String(days));
-    router.push(sp.size > 0 ? `/data?${sp.toString()}` : "/data");
+    const qs = sp.toString();
+    startTransition(() => {
+      router.push(qs ? `/data?${qs}#results` : "/data#results");
+    });
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-3 flex flex-col gap-3">
+    <form
+      key={JSON.stringify(current)}
+      onSubmit={onSubmit}
+      aria-busy={pending}
+      className="mt-3 flex flex-col gap-3"
+    >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label htmlFor="q-from" className="text-xs text-dim">
@@ -83,11 +96,24 @@ export default function QueryForm({
           <select id="q-cat" name="cat" defaultValue={current.cat} className="input">
             <option value="">全部分类</option>
             <option value="none">未分类</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            {expenseCats.length > 0 ? (
+              <optgroup label="支出类">
+                {expenseCats.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
+            {incomeCats.length > 0 ? (
+              <optgroup label="收入类">
+                {incomeCats.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
           </select>
         </div>
         <div className="flex flex-col gap-1">
@@ -146,6 +172,7 @@ export default function QueryForm({
             name="q"
             type="text"
             maxLength={50}
+            enterKeyHint="search"
             defaultValue={current.q}
             placeholder="备注或交易对方（可选）"
             className="input"
@@ -154,8 +181,8 @@ export default function QueryForm({
       </div>
       <input type="hidden" name="days" value={days} />
       <div className="flex items-center gap-2">
-        <button type="submit" className="btn-primary w-fit">
-          查询
+        <button type="submit" disabled={pending} className="btn-primary w-fit disabled:opacity-60">
+          {pending ? "查询中…" : "查询"}
         </button>
         <Link href={`/data?days=${days}`} className="btn-ghost">
           重置

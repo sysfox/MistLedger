@@ -61,11 +61,17 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-export function TrendChart({ data }: { data: { month: string; expense: number; income: number }[] }) {
+export function TrendChart({
+  data,
+  label = "近 6 个月每月支出与收入柱状趋势图",
+}: {
+  data: { month: string; expense: number; income: number }[];
+  label?: string;
+}) {
   const reducedMotion = usePrefersReducedMotion();
   const last = data[data.length - 1];
   return (
-    <figure role="img" aria-label="近 6 个月每月支出与收入柱状趋势图">
+    <figure role="img" aria-label={label}>
       {last ? (
         <figcaption className="sr-only">
           数据摘要：最近一月支出 ¥{last.expense.toLocaleString("zh-CN")}，收入 ¥{last.income.toLocaleString("zh-CN")}。
@@ -78,19 +84,25 @@ export function TrendChart({ data }: { data: { month: string; expense: number; i
           <YAxis tick={TICK} axisLine={AXIS_LINE} tickLine={false} />
           <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoneyNode(v as number)} />
           <Legend wrapperStyle={LEGEND_STYLE} />
-          <Bar dataKey="expense" name="支出" fill="var(--color-ember)" isAnimationActive={!reducedMotion} />
-          <Bar dataKey="income" name="收入" fill="var(--color-jade)" isAnimationActive={!reducedMotion} />
+          <Bar dataKey="expense" name="支出" fill="var(--color-ember)" isAnimationActive={!reducedMotion} animationDuration={400} />
+          <Bar dataKey="income" name="收入" fill="var(--color-jade)" isAnimationActive={!reducedMotion} animationDuration={400} />
         </BarChart>
       </ResponsiveContainer>
     </figure>
   );
 }
 
-export function AssetChart({ data }: { data: { date: string; total: number }[] }) {
+export function AssetChart({
+  data,
+  label = "近 30 天总资产曲线图",
+}: {
+  data: { date: string; total: number }[];
+  label?: string;
+}) {
   const reducedMotion = usePrefersReducedMotion();
   const last = data[data.length - 1];
   return (
-    <figure role="img" aria-label="近 30 天总资产曲线图">
+    <figure role="img" aria-label={label}>
       {last ? (
         <figcaption className="sr-only">
           数据摘要：期末总资产 ¥{last.total.toLocaleString("zh-CN")}。
@@ -111,6 +123,7 @@ export function AssetChart({ data }: { data: { date: string; total: number }[] }
             dot={false}
             activeDot={{ r: 6, fill: "var(--color-lamp)", stroke: "var(--color-night)" }}
             isAnimationActive={!reducedMotion}
+            animationDuration={400}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -118,7 +131,13 @@ export function AssetChart({ data }: { data: { date: string; total: number }[] }
   );
 }
 
-export function ShareChart({ data }: { data: { name: string; value: number }[] }) {
+export function ShareChart({
+  data,
+  label = "本月支出分类占比饼图",
+}: {
+  data: { name: string; value: number }[];
+  label?: string;
+}) {
   const reducedMotion = usePrefersReducedMotion();
   const top = [...data].sort((a, b) => b.value - a.value)[0];
   const boxRef = useRef<HTMLDivElement>(null);
@@ -136,7 +155,7 @@ export function ShareChart({ data }: { data: { name: string; value: number }[] }
   const outerRadius = width > 0 ? Math.min(80, Math.max(56, width * 0.28)) : 80;
   const labelFontSize = width > 0 ? Math.max(10, Math.min(12, width * 0.038)) : 12;
   return (
-    <figure role="img" aria-label="本月支出分类占比饼图">
+    <figure role="img" aria-label={label}>
       {top ? (
         <figcaption className="sr-only">
           数据摘要：支出最多的分类是「{top.name}」，金额 ¥{top.value.toLocaleString("zh-CN")}。
@@ -152,6 +171,7 @@ export function ShareChart({ data }: { data: { name: string; value: number }[] }
               outerRadius={outerRadius}
               label={{ fill: "var(--color-ink)", fontSize: labelFontSize }}
               isAnimationActive={!reducedMotion}
+              animationDuration={400}
             >
               {data.map((_, i) => (
                 <Cell key={i} fill={PALETTE[i % PALETTE.length]} />

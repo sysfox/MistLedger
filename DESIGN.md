@@ -137,7 +137,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 ```
 ┌──────────────────────────────────────────┐
-│ 雾夜账          总览 记账 导入 账户 设置    │ ← 激活项下有灯线
+│ 雾夜账     总览 记账 数据 导入 账户 设置    │ ← 激活项下有灯线
 │ 二零二六年九月 · 本月账                    │ ← eyebrow（月份用汉字数字）
 │ ¥ 12,345.67                              │ ← hero：mono 大数字，¥ 为灯色
 │ ──────── 灯线 ────────                   │
@@ -279,3 +279,4 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 2026-09-14 · UI/UX全面修复：总览 Hero 防溢出（40px起跳）、预算行防挤压、收支补−/+前缀、进度条与图表补ARIA、图表 reduced-motion 关闭JS动画、Tooltip金额mono；记账/账户/设置表单补label、金额统一toLocaleString与.money、空状态改邀请句式、新建统一"创建"；导入"入账账户"改"记账账户"、量词统一"笔"、登录错误中文化。lint与build通过。
 - 2026-09-14 · UI/UX与移动端全面修复（二轮）：组件契约类包进 `@layer components` 恢复工具类覆盖权（settings chip text-ink 与表内紧凑 select 实际生效）；移动端 .input 字号 16px 防 iOS 聚焦缩放；导航移动端改固定底部 tab 栏（含 safe-area 内距、正文补 padding、桌面顶栏不变）；记账收入语义修正——账户字段随类型联动（收入=「收入账户（钱进哪）」，收入场景不出现「钱从哪出」，渠道为来源渠道）；「今天」本地时区计算；分类 select 切类型强制重建；所有 server action 改返回 { ok, message } 并接入 useActionState（pending/防重/role=alert/aria-live）；删除类操作（流水/账户/分类/预算）全部二次确认 + 44px 触控目标；预算月份改 type=date（归一化当月 1 号，入库 YYYY-MM-01）；viewport 补 themeColor 与 viewportFit=cover；图表刻度补 mono、hex 全部令牌化、饼图窄屏自适应；新增 error.tsx / global-error.tsx 兜底页。lint 与 build 通过。
 - 2026-09-13 · 新增数据页（/data）：近 12 个月收支趋势、总资产曲线（30/90/180 天切换）、常用查询预设（chip 链接）、自定义查询表单（日期/类型/分类/账户/金额区间/关键词，走 URL searchParams）与查询结果（笔数汇总 + 支出构成饼图 + 流水列表，上限 200 笔）；导航六项加入「数据」；stats.ts 新增 filterTxs / summarizeTxs 纯函数；第六节补数据页布局说明。
+- 2026-09-13 · 数据页审查修复：曲线天数 chip 改为 chip 基础类叠加 chip-active（修直角无框选中态）并统一 44px 触控目标；三个图表组件新增 label 参数（读屏描述与实际范围一致，总览页默认不变）；Bar/Line/Pie 补 animationDuration=400（守 500ms 禁忌）；天数与查询条件互保参数（切天数不清查询、点预设不重置曲线）；「上月支出」改用真实月末（date 控件不吃非法日期）；from/to 正则校验、金额下限非负、days 吸附到 30/90/180；资产曲线只计启用账户流水；5000 笔取数截断加提示；查询表单 key 随条件重挂载（修 defaultValue 陈旧）、useTransition 查询中态、分类按支出/收入 optgroup、结果区 #results 锚点与 aria-live 汇总；列表行去掉假 affordance hover；桌面 nav 补 aria-label；accountBalances 不再为停用账户流水凭空建余额（总资产口径修正）。lint 与 build 通过。

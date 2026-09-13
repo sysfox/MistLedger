@@ -44,7 +44,7 @@ export default function SiteNav() {
           <Link href="/" className={`shrink-0 font-display font-semibold text-ink ${FOCUS_RING}`}>
             雾夜账
           </Link>
-          <nav className="flex items-center gap-1 overflow-x-auto whitespace-nowrap text-sm sm:gap-2">
+          <nav aria-label="主导航" className="flex items-center gap-1 overflow-x-auto whitespace-nowrap text-sm sm:gap-2">
             {LINKS.map((l) => {
               const active = pathname === l.href;
               return (
