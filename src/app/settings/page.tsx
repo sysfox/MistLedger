@@ -1,11 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import {
-  ensureDefaultCategories,
-  createCategory,
-  deleteCategory,
-  createBudget,
-  deleteBudget,
-} from "./actions";
+import { formatMoney } from "@/lib/ledger/format";
+import DeleteCategoryButton from "./delete-category-button";
+import DeleteBudgetButton from "./delete-budget-button";
+import CreateCategoryForm from "./create-category-form";
+import CreateBudgetForm from "./create-budget-form";
+import EnsureDefaultCategoriesButton from "./ensure-default-categories-button";
 
 export const dynamic = "force-dynamic";
 
@@ -13,23 +12,14 @@ type Category = { id: string; name: string };
 
 function CategoryGroup({ title, items }: { title: string; items: Category[] }) {
   return (
-    <section>
+    <section className="panel flex flex-col gap-3 p-5">
       <p className="eyebrow">分类</p>
-      <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">{title}</h2>
-      <ul className="mt-3 flex flex-wrap gap-2">
+      <h2 className="font-display text-[17px] font-semibold text-ink">{title}</h2>
+      <ul className="flex flex-wrap gap-2">
         {items.map((c) => (
           <li key={c.id} className="chip flex items-center gap-2 text-ink">
             {c.name}
-            <form action={deleteCategory.bind(null, c.id)}>
-              <button
-                type="submit"
-                className="rounded-sm text-xs text-dim hover:text-ember focus-visible:ring-2 focus-visible:ring-lamp/60"
-                title="删除"
-                aria-label={`删除分类 ${c.name}`}
-              >
-                ×
-              </button>
-            </form>
+            <DeleteCategoryButton id={c.id} name={c.name} />
           </li>
         ))}
         {items.length === 0 ? <li className="text-sm text-dim">还没有分类，在下面新建第一个吧</li> : null}
@@ -68,34 +58,8 @@ export default async function SettingsPage() {
       <div className="panel flex flex-col gap-3 p-5">
         <p className="eyebrow">新建</p>
         <h2 className="font-display text-[17px] font-semibold text-ink">新建分类</h2>
-        <form action={createCategory} className="flex flex-wrap gap-2">
-          <label className="sr-only" htmlFor="category-name">
-            新分类名称
-          </label>
-          <input
-            id="category-name"
-            name="name"
-            required
-            maxLength={20}
-            placeholder="新分类名称"
-            className="input flex-1"
-          />
-          <label className="sr-only" htmlFor="category-kind">
-            分类类型
-          </label>
-          <select id="category-kind" name="kind" className="input">
-            <option value="expense">支出</option>
-            <option value="income">收入</option>
-          </select>
-          <button type="submit" className="btn-primary">
-            创建
-          </button>
-        </form>
-        <form action={ensureDefaultCategories}>
-          <button type="submit" className="link-subtle text-sm">
-            一键补齐默认分类
-          </button>
-        </form>
+        <CreateCategoryForm />
+        <EnsureDefaultCategoriesButton />
       </div>
 
       <section className="flex flex-col gap-3">
@@ -113,17 +77,9 @@ export default async function SettingsPage() {
               <li key={b.id} className="panel flex items-center justify-between px-4 py-2">
                 <span className="text-ink">
                   {cat ?? "未知分类"}
-                  <span className="money ml-2 text-dim">¥{Number(b.limit_amount).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="money ml-2 text-dim">¥{formatMoney(Number(b.limit_amount))}</span>
                 </span>
-                <form action={deleteBudget.bind(null, b.id)}>
-                  <button
-                    type="submit"
-                    className="rounded-sm text-xs text-dim hover:text-ember focus-visible:ring-2 focus-visible:ring-lamp/60"
-                    aria-label={`删除预算 ${cat ?? "未知分类"}`}
-                  >
-                    删除
-                  </button>
-                </form>
+                <DeleteBudgetButton id={b.id} label={cat ?? "未知分类"} />
               </li>
             );
           })}
@@ -131,46 +87,7 @@ export default async function SettingsPage() {
             <li className="text-sm text-dim">本月还没设预算，在下面给支出分类加一条上限试试</li>
           ) : null}
         </ul>
-        <form action={createBudget} className="panel flex flex-wrap gap-2 p-4">
-          <label className="sr-only" htmlFor="budget-month">
-            预算月份
-          </label>
-          <input
-            id="budget-month"
-            name="month"
-            type="month"
-            required
-            defaultValue={currentMonth.slice(0, 7)}
-            className="input"
-          />
-          <label className="sr-only" htmlFor="budget-category">
-            支出分类
-          </label>
-          <select id="budget-category" name="category_id" required className="input" aria-label="支出分类">
-            <option value="">支出分类</option>
-            {expense.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <label className="sr-only" htmlFor="budget-limit">
-            上限金额
-          </label>
-          <input
-            id="budget-limit"
-            name="limit_amount"
-            type="number"
-            step="0.01"
-            min="0.01"
-            required
-            placeholder="上限金额"
-            className="input w-32"
-          />
-          <button type="submit" className="btn-primary">
-            保存
-          </button>
-        </form>
+        <CreateBudgetForm categories={expense} defaultMonth={currentMonth} />
       </section>
     </main>
   );
