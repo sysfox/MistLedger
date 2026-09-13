@@ -3,7 +3,7 @@
 import nextDynamic from "next/dynamic";
 
 function loading() {
-  return <p className="text-sm text-zinc-400">图表加载中…</p>;
+  return <div className="skeleton h-[220px] w-full rounded-lg" />;
 }
 
 export const TrendChart = nextDynamic(

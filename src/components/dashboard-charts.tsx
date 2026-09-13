@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CartesianGrid,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -15,18 +16,35 @@ import {
   Cell,
 } from "recharts";
 
-const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#06b6d4", "#a855f7", "#84cc16", "#f97316"];
+const COLORS = ["#E3B341", "#6FBF8F", "#E2574C", "#7EA2D6", "#B48BE0", "#5CC8C0", "#D98A4B", "#94A3B8"];
+
+const GRID = { horizontal: true, vertical: false, strokeDasharray: "3 3", stroke: "#28324A" } as const;
+const TICK = { fill: "#8B93A7", fontSize: 12 } as const;
+const AXIS_LINE = { stroke: "#28324A" } as const;
+const TOOLTIP_STYLE = {
+  background: "#1B2436",
+  border: "1px solid #28324A",
+  borderRadius: 8,
+  color: "#E9E4D8",
+  fontSize: 12,
+} as const;
+const LABEL_STYLE = { color: "#E9E4D8", fontSize: 12 } as const;
+const ITEM_STYLE = { color: "#E9E4D8" } as const;
+const LEGEND_STYLE = { color: "#8B93A7", fontSize: 12 } as const;
+
+const formatMoney = (v: number | string) => `¥${Number(v).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function TrendChart({ data }: { data: { month: string; expense: number; income: number }[] }) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data}>
-        <XAxis dataKey="month" fontSize={12} />
-        <YAxis fontSize={12} />
-        <Tooltip />
-        <Legend />
-        <Bar dataKey="expense" name="支出" fill="#ef4444" />
-        <Bar dataKey="income" name="收入" fill="#22c55e" />
+        <CartesianGrid {...GRID} />
+        <XAxis dataKey="month" tick={TICK} axisLine={AXIS_LINE} tickLine={false} />
+        <YAxis tick={TICK} axisLine={AXIS_LINE} tickLine={false} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoney(v as number)} />
+        <Legend wrapperStyle={LEGEND_STYLE} />
+        <Bar dataKey="expense" name="支出" fill="#E2574C" />
+        <Bar dataKey="income" name="收入" fill="#6FBF8F" />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -36,10 +54,19 @@ export function AssetChart({ data }: { data: { date: string; total: number }[] }
   return (
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={data}>
-        <XAxis dataKey="date" fontSize={12} interval={4} />
-        <YAxis fontSize={12} domain={["auto", "auto"]} />
-        <Tooltip />
-        <Line type="monotone" dataKey="total" name="总资产" stroke="#6366f1" dot={false} strokeWidth={2} />
+        <CartesianGrid {...GRID} />
+        <XAxis dataKey="date" tick={TICK} axisLine={AXIS_LINE} tickLine={false} interval={4} />
+        <YAxis tick={TICK} axisLine={AXIS_LINE} tickLine={false} domain={["auto", "auto"]} />
+        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoney(v as number)} />
+        <Line
+          type="monotone"
+          dataKey="total"
+          name="总资产"
+          stroke="#E3B341"
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 4, fill: "#E3B341", stroke: "#0A0E14" }}
+        />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -49,13 +76,13 @@ export function ShareChart({ data }: { data: { name: string; value: number }[] }
   return (
     <ResponsiveContainer width="100%" height={220}>
       <PieChart>
-        <Pie data={data} dataKey="value" nameKey="name" outerRadius={80} label={{ fontSize: 12 }}>
+        <Pie data={data} dataKey="value" nameKey="name" outerRadius={80} label={{ fill: "#E9E4D8", fontSize: 12 }}>
           {data.map((_, i) => (
             <Cell key={i} fill={COLORS[i % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip />
-        <Legend />
+        <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoney(v as number)} />
+        <Legend wrapperStyle={LEGEND_STYLE} />
       </PieChart>
     </ResponsiveContainer>
   );
