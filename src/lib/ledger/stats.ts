@@ -6,6 +6,8 @@ export type TxLike = {
   account_id: string;
   to_account_id: string | null;
   category_id: string | null;
+  note?: string | null;
+  counterparty?: string | null;
 };
 
 function num(v: number | string): number {
@@ -87,6 +89,57 @@ export function assetCurve(
     total += byDay.get(d) ?? 0;
     return { date: d.slice(5), total: round2(total) };
   });
+}
+
+// 数据页：按条件过滤流水（纯函数，供服务端组件调用、可单测）
+export type TxFilter = {
+  from?: string; // YYYY-MM-DD（含）
+  to?: string; // YYYY-MM-DD（含）
+  type?: string; // expense | income | transfer | all
+  category?: string; // 分类 id；"none" 表示未分类
+  account?: string; // 账户 id（转出或转入任一侧命中即算）
+  min?: number;
+  max?: number;
+  q?: string; // 备注/交易对方关键词
+};
+
+export function filterTxs<T extends TxLike>(txs: T[], f: TxFilter): T[] {
+  const q = f.q?.trim().toLowerCase();
+  return txs.filter((t) => {
+    if (f.from && t.date < f.from) return false;
+    if (f.to && t.date > f.to) return false;
+    if (f.type && f.type !== "all" && t.type !== f.type) return false;
+    if (f.category === "none" && t.category_id) return false;
+    if (f.category && f.category !== "none" && t.category_id !== f.category) return false;
+    if (f.account && t.account_id !== f.account && t.to_account_id !== f.account) return false;
+    const amt = num(t.amount);
+    if (f.min != null && Number.isFinite(f.min) && amt < f.min) return false;
+    if (f.max != null && Number.isFinite(f.max) && amt > f.max) return false;
+    if (q) {
+      const hay = `${t.note ?? ""} ${t.counterparty ?? ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+export type TxSummary = { count: number; expense: number; income: number; transfer: number };
+
+export function summarizeTxs(txs: TxLike[]): TxSummary {
+  let expense = 0;
+  let income = 0;
+  let transfer = 0;
+  for (const t of txs) {
+    if (t.type === "expense") expense += num(t.amount);
+    else if (t.type === "income") income += num(t.amount);
+    else if (t.type === "transfer") transfer += num(t.amount);
+  }
+  return {
+    count: txs.length,
+    expense: round2(expense),
+    income: round2(income),
+    transfer: round2(transfer),
+  };
 }
 
 // 各账户当前余额

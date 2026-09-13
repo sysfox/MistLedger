@@ -154,6 +154,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - **预算进度条**：底轨 `veil`，填充未超支用 `ink/70`（灰纸色，克制），超支才用 `ember`。禁止渐变进度条。
 - 登录页：居中窄卡（max-w-sm），词标 serif + 灯线 + 标语，是全站的「门」。
 - 导航在 `/login` 隐藏（登录页是门，不需要房间内的指示牌）。
+- 数据页（/data）：曲线与查询的账房档案柜。结构自上而下：近 12 个月收支趋势 → 总资产曲线（30/90/180 天 chip 切换，选中态用 `chip-active`）→ 常用查询（chip 预设链接）→ 自定义查询表单（可见小标签 + `.input`）→ 查询结果（汇总行 + 流水列表 + 支出构成饼图）。查询条件全部走 URL searchParams，可分享、可后退。
 
 ---
 
@@ -277,3 +278,4 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 2026-09-14 · 焦点与导航可达性：`.btn-ghost` / `.link-subtle` / `.chip` / `.chip-active` 补 `:focus-visible` 灯环（`0 0 0 2px rgba(227,179,65,.6)`），`.chip` 追加 `:focus-within` 环；`.input` / `.btn-primary` 的 `:focus` 改为 `:focus-visible` 与导航对齐；导航在 `/login` 隐藏，nav 容器加横滑（`overflow-x-auto + whitespace-nowrap`，链接 `min-h-[44px]`）；禁忌#8 明确为单次转场/微交互 > 500ms，环境类动画豁免但受 reduced-motion 约束；第八节追加 settings chip 与 import 虚线 input 例外说明。
 - 2026-09-14 · UI/UX全面修复：总览 Hero 防溢出（40px起跳）、预算行防挤压、收支补−/+前缀、进度条与图表补ARIA、图表 reduced-motion 关闭JS动画、Tooltip金额mono；记账/账户/设置表单补label、金额统一toLocaleString与.money、空状态改邀请句式、新建统一"创建"；导入"入账账户"改"记账账户"、量词统一"笔"、登录错误中文化。lint与build通过。
 - 2026-09-14 · UI/UX与移动端全面修复（二轮）：组件契约类包进 `@layer components` 恢复工具类覆盖权（settings chip text-ink 与表内紧凑 select 实际生效）；移动端 .input 字号 16px 防 iOS 聚焦缩放；导航移动端改固定底部 tab 栏（含 safe-area 内距、正文补 padding、桌面顶栏不变）；记账收入语义修正——账户字段随类型联动（收入=「收入账户（钱进哪）」，收入场景不出现「钱从哪出」，渠道为来源渠道）；「今天」本地时区计算；分类 select 切类型强制重建；所有 server action 改返回 { ok, message } 并接入 useActionState（pending/防重/role=alert/aria-live）；删除类操作（流水/账户/分类/预算）全部二次确认 + 44px 触控目标；预算月份改 type=date（归一化当月 1 号，入库 YYYY-MM-01）；viewport 补 themeColor 与 viewportFit=cover；图表刻度补 mono、hex 全部令牌化、饼图窄屏自适应；新增 error.tsx / global-error.tsx 兜底页。lint 与 build 通过。
+- 2026-09-13 · 新增数据页（/data）：近 12 个月收支趋势、总资产曲线（30/90/180 天切换）、常用查询预设（chip 链接）、自定义查询表单（日期/类型/分类/账户/金额区间/关键词，走 URL searchParams）与查询结果（笔数汇总 + 支出构成饼图 + 流水列表，上限 200 笔）；导航六项加入「数据」；stats.ts 新增 filterTxs / summarizeTxs 纯函数；第六节补数据页布局说明。

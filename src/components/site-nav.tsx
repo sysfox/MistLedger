@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 const LINKS = [
   { href: "/", label: "总览" },
   { href: "/ledger", label: "记账" },
+  { href: "/data", label: "数据" },
   { href: "/import", label: "导入" },
   { href: "/accounts", label: "账户" },
   { href: "/settings", label: "设置" },
