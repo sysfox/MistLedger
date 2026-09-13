@@ -12,6 +12,9 @@ const LINKS = [
   { href: "/settings", label: "设置" },
 ];
 
+const FOCUS_RING =
+  "rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-lamp/60";
+
 export default function SiteNav() {
   const pathname = usePathname();
   const router = useRouter();
@@ -24,29 +27,31 @@ export default function SiteNav() {
   }
 
   return (
-    <header className="border-b border-zinc-200 dark:border-zinc-800">
+    <header className="border-b border-fogline bg-night/80 backdrop-blur">
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-4 py-3">
-        <Link href="/" className="font-bold">
+        <Link href="/" className={`font-display font-semibold text-ink ${FOCUS_RING}`}>
           雾夜账
         </Link>
-        <nav className="flex items-center gap-4 text-sm">
-          {LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={
-                pathname === l.href
-                  ? "font-semibold text-zinc-900 dark:text-zinc-100"
-                  : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-              }
-            >
-              {l.label}
-            </Link>
-          ))}
+        <nav className="flex items-center gap-3 text-sm sm:gap-4">
+          {LINKS.map((l) => {
+            const active = pathname === l.href;
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`${active ? "text-ink" : "text-dim hover:text-ink"} ${FOCUS_RING}`}
+              >
+                <span className="flex flex-col items-center">
+                  {l.label}
+                  <span className={`lamp-line mt-1 w-full ${active ? "" : "invisible"}`} />
+                </span>
+              </Link>
+            );
+          })}
           <button
             type="button"
             onClick={signOut}
-            className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="btn-ghost outline-none focus-visible:ring-2 focus-visible:ring-lamp/60"
           >
             退出
           </button>

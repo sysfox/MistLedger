@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Noto_Serif_SC, Noto_Sans_SC, Geist_Mono } from "next/font/google";
 import SiteNav from "@/components/site-nav";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fontDisplay = Noto_Serif_SC({
+  variable: "--font-noto-serif-sc",
+  weight: ["600", "700", "900"],
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
+const fontSans = Noto_Sans_SC({
+  variable: "--font-noto-sans-sc",
+  weight: ["400", "500", "700"],
+  subsets: ["latin"],
+});
+
+const fontMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
@@ -22,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="zh-CN"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${fontDisplay.variable} ${fontSans.variable} ${fontMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <SiteNav />
