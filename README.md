@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 雾夜账 MistLedger
 
-## Getting Started
+中文个人记账应用。深夜账房，掌灯看账——看清每笔钱从哪出、还剩多少。
 
-First, run the development server:
+## 功能
+
+- **总览**：本月收支概览与图表（趋势、分类构成）。
+- **账本**：记录支出 / 收入 / 转账，按分类与预算管理。
+- **账户**：管理钱包与银行卡账户（微信零钱、零钱通、支付宝余额等），支持停用与删除。
+- **导入**：解析并导入支付宝明细（CSV GBK / XLSX）、微信支付账单（XLSX）、银行账单（CSV/XLS），自动识别表头、去重、收入/支出/转账归类。
+- **查数**：按条件查询历史交易。
+- **设置**：分类、预算管理，一键补齐默认分类。
+- **登录**：Supabase Auth 邮箱登录。
+
+## 技术栈
+
+- Next.js（App Router）+ React 19 + TypeScript
+- Tailwind CSS v4（`@theme` token 设计系统，全站常夜「雾夜」主题）
+- Supabase（数据库 + Auth，仅使用 publishable key）
+- Recharts 图表，SheetJS（xlsx）账单解析
+- PWA（manifest + Service Worker，可安装）
+
+## 本地开发
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+打开 [http://localhost:3000](http://localhost:3000)。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+其他脚本：
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run lint       # ESLint
+npm run typecheck  # tsc --noEmit
+npm run build      # 生产构建
+```
 
-## Learn More
+## 环境变量
 
-To learn more about Next.js, take a look at the following resources:
+复制 `.env.example` 为 `.env.local`，填入：
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 设计系统
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+界面遵循 [DESIGN.md](DESIGN.md)——这是唯一设计契约，涵盖雾夜主题令牌（night / ink / lamp / ember / jade 等）、灯线签名、动效与禁忌清单。任何界面改动须遵循并同步更新该文件。
