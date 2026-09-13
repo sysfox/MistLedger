@@ -7,7 +7,7 @@ import { DEFAULT_CATEGORIES } from "@/lib/ledger/constants";
 export async function ensureDefaultCategories() {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("未登录");
+  if (!userData.user) throw new Error("请先登录后再试");
 
   const { data: existing } = await supabase
     .from("categories")
@@ -28,11 +28,11 @@ export async function createCategory(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const kind = String(formData.get("kind") ?? "expense");
   if (!name) throw new Error("请填写分类名称");
-  if (kind !== "expense" && kind !== "income") throw new Error("分类类型不合法");
+  if (kind !== "expense" && kind !== "income") throw new Error("请重新选择分类类型");
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("未登录");
+  if (!userData.user) throw new Error("请先登录后再试");
   const { error } = await supabase
     .from("categories")
     .insert({ user_id: userData.user.id, name, kind });
@@ -52,7 +52,7 @@ export async function deleteCategory(id: string) {
 // 预算（V1 只做上限录入 + 进度展示，不做强拦截）
 function firstOfMonth(v: string): string {
   const m = /^\d{4}-\d{2}/.exec(v)?.[0];
-  if (!m) throw new Error("月份格式不合法");
+  if (!m) throw new Error("请重新选择月份");
   return `${m}-01`;
 }
 
@@ -65,7 +65,7 @@ export async function createBudget(formData: FormData) {
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("未登录");
+  if (!userData.user) throw new Error("请先登录后再试");
   const { error } = await supabase.from("budgets").upsert(
     { user_id: userData.user.id, month, category_id: categoryId, limit_amount: limit },
     { onConflict: "user_id,month,category_id" },
