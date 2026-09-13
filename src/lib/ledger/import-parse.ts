@@ -86,6 +86,7 @@ export function parseAlipay(rows: string[][]): ParsedRow[] {
     const amount = parseAmount(r[c.amount]);
     if (!date || Number.isNaN(amount)) continue;
     const pay = norm(r[c.pay]);
+    if (direction === "支出" && /银行/.test(pay)) continue; // 银行卡出资：走银行明细导入，跳过避免重复
     out.push({
       date,
       amount,
