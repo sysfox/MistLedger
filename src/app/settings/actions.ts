@@ -1,0 +1,50 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_CATEGORIES } from "@/lib/ledger/constants";
+
+export async function ensureDefaultCategories() {
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("未登录");
+
+  const { data: existing } = await supabase
+    .from("categories")
+    .select("name, kind")
+    .eq("user_id", userData.user.id);
+  const seen = new Set((existing ?? []).map((c) => `${c.kind}:${c.name}`));
+  const missing = DEFAULT_CATEGORIES.filter((c) => !seen.has(`${c.kind}:${c.name}`));
+  if (missing.length === 0) return;
+  const { error } = await supabase.from("categories").insert(
+    missing.map((c) => ({ user_id: userData.user!.id, name: c.name, kind: c.kind, sort: c.sort })),
+  );
+  if (error) throw new Error(error.message);
+  revalidatePath("/settings");
+  revalidatePath("/ledger");
+}
+
+export async function createCategory(formData: FormData) {
+  const name = String(formData.get("name") ?? "").trim();
+  const kind = String(formData.get("kind") ?? "expense");
+  if (!name) throw new Error("请填写分类名称");
+  if (kind !== "expense" && kind !== "income") throw new Error("分类类型不合法");
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) throw new Error("未登录");
+  const { error } = await supabase
+    .from("categories")
+    .insert({ user_id: userData.user.id, name, kind });
+  if (error) throw new Error("同类型下分类名已存在");
+  revalidatePath("/settings");
+  revalidatePath("/ledger");
+}
+
+export async function deleteCategory(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("categories").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/settings");
+  revalidatePath("/ledger");
+}
