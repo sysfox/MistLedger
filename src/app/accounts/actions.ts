@@ -10,12 +10,12 @@ export async function createAccount(formData: FormData) {
   const type = String(formData.get("type") ?? "other");
   const initialBalance = Number(formData.get("initial_balance") ?? 0);
   if (!name) throw new Error("请填写账户名称");
-  if (!ACCOUNT_TYPES.includes(type)) throw new Error("账户类型不合法");
-  if (Number.isNaN(initialBalance)) throw new Error("期初余额不合法");
+  if (!ACCOUNT_TYPES.includes(type)) throw new Error("请重新选择账户类型");
+  if (Number.isNaN(initialBalance)) throw new Error("请重新填写期初余额");
 
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) throw new Error("未登录");
+  if (!userData.user) throw new Error("请先登录后再试");
 
   const { error } = await supabase.from("accounts").insert({
     user_id: userData.user.id,
