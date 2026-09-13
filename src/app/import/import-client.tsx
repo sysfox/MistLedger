@@ -86,10 +86,8 @@ export default function ImportClient({
           {SOURCES.map((s) => (
             <label
               key={s.value}
-              className={`cursor-pointer rounded-full border px-4 py-1.5 ${
-                source === s.value
-                  ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                  : "border-zinc-300 dark:border-zinc-700"
+              className={`cursor-pointer rounded-full px-3 py-1 ${
+                source === s.value ? "chip-active" : "chip"
               }`}
             >
               <input
@@ -109,7 +107,7 @@ export default function ImportClient({
         <select
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="input"
         >
           <option value="">入账账户（钱从哪出）</option>
           {accounts.map((a) => (
@@ -118,7 +116,7 @@ export default function ImportClient({
             </option>
           ))}
         </select>
-        <label className="cursor-pointer rounded-md border border-dashed border-zinc-400 px-4 py-2 text-sm">
+        <label className="input cursor-pointer border-dashed hover:border-lamp/60">
           选择账单（xlsx/xls/csv）
           <input
             type="file"
@@ -133,19 +131,19 @@ export default function ImportClient({
         </label>
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      {result ? <p className="text-sm text-green-700 dark:text-green-400">{result}</p> : null}
+      {error ? <p className="text-sm text-ember">{error}</p> : null}
+      {result ? <p className="text-sm text-jade">{result}</p> : null}
 
       {rows.length > 0 ? (
         <>
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-dim">
             解析到 {rows.length} 笔（已过滤退款/关闭/未成功行；银行卡出资的支付宝·微信行请走银行明细导入，避免重复）。
             转账行需选转入账户；分类空着会按关键词规则自动归类。
           </p>
-          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="overflow-x-auto rounded-xl border border-fogline">
             <table className="w-full min-w-[720px] text-sm">
               <thead>
-                <tr className="border-b border-zinc-200 text-left text-xs text-zinc-500 dark:border-zinc-800">
+                <tr className="border-b border-fogline text-left text-xs text-dim">
                   <th className="px-3 py-2">日期</th>
                   <th className="px-3 py-2">对方 / 商品</th>
                   <th className="px-3 py-2">金额</th>
@@ -154,14 +152,16 @@ export default function ImportClient({
               </thead>
               <tbody>
                 {rows.slice(0, 200).map((r) => (
-                  <tr key={r.externalId} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800">
-                    <td className="px-3 py-1.5">{r.date}</td>
-                    <td className="max-w-[260px] truncate px-3 py-1.5">
-                      {r.type === "transfer" ? <span className="mr-1 rounded bg-indigo-100 px-1 text-xs text-indigo-700">转账</span> : null}
+                  <tr key={r.externalId} className="border-b border-fogline transition-colors duration-150 last:border-0 hover:bg-veil">
+                    <td className="px-3 py-1.5 text-ink">{r.date}</td>
+                    <td className="max-w-[260px] truncate px-3 py-1.5 text-ink">
+                      {r.type === "transfer" ? (
+                        <span className="mr-1 rounded border border-fogline bg-veil px-1 text-xs text-ink">转账</span>
+                      ) : null}
                       {r.counterparty}
-                      {r.product ? <span className="text-zinc-400"> / {r.product}</span> : null}
+                      {r.product ? <span className="text-dim"> / {r.product}</span> : null}
                     </td>
-                    <td className={`px-3 py-1.5 font-mono ${r.type === "expense" ? "text-red-600" : r.type === "income" ? "text-green-600" : ""}`}>
+                    <td className={`money px-3 py-1.5 ${r.type === "expense" ? "text-ember" : r.type === "income" ? "text-jade" : "text-ink"}`}>
                       {r.type === "expense" ? "−" : r.type === "income" ? "+" : "⇄"}¥{r.amount.toFixed(2)}
                     </td>
                     <td className="px-3 py-1.5">
@@ -175,7 +175,7 @@ export default function ImportClient({
                               ),
                             )
                           }
-                          className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                          className="input px-2 py-1 text-xs"
                         >
                           <option value="">转入账户…</option>
                           {accounts
@@ -196,7 +196,7 @@ export default function ImportClient({
                               ),
                             )
                           }
-                          className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-900"
+                          className="input px-2 py-1 text-xs"
                         >
                           <option value="">自动</option>
                           {categories
@@ -215,13 +215,13 @@ export default function ImportClient({
             </table>
           </div>
           {rows.length > 200 ? (
-            <p className="text-xs text-zinc-400">仅预览前 200 行，提交会导入全部 {rows.length} 行。</p>
+            <p className="text-xs text-dim">仅预览前 200 行，提交会导入全部 {rows.length} 行。</p>
           ) : null}
           <button
             type="button"
             disabled={busy || !accountId}
             onClick={() => void handleSubmit()}
-            className="w-fit rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+            className="btn-primary w-fit disabled:opacity-50"
           >
             {busy ? "导入中…" : `确认导入 ${rows.length} 笔`}
           </button>
