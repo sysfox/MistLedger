@@ -3,7 +3,7 @@
 import nextDynamic from "next/dynamic";
 
 function loading() {
-  return <div className="skeleton h-[220px] w-full rounded-lg" />;
+  return <div className="skeleton h-[220px] w-full rounded-lg" role="status" aria-label="图表加载中" aria-busy="true" />;
 }
 
 export const TrendChart = nextDynamic(
