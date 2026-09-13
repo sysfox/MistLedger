@@ -64,10 +64,10 @@ export default async function ImportPage() {
         <p className="eyebrow">规则</p>
         <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">归类规则（关键词 → 分类）</h2>
         <ul className="mt-3 flex flex-wrap gap-2 text-sm">
-          {(rules ?? []).map((r, i) => {
+          {(rules ?? []).map((r) => {
             const cat = Array.isArray(r.category) ? r.category[0]?.name : (r.category as unknown as { name: string } | null)?.name;
             return (
-              <li key={`${r.keyword}-${i}`} className="chip">
+              <li key={`${r.keyword}-${cat ?? "?"}`} className="chip">
                 {r.keyword} → {cat ?? "?"}
               </li>
             );
