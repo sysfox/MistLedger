@@ -276,9 +276,9 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 每次界面改动后：`npm run lint` 与 `npm run build` 必须通过。
 - 验收动作：键盘 Tab 走一遍（焦点环可见）、`prefers-reduced-motion` 开启走一遍（无动画）、375px 宽度走一遍（不横向滚动）。
 
-## 十三、MUI 试验（进行中，experiment/mui-trial）
+## 十三、MUI 接入（进行中，experiment/mui-trial）
 
-`/mui-demo`、`/ledger`（记账）与 `/settings`（设置）、`/login`（登录）可用 MUI 组件，其余现有页面（总览/数据）一律不动。
+`/ledger`（记账）、`/settings`（设置）与 `/login`（登录）可用 MUI 组件，其余现有页面（总览/数据）一律不动。
 主题（`src/components/mui-theme.tsx`）把第二节令牌映射到 MUI palette：
 `primary` 灯 `#E3B341`、`error` 烬 `#E2574C`、`success` 玉 `#6FBF8F`、
 `background` 夜空 `#0A0E14` / 雾面 `#111826`、`text` 纸墨 `#E9E4D8` / 远雾 `#8B93A7`、
@@ -289,7 +289,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 使用约束：
 
-1. MUI 组件只出现在 `/mui-demo`、`/ledger`、`/settings` 与 `/login`；金额一律 `.money`（mono），不用 MUI Typography 渲染金额（金额输入框本身不加 mono，提交前仍走 formatMoney）。
+1. MUI 组件只出现在 `/ledger`、`/settings` 与 `/login`；金额一律 `.money`（mono），不用 MUI Typography 渲染金额（金额输入框本身不加 mono，提交前仍走 formatMoney）。
 2. 大面积灯色与渐变禁用；灯线 0 条（≤1，登录页词标灯线仍为契约白名单）。
 3. 无 `dark:` 变体、无 zinc/neutral/slate；`warning`/`info` 已指回令牌，`error` 仅用于删除确认。
 4. 焦点环一律灯色（`0 0 0 2px rgba(227,179,65,.6)`），与第七节一致。
@@ -298,7 +298,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 6. 注入顺序（`src/components/mui-provider.tsx`）：`AppRouterCacheProvider`
   （`@mui/material-nextjs/v16-appRouter`，Next 16 通道）+ `ThemeProvider` + `CssBaseline`，
    包裹 `SiteNav` 与 `children`；`CssBaseline` 的 body 输出与 `globals.css` 完全同值。
-   现有页面不渲染 MUI 组件即不产生 MUI 组件样式，故无回归；演示页内同一元素不混用
+   现有页面不渲染 MUI 组件即不产生 MUI 组件样式，故无回归；同一元素不混用
    Tailwind 与 MUI 竞争属性（布局间距走 `sx` 或外层 `div`）。有意不用 `enableCssLayer`，
    隔离靠上述两条保证，而非 layer 顺序。
 7. 依赖仅 `@mui/material` `@emotion/react` `@emotion/styled` `@mui/material-nextjs`
@@ -308,6 +308,8 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
    仅区块级触发按钮（确认导入）与各二次确认迁移到 MUI Dialog/Button。
 
 ## 变更记录
+
+- 2026-09-14 · 移除 `/mui-demo` 试验页（experiment/mui-trial）：MUI 已在 `/ledger`、`/settings`、`/login` 落地，演示页完成使命删除；§十三标题与范围同步更新。lint 与 build 通过。
 
 - 2026-09-14 · MUI 迁入设置页与登录页（experiment/mui-trial）：`/settings` 全部原生控件迁移——新建账户/分类/预算与调整余额的输入改 TextField（可见浮动标签，日期 shrink），账户类型/分类类型/支出分类改 FormControl+Select+MenuItem（分类类型默认支出，预算分类保留占位 MenuItem）；「创建/保存/调整/停用/启用/一键补齐默认分类」改 MUI Button（contained/text）；删除账户/分类/预算的 `window.confirm` 改 MUI Dialog（取消/确认删除，确认用 error contained，触发按钮改 text error 常驻烬色）；「调整余额」由 confirm() 改 Dialog 确认（列出账户名与前后金额 mono，主按钮「确认调整」灯色），目标余额改为受控输入并前置校验；「确认导入 N 笔」改为先弹 MUI Dialog（列出文件名、笔数与记账账户批次摘要，说明自动去重），点「确认导入」提交——浏览器端解析与预览表格不变；`/login` 的邮箱/密码改 TextField（type=email/password，保留 autoComplete 与 minLength），登录/注册改 contained Button，切换登录/注册改 text Button；全部 useActionState / server action / 中文文案 / `role=alert`·`aria-live` 反馈不变。行为变化：删除类二次确认由浏览器原生 confirm 弹窗改为页内 Dialog；调整余额需先在 Dialog 中确认；确认导入多一步批次摘要确认；登录密码 minLength=6 由 TextField 顶层 prop 改走 slotProps.htmlInput；账房口吻与量词「笔」保持。lint 与 build 通过。
 
