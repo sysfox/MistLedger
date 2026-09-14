@@ -36,7 +36,7 @@ export default function DeleteTransactionButton({ id }: { id: string }) {
         color="error"
         disabled={pending}
         onClick={() => setConfirmOpen(true)}
-        sx={{ minHeight: 44, minWidth: 44, fontSize: "0.75rem" }}
+        sx={{ minHeight: 44, minWidth: 0, px: 0.75, fontSize: "0.75rem" }}
       >
         删除
       </Button>

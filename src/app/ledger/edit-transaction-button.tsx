@@ -88,7 +88,7 @@ export default function EditTransactionButton({
         aria-expanded={open}
         disabled={pending}
         onClick={() => setOpen((v) => !v)}
-        sx={{ minHeight: 44, minWidth: 44, fontSize: "0.75rem" }}
+        sx={{ minHeight: 44, minWidth: 0, px: 0.75, fontSize: "0.75rem" }}
       >
         修改
       </Button>
