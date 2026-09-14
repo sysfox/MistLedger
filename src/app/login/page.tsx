@@ -26,8 +26,13 @@ export default function LoginPage() {
     try {
       const supabase = createClient();
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
+        if (!data.session) {
+          setError("注册成功，请到邮箱确认后再登录");
+          setMode("signin");
+          return;
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
