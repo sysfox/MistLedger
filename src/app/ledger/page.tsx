@@ -4,6 +4,7 @@ import { channelLabel } from "@/lib/ledger/constants";
 import { formatMoney } from "@/lib/ledger/format";
 import TransactionForm from "./transaction-form";
 import DeleteTransactionButton from "./delete-transaction-button";
+import EditTransactionButton from "./edit-transaction-button";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +70,7 @@ export default async function LedgerPage() {
               ? t.account[0]?.name
               : (t.account as unknown as { name: string } | null)?.name) ?? "未知账户";
           return (
-            <li key={t.id} className="panel flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <li key={t.id} className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm">
               <div className="min-w-0">
                 <p className="truncate text-ink">
                   <span className={`font-medium ${TYPE_COLOR[t.type] ?? "text-ink"}`}>{TYPE_LABEL[t.type] ?? t.type}</span>
@@ -100,6 +101,22 @@ export default async function LedgerPage() {
                 )}
                 <DeleteTransactionButton id={t.id} />
               </div>
+              <EditTransactionButton
+                transaction={{
+                  id: t.id,
+                  date: t.date,
+                  amount: Number(t.amount),
+                  type: t.type,
+                  account_id: t.account_id,
+                  to_account_id: t.to_account_id,
+                  category_id: t.category_id,
+                  channel: t.channel,
+                  counterparty: t.counterparty,
+                  note: t.note,
+                }}
+                accounts={accounts ?? []}
+                categories={categories ?? []}
+              />
             </li>
           );
         })}
