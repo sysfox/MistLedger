@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { toggleAccountActive } from "./actions";
+import { toggleAccountActive } from "./account-actions";
 
 const INITIAL = { ok: true, message: "" };
 

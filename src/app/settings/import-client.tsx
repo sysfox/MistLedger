@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useMemo, useRef, useState, useActionState } from "react";
 import { parseBillFile, type ImportSource, type ParsedRow } from "@/lib/ledger/import-parse";
-import { submitImportAction, type ImportResult } from "./actions";
+import { submitImportAction, type ImportResult } from "./import-actions";
 
 type Account = { id: string; name: string };
 type Category = { id: string; name: string; kind: string };
@@ -35,7 +35,7 @@ const PreviewRow = memo(function PreviewRow({
   onToAccountChange,
 }: PreviewRowProps) {
   return (
-    <tr className="border-b border-fogline transition-colors duration-150 last:border-0 hover:bg-veil">
+    <tr className="border-b border-fogline transition-colors duration-150 hover:bg-veil">
       <td className="px-3 py-1.5 text-ink">{r.date}</td>
       <td className="max-w-[260px] truncate px-3 py-1.5 text-ink">
         {r.type === "transfer" ? (

@@ -175,7 +175,7 @@ export default async function Home() {
           ))}
           {(accounts ?? []).length === 0 ? (
             <li className="px-2 py-2 text-dim">
-              还没有账户，先去<Link href="/accounts" className="link-subtle">账户页</Link>建一个（例如：银行卡 / 零钱通）
+              还没有账户，先去<Link href="/settings#accounts" className="link-subtle">设置页</Link>建一个（例如：银行卡 / 零钱通）
             </li>
           ) : null}
         </ul>

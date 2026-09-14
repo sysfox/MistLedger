@@ -164,8 +164,7 @@ export async function submitImportAction(
   const duplicates = result[0].duplicate_count;
 
   revalidatePath("/ledger");
-  revalidatePath("/accounts");
-  revalidatePath("/import");
+  revalidatePath("/settings");
   revalidatePath("/data");
   revalidatePath("/");
   return {
@@ -200,6 +199,6 @@ export async function saveRuleAction(
       { onConflict: "user_id,keyword" },
     );
   if (error) return { ok: false, message: "规则保存失败，请稍后重试" };
-  revalidatePath("/import");
+  revalidatePath("/settings");
   return { ok: true, message: "规则已保存" };
 }

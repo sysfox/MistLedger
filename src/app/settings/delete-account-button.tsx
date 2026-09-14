@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { deleteAccount } from "./actions";
+import { deleteAccount } from "./account-actions";
 
 const INITIAL = { ok: true, message: "" };
 

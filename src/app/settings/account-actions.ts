@@ -26,7 +26,7 @@ export async function createAccount(_prev: ActionResult, formData: FormData): Pr
     initial_balance: initialBalance,
   });
   if (error) return { ok: false, message: "创建失败，请稍后再试" };
-  revalidatePath("/accounts");
+  revalidatePath("/settings");
   revalidatePath("/");
   return { ok: true, message: `已创建账户：${name}` };
 }
@@ -48,9 +48,49 @@ export async function toggleAccountActive(_prev: ActionResult, formData: FormDat
     .select("id");
   if (error) return { ok: false, message: "操作失败，请稍后再试" };
   if (!data || data.length === 0) return { ok: false, message: "账户不存在，请刷新后重试" };
-  revalidatePath("/accounts");
+  revalidatePath("/settings");
   revalidatePath("/");
   return { ok: true, message: isActive ? "已停用" : "已启用" };
+}
+
+export async function adjustAccountBalance(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const id = String(formData.get("id") ?? "");
+  const targetBalance = Number(formData.get("target_balance"));
+  if (!id) return { ok: false, message: "缺少账户标识，请刷新后重试" };
+  if (!Number.isFinite(targetBalance)) return { ok: false, message: "请重新填写目标余额" };
+
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { ok: false, message: "请先登录后再试" };
+
+  const { data: account, error: accountError } = await supabase
+    .from("accounts")
+    .select("id, initial_balance")
+    .eq("id", id)
+    .eq("user_id", userData.user.id)
+    .maybeSingle();
+  if (accountError || !account) return { ok: false, message: "账户不存在，请刷新后重试" };
+
+  const { data: balanceRows, error: balanceError } = await supabase.rpc("account_balances");
+  if (balanceError) return { ok: false, message: "调整失败，请稍后再试" };
+  const current = Number(
+    balanceRows?.find((b: { account_id: string }) => b.account_id === id)?.balance ?? Number(account.initial_balance),
+  );
+
+  const delta = targetBalance - current;
+  const newInitial = Math.round((Number(account.initial_balance) + delta) * 100) / 100;
+
+  const { data, error } = await supabase
+    .from("accounts")
+    .update({ initial_balance: newInitial })
+    .eq("id", id)
+    .eq("user_id", userData.user.id)
+    .select("id");
+  if (error) return { ok: false, message: "调整失败，请稍后再试" };
+  if (!data || data.length === 0) return { ok: false, message: "账户不存在，请刷新后重试" };
+  revalidatePath("/settings");
+  revalidatePath("/");
+  return { ok: true, message: "已调整余额" };
 }
 
 export async function deleteAccount(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -74,7 +114,7 @@ export async function deleteAccount(_prev: ActionResult, formData: FormData): Pr
     };
   }
   if (!data || data.length === 0) return { ok: false, message: "账户不存在，请刷新后重试" };
-  revalidatePath("/accounts");
+  revalidatePath("/settings");
   revalidatePath("/");
   return { ok: true, message: "" };
 }

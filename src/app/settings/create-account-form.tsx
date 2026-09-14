@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { ACCOUNT_TYPES } from "@/lib/ledger/constants";
-import { createAccount } from "./actions";
+import { createAccount } from "./account-actions";
 
 const INITIAL = { ok: true, message: "" };
 

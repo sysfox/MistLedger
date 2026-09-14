@@ -2,6 +2,20 @@
 
 :root {
   color-scheme: dark;
+
+  /* ── 导航栏高度锁定（layout 的 body 预留与 site-nav 的栏高共用同一变量，
+        含 1px 雾线边框与 safe-area，保证「预留空间 = 栏实际高度」严格相等）── */
+  --nav-top-inner-h: 68px; /* 桌面顶栏内芯：44px 触控目标 + 上下 py-3 共 24px */
+  --nav-top-inner-m: 52px; /* 移动端顶栏内芯 */
+  --nav-tab-inner-h: 56px; /* 底部 tab 栏内芯 */
+  --nav-top-h: calc(var(--nav-top-inner-h) + 1px);
+  --nav-top-h-m: calc(env(safe-area-inset-top) + var(--nav-top-inner-m) + 1px);
+  --nav-bottom-h: calc(var(--nav-tab-inner-h) + env(safe-area-inset-bottom) + 1px);
+}
+
+/* ── 滚动条槽位稳定：长页加载滚动条出现/消失时不引发横向宽度抖动 ── */
+html {
+  scrollbar-gutter: stable;
 }
 
 /* ── 设计令牌（DESIGN.md 第二节）────────────────────────── */

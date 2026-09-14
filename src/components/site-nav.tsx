@@ -9,8 +9,6 @@ const LINKS = [
   { href: "/", label: "总览" },
   { href: "/ledger", label: "记账" },
   { href: "/data", label: "数据" },
-  { href: "/import", label: "导入" },
-  { href: "/accounts", label: "账户" },
   { href: "/settings", label: "设置" },
 ];
 
@@ -39,8 +37,14 @@ export default function SiteNav() {
 
   return (
     <>
-      <header className="hidden border-b border-fogline bg-night/80 backdrop-blur sm:block">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 px-4 py-3">
+      <header
+        className="hidden border-b border-fogline bg-night/80 backdrop-blur sm:block sm:fixed sm:inset-x-0 sm:top-0 sm:z-40"
+        style={{ height: "var(--nav-top-h)" }}
+      >
+        <div
+          className="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 px-4"
+          style={{ height: "var(--nav-top-inner-h)", lineHeight: "1.5" }}
+        >
           <Link href="/" className={`shrink-0 font-display font-semibold text-ink ${FOCUS_RING}`}>
             雾夜账
           </Link>
@@ -72,8 +76,14 @@ export default function SiteNav() {
           </nav>
         </div>
       </header>
-      <header className="sticky top-0 z-40 border-b border-fogline bg-night/80 pt-[env(safe-area-inset-top)] backdrop-blur sm:hidden">
-        <div className="flex min-h-[52px] items-center justify-between gap-2 px-4">
+      <header
+        className="sticky top-0 z-40 border-b border-fogline bg-night/80 pt-[env(safe-area-inset-top)] backdrop-blur sm:hidden"
+        style={{ height: "var(--nav-top-h-m)" }}
+      >
+        <div
+          className="flex items-center justify-between gap-2 px-4"
+          style={{ height: "var(--nav-top-inner-m)", lineHeight: "1.5" }}
+        >
           <Link href="/" className={`shrink-0 font-display font-semibold text-ink ${FOCUS_RING}`}>
             雾夜账
           </Link>
@@ -90,6 +100,7 @@ export default function SiteNav() {
       <nav
         aria-label="主导航"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-fogline bg-night/90 backdrop-blur pb-[env(safe-area-inset-bottom)] sm:hidden"
+        style={{ height: "var(--nav-bottom-h)" }}
       >
         <div className="flex items-stretch">
           {LINKS.map((l) => {

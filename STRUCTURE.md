@@ -30,27 +30,26 @@ src/
                         # "confirm email" path instead of bouncing back
     ledger/             # Manual bookkeeping: page.tsx (form + recent 100 transactions),
                         # transaction-form.tsx (client, useActionState), delete button,
-                        # actions.ts (createTransaction / deleteTransaction; both validate
-                        # account/category ownership before writing)
+                        # edit-transaction-button.tsx (inline edit panel + confirm),
+                        # actions.ts (createTransaction / updateTransaction /
+                        # deleteTransaction; all validate account/category ownership
+                        # before writing)
     data/               # Query & analytics: 12-month trend, asset curve (30/90/180-day
                         # chips), preset query chips, QueryForm (client, searchParams),
                         # results — filters and aggregation run server-side (PostgREST
                         # filters + dashboard_snapshot / filtered_tx_stats RPCs), list
                         # capped at 200 rows, no full-history fetch
-    import/             # Bill import: import-client.tsx parses files in the browser and
-                        # guards the 2000-row limit, actions.ts submitImportAction validates
-                        # every row/owner then calls the atomic import_transactions RPC,
-                        # recent import_batches + category rule chips
-    accounts/           # Account CRUD: create form, toggle active, delete; balances come
-                        # from the account_balances RPC; actions.ts
-    settings/           # Categories + budgets management, ensure-default button; actions.ts
-                        # (strict month parse, category ownership + expense-kind checks)
+    settings/           # Accounts + categories + budgets + bill import unified (anchors
+                        # #accounts / #import; account-actions.ts, import-actions.ts;
+                        # import-client.tsx parses files in the browser;
+                        # adjust-balance-button.tsx adjusts account balance inline
+                        # via initial_balance rewrite + confirm)
     globals.css         # Design tokens (@theme) + component classes + fog/lamp effects
   proxy.ts              # Edge auth gate (Next 16 replacement for middleware.ts); forwards
                         # Supabase anti-cache headers and excludes PWA/manifest assets
   components/
     site-nav.tsx        # Desktop top bar; mobile sticky top bar (wordmark + sign-out,
-                        # safe-area-inset-top for notch) + fixed bottom tab bar (6 links),
+                        # safe-area-inset-top for notch) + fixed bottom tab bar (4 links),
                         # active lamp-line, sign-out via browser Supabase, hidden on /login
     dashboard-charts.tsx        # Recharts: TrendChart (bar, ember/jade), AssetChart
                         # (line, lamp), ShareChart (pie, 8-color palette); reduced-motion
@@ -87,11 +86,9 @@ Config: `next.config.ts` (empty), `eslint.config.mjs` (flat config, core-web-vit
 | Route | Purpose | Notes |
 |---|---|---|
 | `/` | Overview (总览) | Single `dashboard_snapshot` RPC for balances/trend/share/curve; budget bars; 3 lazy charts |
-| `/ledger` | Record (记账) | Transaction form + recent 100 rows; delete with confirm; writes validate owner |
+| `/ledger` | Record (记账) | Transaction form + recent 100 rows; edit/delete with confirm; writes validate owner |
 | `/data` | Query (数据) | URL-searchParams queries applied server-side; summary via `filtered_tx_stats`; list ≤200 |
-| `/import` | Import (导入) | Browser-side parsing; ≤2000 rows/batch; atomic insert via `import_transactions` |
-| `/accounts` | Accounts (账户) | Balances from `account_balances` RPC; transfers move both sides |
-| `/settings` | Settings (设置) | Categories (default seed), budgets (month = YYYY-MM-01) |
+| `/settings` | Settings (设置) | Accounts (#accounts) · categories · budgets · bill import (#import); anchors for in-page sections; balances via `account_balances` RPC + inline balance adjustment (adjusts `initial_balance` by the delta), imports via atomic `import_transactions` RPC |
 | `/login` | Auth | Client page; only route without auth gate |
 
 Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except `/login`), and authenticated users away from `/login`; it excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest`, and image assets from the matcher, applies Supabase's `Cache-Control: private, no-cache…` headers on token refresh, and copies refreshed cookies onto redirect responses. Pages double-check via `supabase.auth.getClaims()` and throw on session errors. All pages are `force-dynamic`.
@@ -122,8 +119,8 @@ Conventions:
 - Server actions return `ActionResult = { ok: boolean; message: string }` and are consumed by `useActionState` (pending state, `role=alert` / `aria-live`).
 - Every money-mutating action calls `supabase.auth.getUser()`; writes/deletes are scoped by `user_id` and check the affected row count so RLS-filtered no-ops report failure instead of false success.
 - Import dedupe: `external_id` per `(user_id, source)` — formats `alipay|<order no>`, `wechat|<bill no>`, `ccb|<date>|<signed amount>|<balance>|<content hash>|<occurrence>`. The CCB key is content-based (序号 restarts per export); rows imported before this change will not match the new key on a re-import.
-- All money mutations revalidate the affected routes (`/ledger`, `/accounts`, `/data`, `/import`, `/`).
-- All deletes require a second confirmation in the UI; FK violations surface as user-facing Chinese messages.
+- All money mutations revalidate the affected routes (`/ledger`, `/settings`, `/data`, `/`).
+- All deletes and edits (transactions, account balances) require a second confirmation in the UI; FK violations surface as user-facing Chinese messages.
 
 ## 4. Design system (summary — full contract in DESIGN.md)
 
