@@ -23,16 +23,21 @@ src/
     global-error.tsx    # Root error boundary (renders its own html/body with bg-night)
     manifest.ts         # Web App Manifest (雾夜�? standalone, portrait, zh-CN,
                         # theme/background #0a0e14, icons 192/512 + maskable)
-    page.tsx            # "/" Overview: dashboard_snapshot RPC only (active balances,
-                        # 6-mo trend, month expense share, 30-day curve) + budget bars +
-                        # 3 lazy charts; month/day keys use Asia/Shanghai. force-dynamic,
-                        # getClaims-gated
+    page.tsx            # "/" Overview: sectioned Suspense streaming (hero / trend / share
+                        # / asset / balance / budget, each its own async component with a
+                        # page-skeleton fallback); dashboard_snapshot RPC shared across
+                        # sections via React cache() (single request) + accounts /
+                        # categories / budgets lookups; 3 lazy charts; month/day keys
+                        # use Asia/Shanghai. force-dynamic, getClaims-gated
     login/page.tsx      # Client page; email/password sign-in + sign-up via browser
                         # Supabase client; MUI TextField/Button; friendly Chinese error
                         # mapping; surfaces the "confirm email" path instead of bouncing
     login/loading.tsx   # Centered card skeleton (wordmark + divider + tagline lines,
                         # 2 input blocks + button block) mirroring the login layout
-    ledger/             # Manual bookkeeping: page.tsx (form + recent 100 transactions),
+    ledger/             # Manual bookkeeping: page.tsx (sectioned Suspense streaming:
+                        # intro subtitle + transaction form + recent-100 list, each an
+                        # async section with skeleton fallbacks; accounts/categories
+                        # shared via React cache()),
                         # loading.tsx (header/form-card/8-row list skeleton),
                         # transaction-form.tsx (client, useActionState, MUI: TextField/
                         # Select/Chip/Button), delete-transaction-button.tsx (MUI Dialog
@@ -40,13 +45,20 @@ src/
                         # Dialog confirm), actions.ts (createTransaction /
                         # updateTransaction / deleteTransaction; all validate
                         # account/category ownership before writing)
-    data/               # Query & analytics: 12-month trend, asset curve (30/90/180-day
-                        # chips), preset query chips, QueryForm (client, searchParams),
+    data/               # Query & analytics: sectioned Suspense streaming — trend panel,
+                        # asset curve (30/90/180-day chips, static, in the shell), preset
+                        # query chips (static, shell), QueryForm Suspense (unchanged
+                        # pattern), results summary + body; dashboard_snapshot /
+                        # filtered_tx_stats / list query shared via React cache();
                         # loading.tsx (header/two chart panels/chips/form/results skeleton),
                         # results — filters and aggregation run server-side (PostgREST
                         # filters + dashboard_snapshot / filtered_tx_stats RPCs), list
                         # capped at 200 rows, no full-history fetch
-    settings/           # Accounts + categories + budgets + bill import unified (anchors
+    settings/           # Accounts + categories + budgets + bill import unified, sectioned
+                        # Suspense streaming (accounts / categories / budgets / import as
+                        # async sections with skeleton fallbacks; the no-data create-
+                        # category form streams in the shell; accounts, balances RPC,
+                        # categories, batches, rules shared via React cache()) (anchors
                         # #accounts / #import; account-actions.ts, import-actions.ts);
                         # loading.tsx (header/accounts/categories/budgets/import skeletons);
                         # controls on MUI: forms use TextField/Select/Button,
@@ -106,10 +118,10 @@ Config: `next.config.ts` (empty), `eslint.config.mjs` (flat config, core-web-vit
 
 | Route | Purpose | Notes |
 |---|---|---|
-| `/` | Overview (总览) | Single `dashboard_snapshot` RPC for balances/trend/share/curve; budget bars; 3 lazy charts |
-| `/ledger` | Record (记账) | Transaction form + recent 100 rows; edit/delete with MUI Dialog confirm; controls on MUI; writes validate owner |
-| `/data` | Query (数据) | URL-searchParams queries applied server-side; summary via `filtered_tx_stats`; list �?00 |
-| `/settings` | Settings (设置) | Accounts (#accounts) · categories · budgets · bill import (#import); anchors for in-page sections; controls on MUI with Dialog confirmations; balances via `account_balances` RPC + inline balance adjustment (adjusts `initial_balance` by the delta), imports via atomic `import_transactions` RPC |
+| `/` | Overview (总览) | Sectioned Suspense streaming (hero/trend/share/asset/balance/budget); single `dashboard_snapshot` RPC shared via React `cache()`; budget bars; 3 lazy charts |
+| `/ledger` | Record (记账) | Sectioned Suspense streaming (intro + form + list); recent 100 rows; edit/delete with MUI Dialog confirm; controls on MUI; writes validate owner |
+| `/data` | Query (数据) | Sectioned Suspense streaming (trend/asset curve/chips/QueryForm/results); URL-searchParams queries applied server-side; summary via `filtered_tx_stats`; shared fetches via React `cache()`; list ≤ 200 |
+| `/settings` | Settings (设置) | Sectioned Suspense streaming (accounts/categories/budgets/import); Accounts (#accounts) · categories · budgets · bill import (#import); anchors for in-page sections; controls on MUI with Dialog confirmations; balances via `account_balances` RPC + inline balance adjustment (adjusts `initial_balance` by the delta), imports via atomic `import_transactions` RPC |
 | `/login` | Auth | Client page; only route without auth gate; controls on MUI |
 
 Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except `/login`), and authenticated users away from `/login`; it excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest`, and image assets from the matcher, applies Supabase's `Cache-Control: private, no-cache…` headers on token refresh, and copies refreshed cookies onto redirect responses. Pages double-check via `supabase.auth.getClaims()` and throw on session errors. All pages are `force-dynamic`.

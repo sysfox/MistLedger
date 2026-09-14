@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { TrendChart, AssetChart, ShareChart } from "@/components/dashboard-charts-lazy";
 import { monthKey } from "@/lib/ledger/stats";
 import { formatMoney } from "@/lib/ledger/format";
 import { channelLabel } from "@/lib/ledger/constants";
-import QueryForm from "./query-form";
+import { SkeletonChart, SkeletonLine, SkeletonRow } from "@/components/page-skeleton";
+import QueryForm, { type QueryCurrent } from "./query-form";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,17 @@ type FilteredTxStats = {
   income: number;
   transfer: number;
   by_category: { category_id: string; spent: number }[];
+};
+
+type QueryFilter = {
+  from?: string;
+  to?: string;
+  type?: string;
+  category?: string;
+  account?: string;
+  min?: number;
+  max?: number;
+  q?: string;
 };
 
 function shanghaiToday() {
@@ -88,6 +100,225 @@ function snapDays(raw: number | undefined) {
   return DAY_CHOICES.reduce((best, d) => (Math.abs(d - v) < Math.abs(best - v) ? d : best), DAY_CHOICES[0]);
 }
 
+const getSnapshot = cache(async (days: number) => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("dashboard_snapshot", { p_months: 12, p_days: days });
+  if (error) throw new Error("账目读取失败，请稍后重试");
+  return (data ?? null) as unknown as DashboardSnapshot | null;
+});
+
+const getAccounts = cache(async () => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("id, name, initial_balance, is_active")
+    .order("created_at");
+  if (error) throw new Error("账目读取失败，请稍后重试");
+  return data ?? [];
+});
+
+const getCategories = cache(async () => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, kind")
+    .order("kind")
+    .order("sort")
+    .order("name");
+  if (error) throw new Error("账目读取失败，请稍后重试");
+  return data ?? [];
+});
+
+const getStats = cache(async (f: QueryFilter) => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("filtered_tx_stats", {
+    p_from: f.from ?? null,
+    p_to: f.to ?? null,
+    p_type: f.type && f.type !== "all" ? f.type : null,
+    p_category: f.category ?? null,
+    p_account: f.account ?? null,
+    p_min: f.min ?? null,
+    p_max: f.max ?? null,
+    p_q: f.q ?? null,
+  });
+  if (error) throw new Error("账目读取失败，请稍后重试");
+  return (data ?? null) as unknown as FilteredTxStats | null;
+});
+
+const getTransactions = cache(async (f: QueryFilter) => {
+  const supabase = await createClient();
+  let listQuery = supabase
+    .from("transactions")
+    .select("id, date, amount, type, account_id, to_account_id, category_id, note, counterparty, channel, source");
+  if (f.from) listQuery = listQuery.gte("date", f.from);
+  if (f.to) listQuery = listQuery.lte("date", f.to);
+  if (f.type && f.type !== "all") listQuery = listQuery.eq("type", f.type);
+  if (f.category === "none") listQuery = listQuery.is("category_id", null);
+  else if (f.category) listQuery = listQuery.eq("category_id", f.category);
+  if (f.min != null) listQuery = listQuery.gte("amount", f.min);
+  if (f.max != null) listQuery = listQuery.lte("amount", f.max);
+  if (f.account) listQuery = listQuery.or(`account_id.eq.${f.account},to_account_id.eq.${f.account}`);
+  if (f.q) {
+    const value = escapeOrValue(`%${f.q}%`);
+    listQuery = listQuery.or(`counterparty.ilike.${value},note.ilike.${value}`);
+  }
+  const { data, error } = await listQuery
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(LIST_LIMIT);
+  if (error) throw new Error("账目读取失败，请稍后重试");
+  return (data ?? []).map((t) => ({ ...t, amount: Number(t.amount) }));
+});
+
+async function TrendSection({ days }: { days: number }) {
+  const snapshot = await getSnapshot(days);
+  const trend = (snapshot?.monthly ?? []).map((m) => ({
+    month: m.month.slice(5),
+    expense: Number(m.expense),
+    income: Number(m.income),
+  }));
+  return (
+    <section className="panel p-5">
+      <p className="eyebrow">趋势</p>
+      <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">近 12 个月收支趋势</h2>
+      <TrendChart data={trend} label="近 12 个月每月支出与收入柱状趋势图" />
+    </section>
+  );
+}
+
+async function AssetCurveSection({ days, today }: { days: number; today: string }) {
+  const snapshot = await getSnapshot(days);
+  const dayKeys = lastDayKeys(days, today);
+  const deltaByDay = new Map((snapshot?.daily ?? []).map((d) => [d.date, Number(d.delta)]));
+  const total = (snapshot?.accounts ?? []).reduce((s, a) => s + Number(a.balance), 0);
+  const windowDelta = dayKeys.reduce((s, key) => s + (deltaByDay.get(key) ?? 0), 0);
+  let running = total - windowDelta;
+  const assets: { date: string; total: number }[] = [];
+  for (const key of dayKeys) {
+    running += deltaByDay.get(key) ?? 0;
+    assets.push({ date: key.slice(5), total: Math.round(running * 100) / 100 });
+  }
+  return <AssetChart data={assets} label={`近 ${days} 天总资产曲线图`} />;
+}
+
+async function QueryFormSection({ days, current }: { days: number; current: QueryCurrent }) {
+  const [accounts, categories] = await Promise.all([getAccounts(), getCategories()]);
+  return (
+    <QueryForm
+      accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
+      categories={categories.map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
+      days={days}
+      current={current}
+    />
+  );
+}
+
+async function ResultsSummary({ filter }: { filter: QueryFilter }) {
+  const stats = await getStats(filter);
+  const summary = {
+    count: Number(stats?.count ?? 0),
+    expense: Number(stats?.expense ?? 0),
+    income: Number(stats?.income ?? 0),
+    transfer: Number(stats?.transfer ?? 0),
+  };
+  return (
+    <p aria-live="polite" className="text-sm text-dim">
+      共 <span className="money text-ink">{summary.count.toLocaleString("zh-CN")}</span> 笔
+      <span className="mx-2 text-fogline" aria-hidden="true">·</span>
+      <span className="money text-ember">
+        <span className="sr-only">支出 {formatMoney(summary.expense)} 元</span>
+        <span aria-hidden="true">−¥{formatMoney(summary.expense)}</span>
+      </span>
+      <span className="mx-2 text-fogline" aria-hidden="true">·</span>
+      <span className="money text-jade">
+        <span className="sr-only">收入 {formatMoney(summary.income)} 元</span>
+        <span aria-hidden="true">+¥{formatMoney(summary.income)}</span>
+      </span>
+      {summary.transfer > 0 ? (
+        <>
+          <span className="mx-2 text-fogline" aria-hidden="true">·</span>
+          <span className="money text-ink">
+            <span className="sr-only">转账 {formatMoney(summary.transfer)} 元</span>
+            <span aria-hidden="true">⇄¥{formatMoney(summary.transfer)}</span>
+          </span>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+async function ResultsBody({ filter }: { filter: QueryFilter }) {
+  const [stats, listed, accounts, categories] = await Promise.all([
+    getStats(filter),
+    getTransactions(filter),
+    getAccounts(),
+    getCategories(),
+  ]);
+  const accountName = new Map(accounts.map((a) => [a.id, a.name]));
+  const catName = new Map(categories.map((c) => [c.id, c.name]));
+  const summary = {
+    count: Number(stats?.count ?? 0),
+    expense: Number(stats?.expense ?? 0),
+  };
+  const shareData = (stats?.by_category ?? [])
+    .map((c) => ({
+      name: c.category_id === "__none__" ? "未分类" : (catName.get(c.category_id) ?? "未知分类"),
+      value: Math.round(Number(c.spent) * 100) / 100,
+    }))
+    .sort((a, b) => b.value - a.value);
+
+  return (
+    <>
+      {summary.expense > 0 ? (
+        <div className="mt-4">
+          <p className="text-xs text-dim">支出构成</p>
+          <ShareChart data={shareData} label="查询结果支出分类占比饼图" />
+        </div>
+      ) : null}
+
+      <ul className="mt-3 flex flex-col gap-2">
+        {listed.map((t) => {
+          const cat = t.category_id ? (catName.get(t.category_id) ?? "未知分类") : null;
+          const toAcc = t.to_account_id ? (accountName.get(t.to_account_id) ?? "未知账户") : null;
+          const fromAcc = accountName.get(t.account_id) ?? "未知账户";
+          return (
+            <li key={t.id} className="flex items-center justify-between gap-3 px-2 py-2 text-sm">
+              <div className="min-w-0">
+                <p className="truncate text-ink">
+                  <span className={`font-medium ${TYPE_COLOR[t.type] ?? "text-ink"}`}>
+                    {TYPE_LABEL[t.type] ?? t.type}
+                  </span>
+                  {" · "}
+                  {cat ?? (t.type === "transfer" ? `→ ${toAcc}` : "未分类")}
+                  {t.note ? <span className="ml-2 text-dim">{t.note}</span> : null}
+                </p>
+                <p className="text-xs text-dim">
+                  {t.date} · {fromAcc} · {channelLabel(t.channel)}
+                  {t.counterparty ? ` · ${t.counterparty}` : null}
+                  {t.source !== "manual" ? " · 导入" : null}
+                </p>
+              </div>
+              <span className={`money shrink-0 font-semibold ${TYPE_COLOR[t.type] ?? "text-ink"}`}>
+                {AMOUNT_PREFIX[t.type] ?? ""}¥{formatMoney(Number(t.amount))}
+              </span>
+            </li>
+          );
+        })}
+        {listed.length === 0 ? (
+          <li className="rounded-xl border border-dashed border-fogline px-4 py-6 text-center text-sm text-dim">
+            这个条件下还没有流水，试试放宽日期、金额区间或换个分类
+          </li>
+        ) : null}
+        {summary.count > LIST_LIMIT ? (
+          <li className="px-2 py-2 text-xs text-dim">
+            只显示前 {LIST_LIMIT} 笔（共 {summary.count.toLocaleString("zh-CN")} 笔），加个条件缩小范围
+          </li>
+        ) : null}
+      </ul>
+    </>
+  );
+}
+
 export default async function DataPage({
   searchParams,
 }: {
@@ -104,11 +335,9 @@ export default async function DataPage({
   const today = shanghaiToday();
   const curMonth = today.slice(0, 7);
 
-  // 曲线参数：资产曲线天数（吸附到 30/90/180，不影响查询条件）
   const daysParam = get("days");
   const days = snapDays(daysParam ? Number(daysParam) : undefined);
 
-  // 自定义查询条件（非法值安全降级为缺省）
   const typeRaw = get("type");
   const type = ["expense", "income", "transfer", "all"].includes(typeRaw ?? "") ? typeRaw : undefined;
   const typeFilter = type && type !== "all" ? type : undefined;
@@ -118,7 +347,7 @@ export default async function DataPage({
   const maxParam = get("max");
   const minRaw = minParam ? Number(minParam) : undefined;
   const maxRaw = maxParam ? Number(maxParam) : undefined;
-  const filter = {
+  const filter: QueryFilter = {
     from: fromRaw && DATE_RE.test(fromRaw) ? fromRaw : undefined,
     to: toRaw && DATE_RE.test(toRaw) ? toRaw : undefined,
     type,
@@ -138,92 +367,8 @@ export default async function DataPage({
       filter.min != null ||
       filter.max != null,
   );
-  const effective = hasFilter ? filter : { ...filter, from: `${curMonth}-01`, to: today };
+  const effective: QueryFilter = hasFilter ? filter : { ...filter, from: `${curMonth}-01`, to: today };
 
-  // 结果列表：条件全部下推服务端，服务端已按日期倒序取前 LIST_LIMIT 笔
-  let listQuery = supabase
-    .from("transactions")
-    .select("id, date, amount, type, account_id, to_account_id, category_id, note, counterparty, channel, source");
-  if (effective.from) listQuery = listQuery.gte("date", effective.from);
-  if (effective.to) listQuery = listQuery.lte("date", effective.to);
-  if (typeFilter) listQuery = listQuery.eq("type", typeFilter);
-  if (effective.category === "none") listQuery = listQuery.is("category_id", null);
-  else if (effective.category) listQuery = listQuery.eq("category_id", effective.category);
-  if (effective.min != null) listQuery = listQuery.gte("amount", effective.min);
-  if (effective.max != null) listQuery = listQuery.lte("amount", effective.max);
-  if (effective.account)
-    listQuery = listQuery.or(`account_id.eq.${effective.account},to_account_id.eq.${effective.account}`);
-  if (effective.q) {
-    const value = escapeOrValue(`%${effective.q}%`);
-    listQuery = listQuery.or(`counterparty.ilike.${value},note.ilike.${value}`);
-  }
-  listQuery = listQuery
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(LIST_LIMIT);
-
-  const [accountsRes, categoriesRes, snapshotRes, statsRes, txsRes] = await Promise.all([
-    supabase.from("accounts").select("id, name, initial_balance, is_active").order("created_at"),
-    supabase.from("categories").select("id, name, kind").order("kind").order("sort").order("name"),
-    supabase.rpc("dashboard_snapshot", { p_months: 12, p_days: days }),
-    supabase.rpc("filtered_tx_stats", {
-      p_from: effective.from ?? null,
-      p_to: effective.to ?? null,
-      p_type: typeFilter ?? null,
-      p_category: effective.category ?? null,
-      p_account: effective.account ?? null,
-      p_min: effective.min ?? null,
-      p_max: effective.max ?? null,
-      p_q: effective.q ?? null,
-    }),
-    listQuery,
-  ]);
-
-  if (accountsRes.error || categoriesRes.error || snapshotRes.error || statsRes.error || txsRes.error) {
-    throw new Error("账目读取失败，请稍后重试");
-  }
-
-  const accounts = accountsRes.data;
-  const categories = categoriesRes.data;
-  const snapshot = snapshotRes.data as unknown as DashboardSnapshot | null;
-  const stats = statsRes.data as unknown as FilteredTxStats | null;
-
-  const accountName = new Map((accounts ?? []).map((a) => [a.id, a.name]));
-  const catName = new Map((categories ?? []).map((c) => [c.id, c.name]));
-
-  // 趋势与曲线：均由 dashboard_snapshot 服务端聚合，不再受取数上限影响
-  const trend = (snapshot?.monthly ?? []).map((m) => ({
-    month: m.month.slice(5),
-    expense: Number(m.expense),
-    income: Number(m.income),
-  }));
-  const dayKeys = lastDayKeys(days, today);
-  const deltaByDay = new Map((snapshot?.daily ?? []).map((d) => [d.date, Number(d.delta)]));
-  const total = (snapshot?.accounts ?? []).reduce((s, a) => s + Number(a.balance), 0);
-  const windowDelta = dayKeys.reduce((s, key) => s + (deltaByDay.get(key) ?? 0), 0);
-  let running = total - windowDelta;
-  const assets: { date: string; total: number }[] = [];
-  for (const key of dayKeys) {
-    running += deltaByDay.get(key) ?? 0;
-    assets.push({ date: key.slice(5), total: Math.round(running * 100) / 100 });
-  }
-
-  // 查询结果汇总与支出构成：均由 filtered_tx_stats 服务端聚合
-  const summary = {
-    count: Number(stats?.count ?? 0),
-    expense: Number(stats?.expense ?? 0),
-    income: Number(stats?.income ?? 0),
-    transfer: Number(stats?.transfer ?? 0),
-  };
-  const shareData = (stats?.by_category ?? [])
-    .map((c) => ({
-      name: c.category_id === "__none__" ? "未分类" : (catName.get(c.category_id) ?? "未知分类"),
-      value: Math.round(Number(c.spent) * 100) / 100,
-    }))
-    .sort((a, b) => b.value - a.value);
-  const listed = (txsRes.data ?? []).map((t) => ({ ...t, amount: Number(t.amount) }));
-
-  // URL 构造：天数与查询条件互不覆盖
   const queryQs = new URLSearchParams();
   if (filter.from) queryQs.set("from", filter.from);
   if (filter.to) queryQs.set("to", filter.to);
@@ -235,7 +380,6 @@ export default async function DataPage({
   if (filter.q) queryQs.set("q", filter.q);
   const daysQs = days !== 90 ? `&days=${days}` : "";
 
-  // 常用查询预设
   const prevMonth = prevMonthKey(curMonth);
   const presets = [
     { label: "本月支出", params: `type=expense&from=${curMonth}-01&to=${today}` },
@@ -247,6 +391,17 @@ export default async function DataPage({
     { label: "全部转账", params: "type=transfer" },
   ];
 
+  const current: QueryCurrent = {
+    from: filter.from ?? "",
+    to: filter.to ?? "",
+    type: type ?? "all",
+    cat: get("cat") ?? "",
+    acc: get("acc") ?? "",
+    min: get("min") ?? "",
+    max: get("max") ?? "",
+    q: filter.q ?? "",
+  };
+
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
@@ -255,11 +410,19 @@ export default async function DataPage({
         <p className="mt-1 text-sm text-dim">看长期趋势，也按条件翻流水</p>
       </div>
 
-      <section className="panel p-5">
-        <p className="eyebrow">趋势</p>
-        <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">近 12 个月收支趋势</h2>
-        <TrendChart data={trend} label="近 12 个月每月支出与收入柱状趋势图" />
-      </section>
+      <Suspense
+        fallback={
+          <div role="status" aria-busy="true">
+            <section className="panel p-5">
+              <SkeletonLine className="h-3 w-20" />
+              <SkeletonLine className="mt-2 h-4 w-44" />
+              <SkeletonChart />
+            </section>
+          </div>
+        }
+      >
+        <TrendSection days={days} />
+      </Suspense>
 
       <section className="panel p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -284,7 +447,15 @@ export default async function DataPage({
             ))}
           </div>
         </div>
-        <AssetChart data={assets} label={`近 ${days} 天总资产曲线图`} />
+        <Suspense
+          fallback={
+            <div role="status" aria-busy="true">
+              <SkeletonChart />
+            </div>
+          }
+        >
+          <AssetCurveSection days={days} today={today} />
+        </Suspense>
       </section>
 
       <section className="panel p-5">
@@ -308,21 +479,7 @@ export default async function DataPage({
         <p className="eyebrow">自定义查询</p>
         <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">按条件查流水</h2>
         <Suspense fallback={<div className="skeleton mt-3 h-[260px] w-full rounded-lg" aria-busy="true" />}>
-          <QueryForm
-            accounts={(accounts ?? []).map((a) => ({ id: a.id, name: a.name }))}
-            categories={(categories ?? []).map((c) => ({ id: c.id, name: c.name, kind: c.kind }))}
-            days={days}
-            current={{
-              from: filter.from ?? "",
-              to: filter.to ?? "",
-              type: type ?? "all",
-              cat: get("cat") ?? "",
-              acc: get("acc") ?? "",
-              min: get("min") ?? "",
-              max: get("max") ?? "",
-              q: filter.q ?? "",
-            }}
-          />
+          <QueryFormSection days={days} current={current} />
         </Suspense>
       </section>
 
@@ -334,76 +491,31 @@ export default async function DataPage({
               {hasFilter ? "符合条件的流水" : "本月全部流水"}
             </h2>
           </div>
-          <p aria-live="polite" className="text-sm text-dim">
-            共 <span className="money text-ink">{summary.count.toLocaleString("zh-CN")}</span> 笔
-            <span className="mx-2 text-fogline" aria-hidden="true">·</span>
-            <span className="money text-ember">
-              <span className="sr-only">支出 {formatMoney(summary.expense)} 元</span>
-              <span aria-hidden="true">−¥{formatMoney(summary.expense)}</span>
-            </span>
-            <span className="mx-2 text-fogline" aria-hidden="true">·</span>
-            <span className="money text-jade">
-              <span className="sr-only">收入 {formatMoney(summary.income)} 元</span>
-              <span aria-hidden="true">+¥{formatMoney(summary.income)}</span>
-            </span>
-            {summary.transfer > 0 ? (
-              <>
-                <span className="mx-2 text-fogline" aria-hidden="true">·</span>
-                <span className="money text-ink">
-                  <span className="sr-only">转账 {formatMoney(summary.transfer)} 元</span>
-                  <span aria-hidden="true">⇄¥{formatMoney(summary.transfer)}</span>
-                </span>
-              </>
-            ) : null}
-          </p>
+          <Suspense
+            fallback={
+              <div role="status" aria-busy="true">
+                <SkeletonLine className="h-3.5 w-56" />
+              </div>
+            }
+          >
+            <ResultsSummary filter={effective} />
+          </Suspense>
         </div>
 
-        {summary.expense > 0 ? (
-          <div className="mt-4">
-            <p className="text-xs text-dim">支出构成</p>
-            <ShareChart data={shareData} label="查询结果支出分类占比饼图" />
-          </div>
-        ) : null}
-
-        <ul className="mt-3 flex flex-col gap-2">
-          {listed.map((t) => {
-            const cat = t.category_id ? (catName.get(t.category_id) ?? "未知分类") : null;
-            const toAcc = t.to_account_id ? (accountName.get(t.to_account_id) ?? "未知账户") : null;
-            const fromAcc = accountName.get(t.account_id) ?? "未知账户";
-            return (
-              <li key={t.id} className="flex items-center justify-between gap-3 px-2 py-2 text-sm">
-                <div className="min-w-0">
-                  <p className="truncate text-ink">
-                    <span className={`font-medium ${TYPE_COLOR[t.type] ?? "text-ink"}`}>
-                      {TYPE_LABEL[t.type] ?? t.type}
-                    </span>
-                    {" · "}
-                    {cat ?? (t.type === "transfer" ? `→ ${toAcc}` : "未分类")}
-                    {t.note ? <span className="ml-2 text-dim">{t.note}</span> : null}
-                  </p>
-                  <p className="text-xs text-dim">
-                    {t.date} · {fromAcc} · {channelLabel(t.channel)}
-                    {t.counterparty ? ` · ${t.counterparty}` : null}
-                    {t.source !== "manual" ? " · 导入" : null}
-                  </p>
-                </div>
-                <span className={`money shrink-0 font-semibold ${TYPE_COLOR[t.type] ?? "text-ink"}`}>
-                  {AMOUNT_PREFIX[t.type] ?? ""}¥{formatMoney(Number(t.amount))}
-                </span>
-              </li>
-            );
-          })}
-          {listed.length === 0 ? (
-            <li className="rounded-xl border border-dashed border-fogline px-4 py-6 text-center text-sm text-dim">
-              这个条件下还没有流水，试试放宽日期、金额区间或换个分类
-            </li>
-          ) : null}
-          {summary.count > LIST_LIMIT ? (
-            <li className="px-2 py-2 text-xs text-dim">
-              只显示前 {LIST_LIMIT} 笔（共 {summary.count.toLocaleString("zh-CN")} 笔），加个条件缩小范围
-            </li>
-          ) : null}
-        </ul>
+        <Suspense
+          fallback={
+            <div role="status" aria-busy="true">
+              <div className="mt-3 flex flex-col gap-4">
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </div>
+            </div>
+          }
+        >
+          <ResultsBody filter={effective} />
+        </Suspense>
       </section>
     </main>
   );
