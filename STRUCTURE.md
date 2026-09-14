@@ -15,31 +15,39 @@ src/
     layout.tsx          # Fonts (Noto Serif SC / Noto Sans SC / Geist Mono via next/font),
                         # metadata, viewport (themeColor #0a0e14, viewportFit=cover),
                         # mounts ServiceWorkerRegister + SiteNav, safe-area bottom padding
-    template.tsx        # Per-navigation remount wrapper: .page-enter "fog-develops" transition;
-                        # flex-1 column filler so pages/loading can center in the viewport
+    template.tsx        # Per-navigation remount wrapper: .page-enter "fog-develops" transition
     loading.tsx         # "Holding the lamp" loading state (breathing lamp dot + 掌灯…)
     error.tsx           # Route error boundary (client, retry button)
     global-error.tsx    # Root error boundary (renders its own html/body with bg-night)
     manifest.ts         # Web App Manifest (雾夜账, standalone, portrait, zh-CN,
                         # theme/background #0a0e14, icons 192/512 + maskable)
-    page.tsx            # "/" Overview: total assets, month expense/income, budget bars,
-                        # account balances, 3 lazy charts. force-dynamic, auth-gated
+    page.tsx            # "/" Overview: dashboard_snapshot RPC only (active balances,
+                        # 6-mo trend, month expense share, 30-day curve) + budget bars +
+                        # 3 lazy charts; month/day keys use Asia/Shanghai. force-dynamic,
+                        # getClaims-gated
     login/page.tsx      # Client page; email/password sign-in + sign-up via browser
-                        # Supabase client; friendly Chinese error mapping
+                        # Supabase client; friendly Chinese error mapping; surfaces the
+                        # "confirm email" path instead of bouncing back
     ledger/             # Manual bookkeeping: page.tsx (form + recent 100 transactions),
                         # transaction-form.tsx (client, useActionState), delete button,
-                        # actions.ts (createTransaction / deleteTransaction)
+                        # actions.ts (createTransaction / deleteTransaction; both validate
+                        # account/category ownership before writing)
     data/               # Query & analytics: 12-month trend, asset curve (30/90/180-day
                         # chips), preset query chips, QueryForm (client, searchParams),
-                        # results (summary + top-200 list + expense pie)
-    import/             # Bill import: import-client.tsx parses files in the browser,
-                        # actions.ts submitImportAction (dedupe + batch + rules),
+                        # results — filters and aggregation run server-side (PostgREST
+                        # filters + dashboard_snapshot / filtered_tx_stats RPCs), list
+                        # capped at 200 rows, no full-history fetch
+    import/             # Bill import: import-client.tsx parses files in the browser and
+                        # guards the 2000-row limit, actions.ts submitImportAction validates
+                        # every row/owner then calls the atomic import_transactions RPC,
                         # recent import_batches + category rule chips
-    accounts/           # Account CRUD: create form, toggle active, delete; computed
-                        # balances; actions.ts
+    accounts/           # Account CRUD: create form, toggle active, delete; balances come
+                        # from the account_balances RPC; actions.ts
     settings/           # Categories + budgets management, ensure-default button; actions.ts
+                        # (strict month parse, category ownership + expense-kind checks)
     globals.css         # Design tokens (@theme) + component classes + fog/lamp effects
-  proxy.ts              # Edge auth gate (Next 16 replacement for middleware.ts)
+  proxy.ts              # Edge auth gate (Next 16 replacement for middleware.ts); forwards
+                        # Supabase anti-cache headers and excludes PWA/manifest assets
   components/
     site-nav.tsx        # Desktop top bar + mobile fixed bottom tab bar (6 links),
                         # active lamp-line, sign-out via browser Supabase, hidden on /login
@@ -52,15 +60,18 @@ src/
     supabase/client.ts  # Browser client (createBrowserClient, publishable key)
     supabase/server.ts  # Server client with cookie getAll/setAll adapters
     supabase/proxy.ts   # (session helper used by proxy.ts)
-    supabase/database.types.ts  # Generated Database type
+    supabase/database.types.ts  # Generated Database type, incl. the Functions (RPCs) below
     ledger/constants.ts # ACCOUNT_TYPES, CHANNELS, accountTypeLabel/channelLabel,
                         # DEFAULT_CATEGORIES seed (expense: 餐饮/交通/购物/学习/宿舍/娱乐;
                         # income: 生活费/兼职/红包)
     ledger/format.ts    # formatMoney (zh-CN, 2dp), formatBudget (0dp)
-    ledger/stats.ts     # Pure functions: monthlyTrend, categoryShare, assetCurve,
-                        # filterTxs, summarizeTxs, accountBalances
-    ledger/import-parse.ts  # Parsers: parseAlipay (CSV-GBK/xlsx), parseWechat (xlsx),
-                        # parseCCB (建行 hqmx xls); parseBillFile entrypoint
+    ledger/stats.ts     # Pure-function library: monthlyTrend, categoryShare, assetCurve,
+                        # filterTxs, summarizeTxs, accountBalances (single-pass; TxLike.type
+                        # is a closed union). Retained for reuse/tests — pages now aggregate
+                        # via the RPCs instead
+    ledger/import-parse.ts  # Parsers: parseAlipay (CSV GBK/UTF-8-BOM/xlsx), parseWechat
+                        # (xlsx), parseCCB (建行 hqmx xls); parseBillFile entrypoint lazily
+                        # imports xlsx (code-split) and decodes CSV with TextDecoder
 public/
   sw.js                 # Service worker (cache "mistledger-v1"): static cache-first,
                         # navigation network-first + inline offline page
@@ -74,15 +85,15 @@ Config: `next.config.ts` (empty), `eslint.config.mjs` (flat config, core-web-vit
 
 | Route | Purpose | Notes |
 |---|---|---|
-| `/` | Overview (总览) | Hero assets number, month stats, budget progress, 3 lazy charts |
-| `/ledger` | Record (记账) | Transaction form + recent 100 rows; delete with confirm |
-| `/data` | Query (数据) | URL-searchParams-driven queries; chips 30/90/180 days |
-| `/import` | Import (导入) | Browser-side parsing; max 2000 rows per batch |
-| `/accounts` | Accounts (账户) | Balances = initial + sums; transfers move both sides |
+| `/` | Overview (总览) | Single `dashboard_snapshot` RPC for balances/trend/share/curve; budget bars; 3 lazy charts |
+| `/ledger` | Record (记账) | Transaction form + recent 100 rows; delete with confirm; writes validate owner |
+| `/data` | Query (数据) | URL-searchParams queries applied server-side; summary via `filtered_tx_stats`; list ≤200 |
+| `/import` | Import (导入) | Browser-side parsing; ≤2000 rows/batch; atomic insert via `import_transactions` |
+| `/accounts` | Accounts (账户) | Balances from `account_balances` RPC; transfers move both sides |
 | `/settings` | Settings (设置) | Categories (default seed), budgets (month = YYYY-MM-01) |
 | `/login` | Auth | Client page; only route without auth gate |
 
-Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except `/login`), and authenticated users away from `/login`. Pages double-check via server-side `supabase.auth.getUser()`. All pages are `force-dynamic`.
+Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except `/login`), and authenticated users away from `/login`; it excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest`, and image assets from the matcher, applies Supabase's `Cache-Control: private, no-cache…` headers on token refresh, and copies refreshed cookies onto redirect responses. Pages double-check via `supabase.auth.getClaims()` and throw on session errors. All pages are `force-dynamic`.
 
 ## 3. Data model (Supabase `public` schema)
 
@@ -95,10 +106,22 @@ Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except 
 | `transactions` | `user_id, date, amount, type` (expense/income/transfer)`, account_id, to_account_id, category_id, channel` (alipay/wechat/direct/other)`, counterparty, source` (manual/batch)`, external_id, import_batch_id, note` |
 | `import_batches` | `user_id, source` (alipay_import/wechat_import/bank_import)`, filename, row_count, success_count, duplicate_count` |
 
+Indexes: `transactions_user_date_idx (user_id, date DESC)`, `transactions_import_dedup_uidx (user_id, source, external_id) WHERE external_id IS NOT NULL`, plus FK-covering indexes on `account_id`, `to_account_id`, `category_id`, `import_batch_id`, and `budgets.category_id` / `category_rules.category_id`.
+
+Database functions (RPCs; all `security invoker` + `set search_path = public`, `execute` granted to `authenticated` only, so RLS still scopes every row):
+
+| Function | Returns | Purpose |
+|---|---|---|
+| `account_balances()` | `(account_id, balance)` | Each account's balance = `initial_balance` + all transactions (expense −, income +, transfer −from/+to) |
+| `dashboard_snapshot(p_months, p_days)` | `jsonb` | `{ accounts:[{id,balance}], months:[], monthly:[{month,expense,income}], category:[{category_id,spent}], daily:[{date,delta}] }`; active-account balances, monthly trend, current-month expense by category (`"__none__"` = unclassified), and active-account daily net delta with transfer remapping; Asia/Shanghai clock |
+| `filtered_tx_stats(p_from,p_to,p_type,p_category,p_account,p_min,p_max,p_q)` | `jsonb` | Exact `{ count, expense, income, transfer, by_category }` for arbitrary filters (no PostgREST row cap); `p_category` accepts a uuid or `"none"` |
+| `import_transactions(p_source,p_filename,p_account_id,p_rows)` | `(batch_id,inserted_count,duplicate_count)` | One transaction: creates the batch, inserts rows with `ON CONFLICT … DO NOTHING`, updates counters; validates source/row-count/account-ownership and every row (date, amount, type, externalId, channel, transfer/category ownership) |
+
 Conventions:
 - Server actions return `ActionResult = { ok: boolean; message: string }` and are consumed by `useActionState` (pending state, `role=alert` / `aria-live`).
-- Import dedupe: `external_id` per `(user_id, source)` — formats `alipay|<order no>`, `wechat|<bill no>`, `ccb|<date>|<seq-or-note+amount>`.
-- All money mutations revalidate the affected routes (`/ledger`, `/accounts`, `/`, …).
+- Every money-mutating action calls `supabase.auth.getUser()`; writes/deletes are scoped by `user_id` and check the affected row count so RLS-filtered no-ops report failure instead of false success.
+- Import dedupe: `external_id` per `(user_id, source)` — formats `alipay|<order no>`, `wechat|<bill no>`, `ccb|<date>|<signed amount>|<balance>|<content hash>|<occurrence>`. The CCB key is content-based (序号 restarts per export); rows imported before this change will not match the new key on a re-import.
+- All money mutations revalidate the affected routes (`/ledger`, `/accounts`, `/data`, `/import`, `/`).
 - All deletes require a second confirmation in the UI; FK violations surface as user-facing Chinese messages.
 
 ## 4. Design system (summary — full contract in DESIGN.md)

@@ -154,6 +154,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - **预算进度条**：底轨 `veil`，填充未超支用 `ink/70`（灰纸色，克制），超支才用 `ember`。禁止渐变进度条。
 - 登录页：居中窄卡（max-w-sm），词标 serif + 灯线 + 标语，是全站的「门」。
 - 导航在 `/login` 隐藏（登录页是门，不需要房间内的指示牌）。
+- 移动端（<sm）双层导航：顶部 sticky 品牌栏（词标「雾夜账」+「退出」，`pt-[env(safe-area-inset-top)]` 撑开刘海/挖孔区，滚动时内容从雾面下穿过）+ 固定底部 tab 栏（6 项导航，safe-area 底距由 body padding 预留）。桌面仍是单层顶栏。
 - 数据页（/data）：曲线与查询的账房档案柜。结构自上而下：近 12 个月收支趋势 → 总资产曲线（30/90/180 天 chip 切换，选中态用 `chip-active`）→ 常用查询（chip 预设链接）→ 自定义查询表单（可见小标签 + `.input`）→ 查询结果（汇总行 + 流水列表 + 支出构成饼图）。查询条件全部走 URL searchParams，可分享、可后退。
 
 ---
@@ -285,4 +286,6 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 2026-09-13 · 新增数据页（/data）：近 12 个月收支趋势、总资产曲线（30/90/180 天切换）、常用查询预设（chip 链接）、自定义查询表单（日期/类型/分类/账户/金额区间/关键词，走 URL searchParams）与查询结果（笔数汇总 + 支出构成饼图 + 流水列表，上限 200 笔）；导航六项加入「数据」；stats.ts 新增 filterTxs / summarizeTxs 纯函数；第六节补数据页布局说明。
 - 2026-09-13 · 数据页审查修复：曲线天数 chip 改为 chip 基础类叠加 chip-active（修直角无框选中态）并统一 44px 触控目标；三个图表组件新增 label 参数（读屏描述与实际范围一致，总览页默认不变）；Bar/Line/Pie 补 animationDuration=400（守 500ms 禁忌）；天数与查询条件互保参数（切天数不清查询、点预设不重置曲线）；「上月支出」改用真实月末（date 控件不吃非法日期）；from/to 正则校验、金额下限非负、days 吸附到 30/90/180；资产曲线只计启用账户流水；5000 笔取数截断加提示；查询表单 key 随条件重挂载（修 defaultValue 陈旧）、useTransition 查询中态、分类按支出/收入 optgroup、结果区 #results 锚点与 aria-live 汇总；列表行去掉假 affordance hover；桌面 nav 补 aria-label；accountBalances 不再为停用账户流水凭空建余额（总资产口径修正）。lint 与 build 通过。
 - 2026-09-14 · PWA 支持：`src/app/manifest.ts` 生成 Web App Manifest（名称「雾夜账」、standalone、portrait、夜空/灯火令牌同值的 theme 与背景色、zh-CN）；GDI+ 生成品牌图标（夜空底 + 纸墨「雾」字 + 灯线签名，含 192/512 与 maskable 安全区版本，`src/app/icon.png`、`src/app/apple-icon.png` 走 Next 图标文件约定）；`public/sw.js` Service Worker——导航请求网络优先、失败回落缓存或内联离线兜底页（第七节 2.5），`/_next/static`、`/icons` 等静态资源缓存优先，RSC 预取与 server action 不缓存；`ServiceWorkerRegister` 客户端组件在 layout 挂载后注册；metadata 补 `applicationName` 与 `appleWebApp`（iOS 添加到主屏）。离线兜底页复用「掌灯」视觉并受 reduced-motion 约束。
+- 2026-09-14 · 移动端顶部导航栏：新增移动端 sticky 顶栏（词标「雾夜账」+「退出」），`pt-[env(safe-area-inset-top)]` 补刘海/挖孔安全距，内容不再与手机摄像头区重合、滚动时从 `bg-night/80 backdrop-blur` 的雾面下穿过；「退出」自底部 tab 栏上移至此，底栏回归纯导航 6 项（原 7 项在窄屏过于拥挤）；桌面顶栏不变。第六节布局概念同步补充。
 - 2026-09-14 · 移动端三处修复：①「掌灯」加载态——template 变 flex 列并 `flex-1` 撑满 body 剩余高度，加载态随之真正垂直居中（去 `py-24`），灯点由 10px 增至 16px（`h-4 w-4` 覆盖）；②登录页改 `flex-1` 填充，不再 `min-h-screen` 叠加 body 底部安全垫导致整页可上下滑动；③资产曲线 XAxis 弃用固定 `interval={4}`，改 `preserveStartEnd + minTickGap=20` 并把 `MM-DD` 缩写为 `M/D`，修手机端日期刻度严重重合。lint 与 build 通过。
+- 2026-09-14 · 数据准确性与导入稳健性（服务端聚合）：数据页与总览页的趋势/资产曲线/收支汇总/分类占比改由服务端 RPC（`dashboard_snapshot` / `filtered_tx_stats` / `account_balances`）聚合，不再受 PostgREST 取数上限影响；数据页查询条件下推服务端、结果改为服务端前 200 笔，移除「只统计最近 5,000 笔」的截断提示（该提示因实际上限为 1000 而从未生效）；总览/数据/设置的月份与日界统一按 Asia/Shanghai；记账页停用账户的流水不再误显示「未知账户」（改用行内连接的账户名）；导入页新增 2000 笔上限前端守卫——超限时禁用「确认导入」并以 ember 警示「单次最多导入 2000 笔，当前 N 笔，请拆分文件再导」（沿用账房口吻）；登录页注册后若需邮箱确认，改为提示「注册成功，请到邮箱确认后再登录」并停留当前页（消除看似跳转回环）。无令牌/配色/动效变更；lint 与 build 通过。
