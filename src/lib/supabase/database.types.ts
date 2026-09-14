@@ -265,7 +265,43 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      account_balances: {
+        Args: never
+        Returns: {
+          account_id: string
+          balance: number
+        }[]
+      }
+      dashboard_snapshot: {
+        Args: { p_days?: number; p_months?: number }
+        Returns: Json
+      }
+      filtered_tx_stats: {
+        Args: {
+          p_account?: string
+          p_category?: string
+          p_from?: string
+          p_max?: number
+          p_min?: number
+          p_q?: string
+          p_to?: string
+          p_type?: string
+        }
+        Returns: Json
+      }
+      import_transactions: {
+        Args: {
+          p_account_id: string
+          p_filename: string
+          p_rows: Json
+          p_source: string
+        }
+        Returns: {
+          batch_id: string
+          duplicate_count: number
+          inserted_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
