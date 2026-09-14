@@ -1,9 +1,32 @@
-const CACHE = "mistledger-v1";
+const CACHE = "mistledger-v2";
+
+const PRECACHE = [
+  "/manifest.webmanifest",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/maskable-192.png",
+  "/icons/maskable-512.png",
+];
 
 const STATIC_PREFIXES = ["/_next/static/", "/icons/", "/_next/image"];
 
-self.addEventListener("install", () => {
+self.addEventListener("install", (event) => {
   self.skipWaiting();
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE);
+      await Promise.all(
+        PRECACHE.map(async (path) => {
+          try {
+            const res = await fetch(path, { cache: "no-store" });
+            if (res && res.ok) await cache.put(path, res);
+          } catch {
+            // ignore failed precache entry
+          }
+        }),
+      );
+    })(),
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -26,6 +49,10 @@ function isStaticAsset(url) {
   return STATIC_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
 }
 
+function isIconOrManifest(url) {
+  return url.pathname === "/manifest.webmanifest" || url.pathname.startsWith("/icons/");
+}
+
 function isRscRequest(request, url) {
   return (
     request.headers.get("RSC") === "1" ||
@@ -41,6 +68,18 @@ async function cacheFirst(request) {
   const fresh = await fetch(request);
   if (fresh && fresh.ok) cache.put(request, fresh.clone());
   return fresh;
+}
+
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+  const refresh = fetch(request)
+    .then((fresh) => {
+      if (fresh && fresh.ok) cache.put(request, fresh.clone());
+      return fresh;
+    })
+    .catch(() => null);
+  return cached || refresh;
 }
 
 async function networkFirstNavigation(request) {
@@ -118,6 +157,11 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(networkFirstNavigation(request));
+    return;
+  }
+
+  if (isIconOrManifest(url)) {
+    event.respondWith(staleWhileRevalidate(request));
     return;
   }
 
