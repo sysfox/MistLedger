@@ -180,9 +180,15 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 时长 380ms，宁短勿长；blur 上限 8px。
 - 禁止离场动画（App Router 无此必要，加了只会拖慢感）。
 
-### 2. 加载态「掌灯」
+### 2. 路由级结构骨架屏
 
-`src/app/loading.tsx`（路由级）与图表骨架：一枚**呼吸的灯点**（amber 圆点 + 呼吸辉光 keyframe `lamp-breathe`，2s ease-in-out 无限）+ 文案「掌灯…」。图表加载骨架为 `veil` 色块 + 轻微 pulse，高度与图表一致（220px），禁止布局跳动。
+每个路由配 `loading.tsx`，用**结构骨架屏**镜像真实页面布局（`src/components/page-skeleton.tsx` 提供零件）：
+
+- 骨架全部基于 `.skeleton` 类（veil 色块 + `skeleton-pulse` 2s 透明度脉动），不自定义颜色；禁用 lamp-dot 与 `.lamp-line`（灯属于内容，不属于等待）。
+- 布局镜像真实页面：main 容器类与页面完全一致（如总览 `mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6`），区块顺序、双列网格、行高对齐真实内容，杜绝加载完成后的布局跳动。
+- 图表占位固定 220px（与图表容器一致）；每个 loading.tsx 根节点 `role="status" aria-busy="true"` + `<span class="sr-only">掌灯中…</span>`，骨架不放可见文案、不放 emoji。
+- `prefers-reduced-motion` 下骨架静止（全局降级规则覆盖 `skeleton-pulse`）。
+- 根级 `src/app/loading.tsx` 现为总览骨架（hero 大金额线 + 趋势/双列图表 220px + 余额行 + 预算进度条），不再用全屏「掌灯…」灯点；`lamp-breathe` 灯点仅保留给离线兜底页（第七节 2.5）。
 
 ### 2.5 离线兜底（PWA Service Worker）
 
@@ -308,6 +314,8 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
    仅区块级触发按钮（确认导入）与各二次确认迁移到 MUI Dialog/Button。
 
 ## 变更记录
+
+- 2026-09-14 · 路由级结构骨架屏：新增 `src/components/page-skeleton.tsx`（SkeletonLine/Panel/Chart/Row/Bar/Chip 六个零件，全部基于 `.skeleton`）；根级 `loading.tsx` 由全屏「掌灯…」灯点改为总览结构骨架，并新增 `/ledger`、`/data`、`/settings`、`/login` 四个 route 级 `loading.tsx`，布局镜像各页真实结构防跳动；骨架不放 lamp-dot / 灯线 / 可见文案 / emoji，根节点统一 `role=status aria-busy=true` + sr-only「掌灯中…」；§七加载态改写为结构骨架屏契约，`lamp-breathe` 仅保留给离线兜底页。lint 与 build 通过。
 
 - 2026-09-14 · 记账页流水行「修改」「删除」再收紧（去掉按钮内边距留白）：两按钮 `minWidth` 由 44 改为 0、`px` 收到 0.75，不再被 44px 触控宽度把文字撑到盒子两端居中，标签间视觉距离由约 22px 收至约 14px；`minHeight: 44` 触控高度与 `-ml-2.5` 负边距不变。lint 通过。
 
