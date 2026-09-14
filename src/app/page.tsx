@@ -2,19 +2,19 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { TrendChart, AssetChart, ShareChart } from "@/components/dashboard-charts-lazy";
-import {
-  monthlyTrend,
-  categoryShare,
-  assetCurve,
-  accountBalances,
-  lastMonths,
-  monthKey,
-} from "@/lib/ledger/stats";
 import { formatMoney } from "@/lib/ledger/format";
 
 export const dynamic = "force-dynamic";
 
 const DIGITS = "零一二三四五六七八九";
+
+type Snapshot = {
+  accounts: { id: string; balance: number }[];
+  months: string[];
+  monthly: { month: string; expense: number; income: number }[];
+  category: { category_id: string; spent: number }[];
+  daily: { date: string; delta: number }[];
+};
 
 function cnMonth(m: number) {
   if (m <= 10) return m === 10 ? "十月" : `${DIGITS[m]}月`;
@@ -30,53 +30,94 @@ function cnYearMonth(key: string) {
   return `${year}年${cnMonth(Number(m))}`;
 }
 
+function shanghaiDateKey(d: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
+function dayKeysFrom(today: string, days: number) {
+  const [y, m, d] = today.split("-").map(Number);
+  const start = new Date(Date.UTC(y, m - 1, d - days + 1));
+  const keys: string[] = [];
+  for (let i = 0; i < days; i++) {
+    const cur = new Date(start);
+    cur.setUTCDate(start.getUTCDate() + i);
+    keys.push(
+      `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, "0")}-${String(cur.getUTCDate()).padStart(2, "0")}`,
+    );
+  }
+  return keys;
+}
+
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+function assetCurveFrom(dayKeys: string[], start: number, deltaByDay: Map<string, number>) {
+  const out: { date: string; total: number }[] = [];
+  let running = start;
+  for (const d of dayKeys) {
+    running = round2(running + (deltaByDay.get(d) ?? 0));
+    out.push({ date: d.slice(5), total: running });
+  }
+  return out;
+}
+
 export default async function Home() {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/login");
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError) throw new Error("会话校验失败，请稍后重试");
+  if (!claimsData?.claims) redirect("/login");
 
-  const now = new Date();
-  const curMonth = monthKey(now);
-  const months = lastMonths(6, now);
+  let curMonth = shanghaiDateKey(new Date()).slice(0, 7);
 
-  const [{ data: accounts }, { data: categories }, { data: transactions }, { data: budgets }] =
-    await Promise.all([
-      supabase.from("accounts").select("id, name, initial_balance").eq("is_active", true).order("created_at"),
-      supabase.from("categories").select("id, name"),
-      supabase
-        .from("transactions")
-        .select("date, amount, type, account_id, to_account_id, category_id")
-        .order("date", { ascending: false })
-        .limit(5000),
-      supabase
-        .from("budgets")
-        .select("id, limit_amount, category:categories(id, name)")
-        .eq("month", `${curMonth}-01`),
-    ]);
+  const [
+    { data: snapshotData, error: snapshotError },
+    { data: accounts, error: accountsError },
+    { data: categories, error: categoriesError },
+    { data: budgets, error: budgetsError },
+  ] = await Promise.all([
+    supabase.rpc("dashboard_snapshot", { p_months: 6, p_days: 30 }),
+    supabase.from("accounts").select("id, name").eq("is_active", true).order("created_at"),
+    supabase.from("categories").select("id, name"),
+    supabase
+      .from("budgets")
+      .select("id, limit_amount, category:categories(id, name)")
+      .eq("month", `${curMonth}-01`),
+  ]);
+  if (snapshotError || accountsError || categoriesError || budgetsError)
+    throw new Error("账本加载失败，请稍后重试");
 
-  const txs = (transactions ?? []).map((t) => ({
-    ...t,
-    amount: Number(t.amount),
-  }));
+  const snapshot = (snapshotData ?? {}) as unknown as Snapshot;
+  curMonth = snapshot.months[snapshot.months.length - 1] ?? curMonth;
+
   const catName = new Map((categories ?? []).map((c) => [c.id, c.name]));
-  const balances = accountBalances(
-    (accounts ?? []).map((a) => ({ id: a.id, initial_balance: Number(a.initial_balance) })),
-    txs,
-  );
+  const balances = new Map(snapshot.accounts.map((a) => [a.id, Number(a.balance)]));
   const total = [...balances.values()].reduce((s, v) => s + v, 0);
-  const initialTotal = (accounts ?? []).reduce((s, a) => s + Number(a.initial_balance), 0);
 
-  const trend = monthlyTrend(txs, months);
-  const share = categoryShare(txs, curMonth, (id) => (id ? (catName.get(id) ?? "未知") : "未分类"));
-  const assets = assetCurve(initialTotal, txs, 30, now);
+  const trend = snapshot.monthly.map((m) => ({
+    month: m.month.slice(5),
+    expense: Number(m.expense),
+    income: Number(m.income),
+  }));
+  const share = snapshot.category
+    .map((c) => ({
+      name: c.category_id === "__none__" ? "未分类" : (catName.get(c.category_id) ?? "未知"),
+      value: Number(c.spent),
+    }))
+    .sort((a, b) => b.value - a.value);
   const cur = trend[trend.length - 1] ?? { expense: 0, income: 0 };
 
-  const spent = new Map<string, number>();
-  for (const t of txs) {
-    if (t.type !== "expense" || !t.date.startsWith(curMonth)) continue;
-    const key = t.category_id ?? "__none__";
-    spent.set(key, (spent.get(key) ?? 0) + t.amount);
-  }
+  const spent = new Map(snapshot.category.map((c) => [c.category_id, Number(c.spent)]));
+
+  const dayKeys = dayKeysFrom(shanghaiDateKey(new Date()), 30);
+  const deltaByDay = new Map(snapshot.daily.map((d) => [d.date, Number(d.delta)]));
+  const windowDelta = dayKeys.reduce((s, key) => s + (deltaByDay.get(key) ?? 0), 0);
+  const assets = assetCurveFrom(dayKeys, round2(total - windowDelta), deltaByDay);
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
