@@ -42,6 +42,11 @@ const LABEL_STYLE = { color: "var(--color-ink)", fontSize: 12 } as const;
 const ITEM_STYLE = { color: "var(--color-ink)", fontFamily: "var(--font-mono)" } as const;
 const LEGEND_STYLE = { color: "var(--color-dim)", fontSize: 12 } as const;
 
+const formatAxisDate = (v: string) => {
+  const [m, d] = v.split("-");
+  return m && d ? `${Number(m)}/${Number(d)}` : v;
+};
+
 const formatMoney = (v: number | string) => `¥${Number(v).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function formatMoneyNode(v: number | string | undefined) {
@@ -111,7 +116,15 @@ export function AssetChart({
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={data}>
           <CartesianGrid {...GRID} />
-          <XAxis dataKey="date" tick={TICK} axisLine={AXIS_LINE} tickLine={false} interval={4} />
+          <XAxis
+            dataKey="date"
+            tick={TICK}
+            axisLine={AXIS_LINE}
+            tickLine={false}
+            interval="preserveStartEnd"
+            minTickGap={20}
+            tickFormatter={formatAxisDate}
+          />
           <YAxis tick={TICK} axisLine={AXIS_LINE} tickLine={false} domain={["auto", "auto"]} />
           <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={LABEL_STYLE} itemStyle={ITEM_STYLE} formatter={(v) => formatMoneyNode(v as number)} />
           <Line
