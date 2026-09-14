@@ -276,7 +276,54 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 每次界面改动后：`npm run lint` 与 `npm run build` 必须通过。
 - 验收动作：键盘 Tab 走一遍（焦点环可见）、`prefers-reduced-motion` 开启走一遍（无动画）、375px 宽度走一遍（不横向滚动）。
 
+## 十三、MUI 接入（进行中，experiment/mui-trial）
+
+`/ledger`（记账）、`/settings`（设置）与 `/login`（登录）可用 MUI 组件，其余现有页面（总览/数据）一律不动。
+主题（`src/components/mui-theme.tsx`）把第二节令牌映射到 MUI palette：
+`primary` 灯 `#E3B341`、`error` 烬 `#E2574C`、`success` 玉 `#6FBF8F`、
+`background` 夜空 `#0A0E14` / 雾面 `#111826`、`text` 纸墨 `#E9E4D8` / 远雾 `#8B93A7`、
+`divider` 雾线 `#28324A`；`warning` 指回灯色、`info` 指回远雾（不引入新标准色）；
+`fontFamily` 指回 `var(--font-noto-sans-sc)`；`components` 复刻 `.input`（纱底+雾线边+灯焦点环）
+与 `.btn`（主按钮灯底夜空字 + `brightness(1.1)` hover + `translate-y-px` active，
+次按钮远雾字 hover 转纸墨）；纸面（Menu/Dialog）雾面+雾线边+面板级阴影，无渐变、无辉光。
+
+使用约束：
+
+1. MUI 组件只出现在 `/ledger`、`/settings` 与 `/login`；金额一律 `.money`（mono），不用 MUI Typography 渲染金额（金额输入框本身不加 mono，提交前仍走 formatMoney）。
+2. 大面积灯色与渐变禁用；灯线 0 条（≤1，登录页词标灯线仍为契约白名单）。
+3. 无 `dark:` 变体、无 zinc/neutral/slate；`warning`/`info` 已指回令牌，`error` 仅用于删除确认。
+4. 焦点环一律灯色（`0 0 0 2px rgba(227,179,65,.6)`），与第七节一致。
+5. 动画全部钉为 150ms；TouchRipple 默认 550ms 超 §十一 #8 上限，已全局 `disableRipple`，
+   按压反馈改用 `active:translateY(1px)`。
+6. 注入顺序（`src/components/mui-provider.tsx`）：`AppRouterCacheProvider`
+  （`@mui/material-nextjs/v16-appRouter`，Next 16 通道）+ `ThemeProvider` + `CssBaseline`，
+   包裹 `SiteNav` 与 `children`；`CssBaseline` 的 body 输出与 `globals.css` 完全同值。
+   现有页面不渲染 MUI 组件即不产生 MUI 组件样式，故无回归；同一元素不混用
+   Tailwind 与 MUI 竞争属性（布局间距走 `sx` 或外层 `div`）。有意不用 `enableCssLayer`，
+   隔离靠上述两条保证，而非 layer 顺序。
+7. 依赖仅 `@mui/material` `@emotion/react` `@emotion/styled` `@mui/material-nextjs`
+  （不装 `x-date-pickers`，保持最小）。
+8. `/settings` 的导入预览表格内紧凑 `select`、来源单选 chip、文件拖放虚线 `label`
+   仍按第八节契约类实现（预览区逐行控件保持原生以维持 44px 触控与紧凑密度），
+   仅区块级触发按钮（确认导入）与各二次确认迁移到 MUI Dialog/Button。
+
 ## 变更记录
+
+- 2026-09-14 · 记账页流水行「修改」「删除」再收紧（去掉按钮内边距留白）：两按钮 `minWidth` 由 44 改为 0、`px` 收到 0.75，不再被 44px 触控宽度把文字撑到盒子两端居中，标签间视觉距离由约 22px 收至约 14px；`minHeight: 44` 触控高度与 `-ml-2.5` 负边距不变。lint 通过。
+
+- 2026-09-14 · 记账页流水行「修改」「删除」间距进一步收紧：负边距由 `-ml-1.5` 调至 `-ml-2.5`，两按钮视觉间距由 6px 收至 2px。lint 与 build 通过。
+
+- 2026-09-14 · 记账页流水行「修改」「删除」按钮间距收紧：删除表单根节点加 `-ml-1.5`，两按钮视觉间距由 12px 收至 6px，其余行内间距不变；44px 触控目标不受影响。lint 与 build 通过。
+
+- 2026-09-14 · 记账页流水行操作区调整：删除按钮移到「修改」旁边（原在金额右侧），金额单独靠右，行尾顺序变为 金额 · 修改 · 删除；左侧描述区加 `flex-1` 保持单行布局，展开的修改面板仍整行换行。lint 与 build 通过。
+
+- 2026-09-14 · 移除 `/mui-demo` 试验页（experiment/mui-trial）：MUI 已在 `/ledger`、`/settings`、`/login` 落地，演示页完成使命删除；§十三标题与范围同步更新。lint 与 build 通过。
+
+- 2026-09-14 · MUI 迁入设置页与登录页（experiment/mui-trial）：`/settings` 全部原生控件迁移——新建账户/分类/预算与调整余额的输入改 TextField（可见浮动标签，日期 shrink），账户类型/分类类型/支出分类改 FormControl+Select+MenuItem（分类类型默认支出，预算分类保留占位 MenuItem）；「创建/保存/调整/停用/启用/一键补齐默认分类」改 MUI Button（contained/text）；删除账户/分类/预算的 `window.confirm` 改 MUI Dialog（取消/确认删除，确认用 error contained，触发按钮改 text error 常驻烬色）；「调整余额」由 confirm() 改 Dialog 确认（列出账户名与前后金额 mono，主按钮「确认调整」灯色），目标余额改为受控输入并前置校验；「确认导入 N 笔」改为先弹 MUI Dialog（列出文件名、笔数与记账账户批次摘要，说明自动去重），点「确认导入」提交——浏览器端解析与预览表格不变；`/login` 的邮箱/密码改 TextField（type=email/password，保留 autoComplete 与 minLength），登录/注册改 contained Button，切换登录/注册改 text Button；全部 useActionState / server action / 中文文案 / `role=alert`·`aria-live` 反馈不变。行为变化：删除类二次确认由浏览器原生 confirm 弹窗改为页内 Dialog；调整余额需先在 Dialog 中确认；确认导入多一步批次摘要确认；登录密码 minLength=6 由 TextField 顶层 prop 改走 slotProps.htmlInput；账房口吻与量词「笔」保持。lint 与 build 通过。
+
+- 2026-09-14 · MUI 迁入记账页（experiment/mui-trial）：`/ledger` 交互控件全部迁移到 MUI——新建流水与行内修改面板的日期/金额/对方/备注改 TextField（可见 label，日期 shrink），账户/转入账户/分类/渠道改 FormControl+Select+MenuItem（空值 MenuItem 保留占位文案，渠道默认值保持首项支付宝，分类仍随类型 key 重挂载），类型支出/收入/转账改 Chip（colorPrimary 选中态复刻 `.chip-active`，`role=radiogroup/radio` + 隐藏 input 提交 type），提交/保存改 Button contained，「修改」改 text Button；删除与修改的 `window.confirm` 改 MUI Dialog（确认删除用 error 色），删除按钮改 text error（常驻烬色提示危险，原为远雾字 hover 转烬）。useActionState 流程、server action、中文文案、`role=alert`/`aria-live` 反馈完全不变；行为变化：必填 select 的浏览器原生 required 拦截改为服务端中文校验（MUI Select 的隐藏原生 input 会不可见地阻断提交，故不传 required），日期/金额仍保留原生 required；表单控件由 sr-only 标签改为 MUI 可见浮动标签。lint 与 build 通过。
+
+- 2026-09-14 · MUI 最小侵入试验（experiment/mui-trial）：新增依赖 `@mui/material` `@emotion/react` `@emotion/styled` `@mui/material-nextjs`（Next 16 用 `v16-appRouter` 通道）；新增 `src/components/mui-theme.tsx`（令牌全量映射 + `.input`/`.btn` 复刻 + ripple 禁用）与 `src/components/mui-provider.tsx`（`AppRouterCacheProvider + ThemeProvider + CssBaseline`，`CssBaseline` 输出与 `globals.css` 同值）；`layout` 用 provider 包裹 `SiteNav`/`children`（其余不动）；新增 `/mui-demo`（Button/TextField/Select/Chip/Dialog 各一，中文动词文案，金额 `.money`，计数「笔」，灯线 0 条）；新增第十二节后的第十三节「MUI 试验」约束说明。lint 与 build 通过。
 
 - 2026-09-13 · 初版：确立「雾里点灯看账」理念、常夜模式、灯线签名、雾散转场、组件契约。
 - 2026-09-13 · 契约全站落地：globals.css 建立全部令牌与组件类；layout 接入 Noto Serif SC / Noto Sans SC / Geist Mono；新增 template.tsx（雾散显影转场）与 loading.tsx（掌灯加载）；导航激活灯线；图表骨架灯下化；总览/登录/记账/账户/导入/设置六页全部按契约重写，清除 zinc 与 red/green/indigo 标准色。lint 与 build 通过。
@@ -292,3 +339,4 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 2026-09-14 · 导航四项化与布局锁定：导航由 6 项减为 4 项（总览/记账/数据/设置），导入与账户并入设置页，以区块锚点 #accounts / #import 呈现（桌面顶栏与移动端底栏共用 LINKS 数组，一处改动）；header/footer 布局锁定——桌面顶栏改 fixed，三栏高度与 body 补偿统一走 CSS 变量（--nav-top-h / --nav-top-h-m / --nav-bottom-h，含 safe-area 与 1px 雾线），html 加 scrollbar-gutter: stable，杜绝字体替换/滚动条出现导致的内容加载期位移。lint 与 build 通过。
 - 2026-09-14 · 设置页合并账户与导入（信息架构收敛）：原独立 `/accounts`、`/import` 两页并入 `/settings`——账户区（含总资产、余额口径说明、建户表单、启用/停用/删除）置于页首锚点 `#accounts`，导入区（含分类规则 chip、批次记录）随迁；导航从六项减为四项；总览页空账户引导链接改指「设置页」；`globals.css` 新增导航栏高度锁定变量（`--nav-top-h` / `--nav-bottom-h` 含 safe-area 与雾线边框）供 layout 与 site-nav 共用，并加 `scrollbar-gutter: stable` 防长页滚动条出现/消失引发横向抖动；桌面顶栏改 fixed + 变量高度，移动端顶栏/底栏高度同源锁定。布局令牌变更，无新配色/组件类。
 - 2026-09-14 · 修改流水与调整余额（均为行内编辑 + 二次确认）：记账页每笔流水新增「修改」——行内展开编辑面板（类型 chip、日期/金额/账户/转入账户或分类/渠道/对方/备注，全部预填），提交前 `window.confirm` 二次确认「确认保存这笔流水的修改？修改后相关账户余额会同步更新」，成功自动收起；导入的流水同样可改（source 不变）。设置页每个启用账户新增「调整余额」——行内展开面板展示当前余额/期初/流水净变动，输入目标余额后二次确认（含账户名与前后金额、说明将同步调整期初余额），服务端按 `期初 += 目标 − 当前` 折算。编辑面板统一 `rounded-xl border border-fogline` 内嵌样式、44px 触控目标、灯色焦点环，账房口吻文案（「修改」「调整」）。lint 与 build 通过。
+- 2026-09-14 · 表单可达性与导入确认修复（无视觉变更）：记账新建/修改与设置建户/分类/预算的全部 MUI Select 补 `InputLabel id` + `Select labelId` 配对（标签文案与行为不变，读屏可见标签与控件正确关联）；导入确认 Dialog 的「确认导入」按钮加 `form="import-form"`（表单补稳定 id）——Dialog 经 Portal 渲染到 body，原 `type=submit` 因不在表单 DOM 后代内无法提交，现可正常提交。修改面板的账户 select 仍不加原生 required（沿用服务端中文校验，避免隐藏原生 input 不可见阻断提交）。lint 与 build 通过。

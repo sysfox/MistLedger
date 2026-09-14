@@ -1,7 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
+import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import TextField from "@mui/material/TextField";
 import { formatMoney } from "@/lib/ledger/format";
 import { adjustAccountBalance } from "./account-actions";
 
@@ -20,35 +27,45 @@ export default function AdjustBalanceButton({
 }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(adjustAccountBalance, INITIAL);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [targetBalance, setTargetBalance] = useState(String(currentBalance));
+  const formRef = useRef<HTMLFormElement>(null);
+  const armedRef = useRef(false);
   const net = currentBalance - initialBalance;
+
+  const targetNumber = Number(targetBalance);
+  const targetValid = targetBalance !== "" && Number.isFinite(targetNumber);
+
+  const confirmSubmit = () => {
+    armedRef.current = true;
+    setConfirmOpen(false);
+    formRef.current?.requestSubmit();
+  };
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="text"
+        color="primary"
         aria-expanded={open}
+        disabled={pending}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-sm text-xs text-dim hover:text-ink focus-visible:ring-2 focus-visible:ring-lamp/60"
+        sx={{ minHeight: 44, minWidth: 44, fontSize: "0.75rem" }}
       >
         调整余额
-      </button>
+      </Button>
       {open && !(state.ok && state.message) ? (
         <form
+          ref={formRef}
           action={action}
           onSubmit={(e) => {
-            const target = Number(inputRef.current?.value);
-            if (!Number.isFinite(target)) {
+            if (!armedRef.current) {
               e.preventDefault();
+              setConfirmOpen(true);
               return;
             }
-            if (
-              !window.confirm(
-                `确认把「${accountName}」的余额从 ¥${formatMoney(currentBalance)} 调整为 ¥${formatMoney(target)}？将同步调整期初余额。`,
-              )
-            ) {
-              e.preventDefault();
-            }
+            armedRef.current = false;
           }}
           className="w-full flex flex-col gap-2 rounded-xl border border-fogline px-4 py-3"
         >
@@ -59,29 +76,56 @@ export default function AdjustBalanceButton({
             <span className="money">¥{formatMoney(initialBalance)}</span>，流水净变动{" "}
             <span className="money">¥{formatMoney(net)}</span>）
           </p>
-          <label className="sr-only" htmlFor={`target-balance-${id}`}>
-            目标余额
-          </label>
-          <input
-            ref={inputRef}
+          <TextField
             id={`target-balance-${id}`}
             name="target_balance"
             type="number"
-            step="0.01"
-            inputMode="decimal"
-            defaultValue={currentBalance}
+            label="目标余额"
+            required
+            value={targetBalance}
+            onChange={(e) => setTargetBalance(e.target.value)}
             placeholder="目标余额"
-            className="input"
+            slotProps={{
+              htmlInput: { step: "0.01", inputMode: "decimal", enterKeyHint: "done" },
+            }}
           />
-          <button type="submit" disabled={pending} className="btn-primary w-fit disabled:opacity-50">
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={pending || !targetValid}
+            sx={{ alignSelf: "flex-start" }}
+          >
             {pending ? "调整中…" : "调整"}
-          </button>
+          </Button>
           {!state.ok && state.message ? (
             <p role="alert" className="text-xs text-ember">
               {state.message}
             </p>
           ) : null}
         </form>
+      ) : null}
+      {confirmOpen ? (
+        <Dialog open onClose={() => setConfirmOpen(false)}>
+          <DialogTitle>确认调整「{accountName}」的余额？</DialogTitle>
+          <DialogContent>
+            <Box component="p" sx={{ margin: 0, fontFamily: "var(--font-geist-mono), monospace" }}>
+              <span className="money">
+                ¥{formatMoney(currentBalance)} → ¥{formatMoney(targetNumber)}
+              </span>
+            </Box>
+            <DialogContentText sx={{ mt: 1 }}>
+              将同步调整期初余额，使当前余额与目标一致。
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button color="primary" variant="text" disabled={pending} onClick={() => setConfirmOpen(false)}>
+              取消
+            </Button>
+            <Button color="primary" variant="contained" disabled={pending} onClick={confirmSubmit}>
+              确认调整
+            </Button>
+          </DialogActions>
+        </Dialog>
       ) : null}
     </>
   );

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Button from "@mui/material/Button";
+import TextField from "@mui/material/TextField";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -54,52 +56,46 @@ export default function LoginPage() {
         <p className="mt-3 text-xs text-dim">看清每笔钱从哪出、还剩多少</p>
       </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <label htmlFor="login-email" className="sr-only">
-          邮箱
-        </label>
-        <input
+        <TextField
           id="login-email"
           type="email"
+          label="邮箱"
           required
-          placeholder="邮箱"
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="input"
         />
-        <label htmlFor="login-password" className="sr-only">
-          密码
-        </label>
-        <input
+        <TextField
           id="login-password"
           type="password"
+          label="密码"
           required
-          minLength={6}
-          placeholder="密码（至少 6 位）"
+          slotProps={{ htmlInput: { minLength: 6 } }}
           autoComplete={mode === "signin" ? "current-password" : "new-password"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="input"
         />
         {error ? (
-          <p role="alert" className="text-sm text-ember">
+          <p role="alert" aria-live="assertive" className="text-sm text-ember">
             {error}
           </p>
         ) : null}
-        <button type="submit" disabled={loading} className="btn-primary disabled:opacity-50">
+        <Button type="submit" variant="contained" disabled={loading}>
           {loading ? "请稍候…" : mode === "signin" ? "登录" : "注册"}
-        </button>
+        </Button>
       </form>
-      <button
+      <Button
         type="button"
+        variant="text"
+        color="primary"
         onClick={() => {
           setMode(mode === "signin" ? "signup" : "signin");
           setError(null);
         }}
-        className="link-subtle self-center text-sm"
+        sx={{ alignSelf: "center", minHeight: 44, fontSize: "0.875rem" }}
       >
         {mode === "signin" ? "没有账号？去注册" : "已有账号？去登录"}
-      </button>
+      </Button>
     </main>
   );
 }

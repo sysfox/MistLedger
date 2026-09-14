@@ -71,7 +71,7 @@ export default async function LedgerPage() {
               : (t.account as unknown as { name: string } | null)?.name) ?? "未知账户";
           return (
             <li key={t.id} className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-ink">
                   <span className={`font-medium ${TYPE_COLOR[t.type] ?? "text-ink"}`}>{TYPE_LABEL[t.type] ?? t.type}</span>
                   {" · "}
@@ -99,7 +99,6 @@ export default async function LedgerPage() {
                     {AMOUNT_PREFIX[t.type] ?? ""}¥{formatMoney(Number(t.amount))}
                   </span>
                 )}
-                <DeleteTransactionButton id={t.id} />
               </div>
               <EditTransactionButton
                 transaction={{
@@ -117,6 +116,7 @@ export default async function LedgerPage() {
                 accounts={accounts ?? []}
                 categories={categories ?? []}
               />
+              <DeleteTransactionButton id={t.id} />
             </li>
           );
         })}
