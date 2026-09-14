@@ -49,7 +49,8 @@ src/
   proxy.ts              # Edge auth gate (Next 16 replacement for middleware.ts); forwards
                         # Supabase anti-cache headers and excludes PWA/manifest assets
   components/
-    site-nav.tsx        # Desktop top bar + mobile fixed bottom tab bar (6 links),
+    site-nav.tsx        # Desktop top bar; mobile sticky top bar (wordmark + sign-out,
+                        # safe-area-inset-top for notch) + fixed bottom tab bar (6 links),
                         # active lamp-line, sign-out via browser Supabase, hidden on /login
     dashboard-charts.tsx        # Recharts: TrendChart (bar, ember/jade), AssetChart
                         # (line, lamp), ShareChart (pie, 8-color palette); reduced-motion

@@ -72,6 +72,21 @@ export default function SiteNav() {
           </nav>
         </div>
       </header>
+      <header className="sticky top-0 z-40 border-b border-fogline bg-night/80 pt-[env(safe-area-inset-top)] backdrop-blur sm:hidden">
+        <div className="flex min-h-[52px] items-center justify-between gap-2 px-4">
+          <Link href="/" className={`shrink-0 font-display font-semibold text-ink ${FOCUS_RING}`}>
+            雾夜账
+          </Link>
+          <button
+            type="button"
+            onClick={signOut}
+            disabled={pending}
+            className="btn-ghost flex min-h-[44px] shrink-0 items-center px-2 outline-none focus-visible:ring-2 focus-visible:ring-lamp/60 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "退出中…" : "退出"}
+          </button>
+        </div>
+      </header>
       <nav
         aria-label="主导航"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-fogline bg-night/90 backdrop-blur pb-[env(safe-area-inset-bottom)] sm:hidden"
@@ -93,16 +108,6 @@ export default function SiteNav() {
               </Link>
             );
           })}
-          <button
-            type="button"
-            onClick={signOut}
-            disabled={pending}
-            className="flex min-h-[56px] flex-1 flex-col items-center justify-center px-1 text-xs text-dim outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-lamp/60 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <span className="flex flex-col items-center">
-              {pending ? "退出中…" : "退出"}
-            </span>
-          </button>
         </div>
       </nav>
     </>
