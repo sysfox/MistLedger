@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney } from "@/lib/ledger/format";
 import DeleteCategoryButton from "./delete-category-button";
@@ -30,16 +31,25 @@ function CategoryGroup({ title, items }: { title: string; items: Category[] }) {
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-  const [{ data: categories }, { data: budgets }] = await Promise.all([
-    supabase.from("categories").select("*").order("kind").order("sort").order("name"),
-    supabase
-      .from("budgets")
-      .select("*, category:categories(name)")
-      .eq("month", currentMonth)
-      .order("created_at"),
-  ]);
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError) throw new Error("会话校验失败，请稍后重试");
+  if (!claimsData?.claims) redirect("/login");
+
+  const currentMonth = `${new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+  }).format(new Date())}-01`;
+  const [{ data: categories, error: categoriesError }, { data: budgets, error: budgetsError }] =
+    await Promise.all([
+      supabase.from("categories").select("id, name, kind").order("kind").order("sort").order("name"),
+      supabase
+        .from("budgets")
+        .select("id, limit_amount, category:categories(name)")
+        .eq("month", currentMonth)
+        .order("created_at"),
+    ]);
+  if (categoriesError || budgetsError) throw new Error("设置数据加载失败，请稍后重试");
 
   const expense = (categories ?? []).filter((c) => c.kind === "expense");
   const income = (categories ?? []).filter((c) => c.kind === "income");
