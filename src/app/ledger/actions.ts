@@ -27,8 +27,8 @@ export async function createTransaction(
   const note = String(formData.get("note") ?? "").trim() || null;
 
   if (!TYPES.includes(type)) return { ok: false, message: "请重新选择收支类型" };
-  if (!amount || amount <= 0) return { ok: false, message: "金额必须大于 0" };
-  if (!date) return { ok: false, message: "请选择日期" };
+  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, message: "金额必须大于 0" };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, message: "请选择日期" };
   if (!accountId) {
     if (type === "transfer") return { ok: false, message: "请选择转出账户" };
     if (type === "income") return { ok: false, message: "请选择收入账户" };
@@ -38,6 +38,28 @@ export async function createTransaction(
   if (type === "transfer" && !toAccountId) return { ok: false, message: "转账请选择转入账户" };
   if (type === "transfer" && toAccountId === accountId) {
     return { ok: false, message: "转出和转入不能是同一账户" };
+  }
+
+  const accountIds = type === "transfer" && toAccountId ? [accountId, toAccountId] : [accountId];
+  const { data: ownedAccounts, error: accountsError } = await supabase
+    .from("accounts")
+    .select("id")
+    .eq("user_id", userData.user.id)
+    .in("id", accountIds);
+  if (accountsError || (ownedAccounts ?? []).length !== accountIds.length) {
+    return { ok: false, message: "账户无效，请刷新后重试" };
+  }
+
+  if (type !== "transfer" && categoryId) {
+    const { data: ownedCategory, error: categoryError } = await supabase
+      .from("categories")
+      .select("id")
+      .eq("id", categoryId)
+      .eq("user_id", userData.user.id)
+      .maybeSingle();
+    if (categoryError || !ownedCategory) {
+      return { ok: false, message: "分类无效，请刷新后重试" };
+    }
   }
 
   const { error } = await supabase.from("transactions").insert({
@@ -56,6 +78,7 @@ export async function createTransaction(
   if (error) return { ok: false, message: "保存失败，请稍后再试" };
   revalidatePath("/ledger");
   revalidatePath("/accounts");
+  revalidatePath("/data");
   revalidatePath("/");
   return { ok: true, message: "已记一笔" };
 }
@@ -71,10 +94,17 @@ export async function deleteTransaction(
   const id = String(formData.get("id") ?? "");
   if (!id) return { ok: false, message: "缺少要删除的流水" };
 
-  const { error } = await supabase.from("transactions").delete().eq("id", id);
+  const { data: deleted, error } = await supabase
+    .from("transactions")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userData.user.id)
+    .select("id");
   if (error) return { ok: false, message: "删除失败，请稍后再试" };
+  if (!deleted || deleted.length === 0) return { ok: false, message: "这笔流水不存在或已删除" };
   revalidatePath("/ledger");
   revalidatePath("/accounts");
+  revalidatePath("/data");
   revalidatePath("/");
   return { ok: true, message: "已删除" };
 }

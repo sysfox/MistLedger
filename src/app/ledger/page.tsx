@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { channelLabel } from "@/lib/ledger/constants";
 import { formatMoney } from "@/lib/ledger/format";
@@ -21,18 +22,27 @@ const AMOUNT_COLOR: Record<string, string> = {
 
 export default async function LedgerPage() {
   const supabase = await createClient();
-  const [{ data: accounts }, { data: categories }, { data: transactions }] = await Promise.all([
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError) throw new Error("会话校验失败，请稍后重试");
+  if (!claimsData?.claims) redirect("/login");
+
+  const [
+    { data: accounts, error: accountsError },
+    { data: categories, error: categoriesError },
+    { data: transactions, error: transactionsError },
+  ] = await Promise.all([
     supabase.from("accounts").select("id, name, type").eq("is_active", true).order("created_at"),
     supabase.from("categories").select("id, name, kind").order("kind").order("sort").order("name"),
     supabase
       .from("transactions")
-      .select("*, account:accounts!transactions_account_id_fkey(name), category:categories(name), to_account:accounts!transactions_to_account_id_fkey(name)")
+      .select("id, date, amount, type, account_id, to_account_id, category_id, channel, counterparty, source, note, account:accounts!transactions_account_id_fkey(name), category:categories(name), to_account:accounts!transactions_to_account_id_fkey(name)")
       .order("date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(100),
   ]);
-
-  const accountMap = new Map((accounts ?? []).map((a) => [a.id, a.name]));
+  if (accountsError || categoriesError || transactionsError) {
+    throw new Error("流水加载失败，请稍后重试");
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
@@ -54,7 +64,10 @@ export default async function LedgerPage() {
           const toAcc = Array.isArray(t.to_account)
             ? t.to_account[0]?.name
             : (t.to_account as unknown as { name: string } | null)?.name;
-          const fromAcc = accountMap.get(t.account_id) ?? "未知账户";
+          const fromAcc =
+            (Array.isArray(t.account)
+              ? t.account[0]?.name
+              : (t.account as unknown as { name: string } | null)?.name) ?? "未知账户";
           return (
             <li key={t.id} className="panel flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
               <div className="min-w-0">
