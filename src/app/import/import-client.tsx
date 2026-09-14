@@ -107,6 +107,8 @@ export default function ImportClient({
     setRows([]);
   }
 
+  const tooMany = rows.length > 2000;
+
   const guessToAccount = useCallback(
     (r: ParsedRow): string => {
       if (r.type !== "transfer" || !r.transferHint) return "";
@@ -243,6 +245,11 @@ export default function ImportClient({
               解析到 {rows.length} 笔（已过滤退款/关闭/未成功行；银行卡出资的支付宝·微信行请走银行明细导入，避免重复）。
               转账行需选转入账户；分类空着会按关键词规则自动归类。
             </p>
+            {tooMany ? (
+              <p role="alert" className="text-sm text-ember">
+                单次最多导入 2000 笔，当前 {rows.length} 笔，请拆分文件再导。
+              </p>
+            ) : null}
             <div className="relative">
               <div className="overflow-x-auto rounded-xl border border-fogline">
                 <table className="w-full min-w-[720px] text-sm">
@@ -283,7 +290,7 @@ export default function ImportClient({
             <div className="flex flex-col items-start gap-1">
               <button
                 type="submit"
-                disabled={isPending || !accountId}
+                disabled={isPending || !accountId || tooMany}
                 className="btn-primary w-fit disabled:opacity-50"
               >
                 {isPending ? "导入中…" : `确认导入 ${rows.length} 笔`}

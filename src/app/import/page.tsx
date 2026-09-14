@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ImportClient from "./import-client";
 
@@ -5,17 +6,31 @@ export const dynamic = "force-dynamic";
 
 export default async function ImportPage() {
   const supabase = await createClient();
-  const [{ data: accounts }, { data: categories }, { data: batches }, { data: rules }] =
-    await Promise.all([
-      supabase.from("accounts").select("id, name").eq("is_active", true).order("created_at"),
-      supabase.from("categories").select("id, name, kind").order("kind").order("sort").order("name"),
-      supabase.from("import_batches").select("*").order("created_at", { ascending: false }).limit(10),
-      supabase
-        .from("category_rules")
-        .select("keyword, category:categories(name)")
-        .order("keyword")
-        .limit(50),
-    ]);
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError) throw new Error("会话校验失败，请稍后重试");
+  if (!claimsData?.claims) redirect("/login");
+
+  const [
+    { data: accounts, error: accountsError },
+    { data: categories, error: categoriesError },
+    { data: batches, error: batchesError },
+    { data: rules, error: rulesError },
+  ] = await Promise.all([
+    supabase.from("accounts").select("id, name").eq("is_active", true).order("created_at"),
+    supabase.from("categories").select("id, name, kind").order("kind").order("sort").order("name"),
+    supabase
+      .from("import_batches")
+      .select("id, filename, source, row_count, success_count, duplicate_count")
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("category_rules")
+      .select("keyword, category:categories(name)")
+      .order("keyword")
+      .limit(50),
+  ]);
+  if (accountsError || categoriesError || batchesError || rulesError)
+    throw new Error("导入页数据加载失败，请稍后重试");
 
   const SOURCE_LABEL: Record<string, string> = {
     alipay_import: "支付宝",

@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import type { WorkBook } from "xlsx";
 
 export type ImportSource = "alipay_import" | "wechat_import" | "bank_import";
 
@@ -39,7 +39,7 @@ export function parseDate(v: unknown): string | null {
 }
 
 function findHeaderRow(rows: string[][], keywords: string[]): number {
-  for (let i = 0; i < Math.min(rows.length, 30); i++) {
+  for (let i = 0; i < Math.min(rows.length, 100); i++) {
     const joined = rows[i].join("|");
     if (keywords.every((k) => joined.includes(k))) return i;
   }
@@ -152,6 +152,15 @@ export function parseWechat(rows: string[][]): ParsedRow[] {
   return out;
 }
 
+function shortHash(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
 // 建行活期明细（hqmx xls）：序号/摘要/交易日期(YYYYMMDD)/交易金额(负=出)/账户余额/附言/对方
 // 数字人民币钱包内兑出/兑回跳过（钱包未建账且收支相抵）；其余按附言定渠道
 export function parseCCB(rows: string[][]): ParsedRow[] {
@@ -163,10 +172,12 @@ export function parseCCB(rows: string[][]): ParsedRow[] {
     summary: colIndex(h, "摘要"),
     date: colIndex(h, "交易日期"),
     amount: colIndex(h, "交易金额"),
+    balance: colIndex(h, "账户余额"),
     note: colIndex(h, "附言", "交易地点"),
     counter: colIndex(h, "对方"),
   };
   const out: ParsedRow[] = [];
+  const seen = new Map<string, number>();
   for (const r of rows.slice(hi + 1)) {
     if (c.seq >= 0 && !/^\d+$/.test(norm(r[c.seq]))) continue;
     const date = parseDate(r[c.date]);
@@ -175,43 +186,83 @@ export function parseCCB(rows: string[][]): ParsedRow[] {
     const summary = norm(r[c.summary]);
     if (summary.startsWith("数字人民币")) continue;
     const note = norm(r[c.note]);
+    const counter = norm(r[c.counter]);
+    const balance = norm(r[c.balance]).replace(/,/g, "") || "0";
+    const base = `ccb|${date}|${raw}|${balance}|${shortHash(`${note}|${counter}`)}`;
+    const occ = (seen.get(base) ?? 0) + 1;
+    seen.set(base, occ);
     out.push({
       date,
       amount: Math.abs(raw),
       type: raw < 0 ? "expense" : "income",
-      counterparty: norm(r[c.counter]).split("/").pop() || note,
+      counterparty: counter.split("/").pop() || note,
       product: `${summary} / ${note}`.slice(0, 200),
-      externalId: `ccb|${date}|${c.seq >= 0 ? norm(r[c.seq]) : `${note}${raw}`}`.slice(0, 120),
+      externalId: `${base}|${occ}`.slice(0, 120),
       note: "",
     });
   }
   return out;
 }
 
-function sheetRows(wb: XLSX.WorkBook): string[][] {
+function sheetRows(wb: WorkBook, XLSX: typeof import("xlsx")): string[][] {
   const sheet = wb.Sheets[wb.SheetNames[0]];
   return XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1, raw: false }) as string[][];
 }
 
+function decodeCandidates(bytes: Uint8Array): string[] {
+  const hasBom = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf;
+  let utf8Ok = false;
+  try {
+    new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    utf8Ok = true;
+  } catch {
+    utf8Ok = false;
+  }
+  const labels = hasBom || utf8Ok ? ["utf-8", "gbk"] : ["gbk", "utf-8"];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const label of labels) {
+    let text: string;
+    try {
+      text = new TextDecoder(label).decode(bytes);
+    } catch {
+      continue;
+    }
+    if (seen.has(text)) continue;
+    seen.add(text);
+    out.push(text);
+  }
+  return out;
+}
+
 export async function parseBillFile(file: File, source: ImportSource): Promise<ParsedRow[]> {
+  const XLSX = await import("xlsx");
   const buf = await file.arrayBuffer();
   const isCsv = file.name.toLowerCase().endsWith(".csv");
-  // 支付宝 CSV 是 GBK 编码：先按 936 解，找不到表头再按 utf8 解
-  const attempts: Array<{ codepage?: number }> = isCsv ? [{ codepage: 936 }, {}] : [{}];
+  const parse = (wb: WorkBook): ParsedRow[] => {
+    const rows = sheetRows(wb, XLSX);
+    if (rows.length === 0) throw new Error("文件是空的，请换一个账单文件再试");
+    const parsed =
+      source === "alipay_import"
+        ? parseAlipay(rows)
+        : source === "wechat_import"
+          ? parseWechat(rows)
+          : parseCCB(rows);
+    if (parsed.length === 0) throw new Error("没有解析到有效行（可能是表头不匹配或全是退款/未成功行）");
+    return parsed;
+  };
   let lastError: unknown = null;
-  for (const opt of attempts) {
+  if (isCsv) {
+    for (const text of decodeCandidates(new Uint8Array(buf))) {
+      try {
+        return parse(XLSX.read(text, { type: "string" }));
+      } catch (e) {
+        lastError = e;
+      }
+    }
+  } else {
     try {
-      const wb = XLSX.read(buf, { type: "array", ...opt });
-      const rows = sheetRows(wb);
-      if (rows.length === 0) throw new Error("文件是空的，请换一个账单文件再试");
-      const parsed =
-        source === "alipay_import"
-          ? parseAlipay(rows)
-          : source === "wechat_import"
-            ? parseWechat(rows)
-            : parseCCB(rows);
-      if (parsed.length === 0) throw new Error("没有解析到有效行（可能是表头不匹配或全是退款/未成功行）");
-      return parsed;
+      return parse(XLSX.read(buf, { type: "array" }));
     } catch (e) {
       lastError = e;
     }
