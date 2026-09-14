@@ -19,7 +19,7 @@ export default function DeleteTransactionButton({ id }: { id: string }) {
     <form
       ref={formRef}
       action={formAction}
-      className="flex items-center gap-2"
+      className="-ml-1.5 flex items-center gap-2"
       onSubmit={(e) => {
         if (!armedRef.current) {
           e.preventDefault();
