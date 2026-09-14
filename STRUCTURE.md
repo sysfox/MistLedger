@@ -15,7 +15,8 @@ src/
     layout.tsx          # Fonts (Noto Serif SC / Noto Sans SC / Geist Mono via next/font),
                         # metadata, viewport (themeColor #0a0e14, viewportFit=cover),
                         # mounts ServiceWorkerRegister + SiteNav, safe-area bottom padding
-    template.tsx        # Per-navigation remount wrapper: .page-enter "fog-develops" transition
+    template.tsx        # Per-navigation remount wrapper: .page-enter "fog-develops" transition;
+                        # flex-1 column filler so pages/loading can center in the viewport
     loading.tsx         # "Holding the lamp" loading state (breathing lamp dot + 掌灯…)
     error.tsx           # Route error boundary (client, retry button)
     global-error.tsx    # Root error boundary (renders its own html/body with bg-night)
