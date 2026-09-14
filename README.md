@@ -49,3 +49,6 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
 ## 设计系统
 
 界面遵循 [DESIGN.md](DESIGN.md)——这是唯一设计契约，涵盖雾夜主题令牌（night / ink / lamp / ember / jade 等）、灯线签名、动效与禁忌清单。任何界面改动须遵循并同步更新该文件。
+
+## 作者
+Teror Fox 2026
