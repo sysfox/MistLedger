@@ -184,7 +184,7 @@ export default function QueryForm({
         <button type="submit" disabled={pending} className="btn-primary w-fit disabled:opacity-60">
           {pending ? "查询中…" : "查询"}
         </button>
-        <Link href={`/data?days=${days}`} className="btn-ghost">
+        <Link href={`/data?days=${days}#results`} className="btn-ghost">
           重置
         </Link>
       </div>

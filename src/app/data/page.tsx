@@ -3,14 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { TrendChart, AssetChart, ShareChart } from "@/components/dashboard-charts-lazy";
-import {
-  monthlyTrend,
-  assetCurve,
-  filterTxs,
-  summarizeTxs,
-  lastMonths,
-  monthKey,
-} from "@/lib/ledger/stats";
+import { monthKey } from "@/lib/ledger/stats";
 import { formatMoney } from "@/lib/ledger/format";
 import { channelLabel } from "@/lib/ledger/constants";
 import QueryForm from "./query-form";
@@ -26,15 +19,33 @@ const TYPE_COLOR: Record<string, string> = {
 const AMOUNT_PREFIX: Record<string, string> = { expense: "−", income: "+", transfer: "⇄" };
 
 const LIST_LIMIT = 200;
-const FETCH_LIMIT = 5000;
 const DAY_CHOICES = [30, 90, 180];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SHANGHAI_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
-function localToday() {
-  const now = new Date();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${m}-${d}`;
+type DashboardSnapshot = {
+  accounts: { id: string; balance: number }[];
+  months: string[];
+  monthly: { month: string; expense: number; income: number }[];
+  category: { category_id: string; spent: number }[];
+  daily: { date: string; delta: number }[];
+};
+
+type FilteredTxStats = {
+  count: number;
+  expense: number;
+  income: number;
+  transfer: number;
+  by_category: { category_id: string; spent: number }[];
+};
+
+function shanghaiToday() {
+  return SHANGHAI_DATE.format(new Date());
 }
 
 function shiftDays(base: string, delta: number) {
@@ -43,6 +54,16 @@ function shiftDays(base: string, delta: number) {
   const mm = String(dt.getMonth() + 1).padStart(2, "0");
   const dd = String(dt.getDate()).padStart(2, "0");
   return `${dt.getFullYear()}-${mm}-${dd}`;
+}
+
+function lastDayKeys(days: number, end: string) {
+  const keys: string[] = [];
+  for (let i = days - 1; i >= 0; i--) keys.push(shiftDays(end, -i));
+  return keys;
+}
+
+function escapeOrValue(value: string) {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
 function prevMonthKey(key: string) {
@@ -73,14 +94,15 @@ export default async function DataPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/login");
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError) throw new Error("会话校验失败，请稍后重试");
+  if (!claimsData?.claims) redirect("/login");
 
   const sp = await searchParams;
   const get = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : undefined);
 
-  const today = localToday();
-  const curMonth = monthKey(new Date());
+  const today = shanghaiToday();
+  const curMonth = today.slice(0, 7);
 
   // 曲线参数：资产曲线天数（吸附到 30/90/180，不影响查询条件）
   const daysParam = get("days");
@@ -89,83 +111,117 @@ export default async function DataPage({
   // 自定义查询条件（非法值安全降级为缺省）
   const typeRaw = get("type");
   const type = ["expense", "income", "transfer", "all"].includes(typeRaw ?? "") ? typeRaw : undefined;
+  const typeFilter = type && type !== "all" ? type : undefined;
   const fromRaw = get("from");
   const toRaw = get("to");
-  const minRaw = Number(get("min"));
-  const maxRaw = Number(get("max"));
+  const minParam = get("min");
+  const maxParam = get("max");
+  const minRaw = minParam ? Number(minParam) : undefined;
+  const maxRaw = maxParam ? Number(maxParam) : undefined;
   const filter = {
     from: fromRaw && DATE_RE.test(fromRaw) ? fromRaw : undefined,
     to: toRaw && DATE_RE.test(toRaw) ? toRaw : undefined,
     type,
     category: get("cat"),
     account: get("acc"),
-    min: Number.isFinite(minRaw) && minRaw >= 0 ? minRaw : undefined,
-    max: Number.isFinite(maxRaw) && maxRaw >= 0 ? maxRaw : undefined,
+    min: minRaw != null && Number.isFinite(minRaw) && minRaw >= 0 ? minRaw : undefined,
+    max: maxRaw != null && Number.isFinite(maxRaw) && maxRaw >= 0 ? maxRaw : undefined,
     q: get("q")?.slice(0, 100),
   };
   const hasFilter = Boolean(
     filter.from ||
       filter.to ||
-      (filter.type && filter.type !== "all") ||
+      typeFilter ||
       filter.category ||
       filter.account ||
       filter.q ||
       filter.min != null ||
       filter.max != null,
   );
+  const effective = hasFilter ? filter : { ...filter, from: `${curMonth}-01`, to: today };
 
-  const [{ data: accounts }, { data: categories }, { data: transactions }] = await Promise.all([
+  // 结果列表：条件全部下推服务端，服务端已按日期倒序取前 LIST_LIMIT 笔
+  let listQuery = supabase
+    .from("transactions")
+    .select("id, date, amount, type, account_id, to_account_id, category_id, note, counterparty, channel, source");
+  if (effective.from) listQuery = listQuery.gte("date", effective.from);
+  if (effective.to) listQuery = listQuery.lte("date", effective.to);
+  if (typeFilter) listQuery = listQuery.eq("type", typeFilter);
+  if (effective.category === "none") listQuery = listQuery.is("category_id", null);
+  else if (effective.category) listQuery = listQuery.eq("category_id", effective.category);
+  if (effective.min != null) listQuery = listQuery.gte("amount", effective.min);
+  if (effective.max != null) listQuery = listQuery.lte("amount", effective.max);
+  if (effective.account)
+    listQuery = listQuery.or(`account_id.eq.${effective.account},to_account_id.eq.${effective.account}`);
+  if (effective.q) {
+    const value = escapeOrValue(`%${effective.q}%`);
+    listQuery = listQuery.or(`counterparty.ilike.${value},note.ilike.${value}`);
+  }
+  listQuery = listQuery
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(LIST_LIMIT);
+
+  const [accountsRes, categoriesRes, snapshotRes, statsRes, txsRes] = await Promise.all([
     supabase.from("accounts").select("id, name, initial_balance, is_active").order("created_at"),
     supabase.from("categories").select("id, name, kind").order("kind").order("sort").order("name"),
-    supabase
-      .from("transactions")
-      .select(
-        "id, date, amount, type, account_id, to_account_id, category_id, note, counterparty, channel, source",
-      )
-      .order("date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(FETCH_LIMIT),
+    supabase.rpc("dashboard_snapshot", { p_months: 12, p_days: days }),
+    supabase.rpc("filtered_tx_stats", {
+      p_from: effective.from ?? null,
+      p_to: effective.to ?? null,
+      p_type: typeFilter ?? null,
+      p_category: effective.category ?? null,
+      p_account: effective.account ?? null,
+      p_min: effective.min ?? null,
+      p_max: effective.max ?? null,
+      p_q: effective.q ?? null,
+    }),
+    listQuery,
   ]);
 
-  const txs = (transactions ?? []).map((t) => ({ ...t, amount: Number(t.amount) }));
+  if (accountsRes.error || categoriesRes.error || snapshotRes.error || statsRes.error || txsRes.error) {
+    throw new Error("账目读取失败，请稍后重试");
+  }
+
+  const accounts = accountsRes.data;
+  const categories = categoriesRes.data;
+  const snapshot = snapshotRes.data as unknown as DashboardSnapshot | null;
+  const stats = statsRes.data as unknown as FilteredTxStats | null;
+
   const accountName = new Map((accounts ?? []).map((a) => [a.id, a.name]));
   const catName = new Map((categories ?? []).map((c) => [c.id, c.name]));
 
-  // 曲线数据：资产曲线口径与总览页 accountBalances 一致，只统计启用账户
-  const trend = monthlyTrend(txs, lastMonths(12, new Date()));
-  const activeAccounts = (accounts ?? []).filter((a) => a.is_active);
-  const activeInitial = activeAccounts.reduce((s, a) => s + Number(a.initial_balance), 0);
-  const activeIds = new Set(activeAccounts.map((a) => a.id));
-  const curveTxs = txs
-    .map((t) => {
-      if (t.type !== "transfer") return activeIds.has(t.account_id) ? t : null;
-      const fromActive = activeIds.has(t.account_id);
-      const toActive = t.to_account_id ? activeIds.has(t.to_account_id) : false;
-      if (fromActive && toActive) return t;
-      if (fromActive) return { ...t, type: "expense" };
-      if (toActive) return { ...t, type: "income" };
-      return null;
-    })
-    .filter((t) => t !== null);
-  const assets = assetCurve(activeInitial, curveTxs, days, new Date());
-
-  // 查询结果（默认本月全部）
-  const effective = hasFilter ? filter : { ...filter, from: `${curMonth}-01`, to: today };
-  const matched = filterTxs(txs, effective);
-  const summary = summarizeTxs(matched);
-  const listed = matched.slice(0, LIST_LIMIT);
-  const spentByCat = new Map<string, number>();
-  for (const t of matched) {
-    if (t.type !== "expense") continue;
-    const key = t.category_id ?? "__none__";
-    spentByCat.set(key, (spentByCat.get(key) ?? 0) + Number(t.amount));
+  // 趋势与曲线：均由 dashboard_snapshot 服务端聚合，不再受取数上限影响
+  const trend = (snapshot?.monthly ?? []).map((m) => ({
+    month: m.month.slice(5),
+    expense: Number(m.expense),
+    income: Number(m.income),
+  }));
+  const dayKeys = lastDayKeys(days, today);
+  const deltaByDay = new Map((snapshot?.daily ?? []).map((d) => [d.date, Number(d.delta)]));
+  const total = (snapshot?.accounts ?? []).reduce((s, a) => s + Number(a.balance), 0);
+  const windowDelta = dayKeys.reduce((s, key) => s + (deltaByDay.get(key) ?? 0), 0);
+  let running = total - windowDelta;
+  const assets: { date: string; total: number }[] = [];
+  for (const key of dayKeys) {
+    running += deltaByDay.get(key) ?? 0;
+    assets.push({ date: key.slice(5), total: Math.round(running * 100) / 100 });
   }
-  const shareData = [...spentByCat.entries()]
-    .map(([id, value]) => ({
-      name: id === "__none__" ? "未分类" : (catName.get(id) ?? "未知分类"),
-      value: Math.round(value * 100) / 100,
+
+  // 查询结果汇总与支出构成：均由 filtered_tx_stats 服务端聚合
+  const summary = {
+    count: Number(stats?.count ?? 0),
+    expense: Number(stats?.expense ?? 0),
+    income: Number(stats?.income ?? 0),
+    transfer: Number(stats?.transfer ?? 0),
+  };
+  const shareData = (stats?.by_category ?? [])
+    .map((c) => ({
+      name: c.category_id === "__none__" ? "未分类" : (catName.get(c.category_id) ?? "未知分类"),
+      value: Math.round(Number(c.spent) * 100) / 100,
     }))
     .sort((a, b) => b.value - a.value);
+  const listed = (txsRes.data ?? []).map((t) => ({ ...t, amount: Number(t.amount) }));
 
   // URL 构造：天数与查询条件互不覆盖
   const queryQs = new URLSearchParams();
@@ -309,12 +365,6 @@ export default async function DataPage({
           </div>
         ) : null}
 
-        {(transactions ?? []).length >= FETCH_LIMIT ? (
-          <p className="mt-3 rounded-md bg-veil px-3 py-2 text-xs text-dim">
-            流水较多，本页仅统计最近 {FETCH_LIMIT.toLocaleString("zh-CN")} 笔，更早的流水请用更窄的日期区间查
-          </p>
-        ) : null}
-
         <ul className="mt-3 flex flex-col gap-2">
           {listed.map((t) => {
             const cat = t.category_id ? (catName.get(t.category_id) ?? "未知分类") : null;
@@ -348,7 +398,7 @@ export default async function DataPage({
               这个条件下还没有流水，试试放宽日期、金额区间或换个分类
             </li>
           ) : null}
-          {matched.length > LIST_LIMIT ? (
+          {summary.count > LIST_LIMIT ? (
             <li className="px-2 py-2 text-xs text-dim">
               只显示前 {LIST_LIMIT} 笔（共 {summary.count.toLocaleString("zh-CN")} 笔），加个条件缩小范围
             </li>

@@ -2,7 +2,7 @@
 export type TxLike = {
   date: string; // YYYY-MM-DD
   amount: number | string;
-  type: string;
+  type: "expense" | "income" | "transfer";
   account_id: string;
   to_account_id: string | null;
   category_id: string | null;
@@ -27,17 +27,18 @@ export function lastMonths(n: number, base = new Date()): string[] {
   return out;
 }
 
-// 最近 n 个月收支
+// 最近 n 个月收支（单次遍历分桶）
 export function monthlyTrend(txs: TxLike[], months: string[]) {
+  const buckets = new Map(months.map((m) => [m, { expense: 0, income: 0 }]));
+  for (const t of txs) {
+    const bucket = buckets.get(t.date.slice(0, 7));
+    if (!bucket) continue;
+    if (t.type === "expense") bucket.expense += num(t.amount);
+    else if (t.type === "income") bucket.income += num(t.amount);
+  }
   return months.map((m) => {
-    let expense = 0;
-    let income = 0;
-    for (const t of txs) {
-      if (!t.date.startsWith(m)) continue;
-      if (t.type === "expense") expense += num(t.amount);
-      else if (t.type === "income") income += num(t.amount);
-    }
-    return { month: m.slice(5), expense: round2(expense), income: round2(income) };
+    const bucket = buckets.get(m);
+    return { month: m.slice(5), expense: round2(bucket?.expense ?? 0), income: round2(bucket?.income ?? 0) };
   });
 }
 
@@ -65,25 +66,21 @@ export function assetCurve(
   days = 30,
   base = new Date(),
 ): { date: string; total: number }[] {
-  const dayKeys: string[] = [];
   const start = new Date(base.getFullYear(), base.getMonth(), base.getDate() - days + 1);
+  const dayKeys: string[] = [];
   for (let i = 0; i < days; i++) {
     const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     dayKeys.push(
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
     );
   }
+  const first = dayKeys[0];
   let total = initialTotal;
-  for (const t of txs) {
-    if (t.date >= dayKeys[0]) continue;
-    if (t.type === "expense") total -= num(t.amount);
-    else if (t.type === "income") total += num(t.amount);
-  }
   const byDay = new Map<string, number>();
   for (const t of txs) {
-    if (t.date < dayKeys[0]) continue;
     const delta = t.type === "expense" ? -num(t.amount) : t.type === "income" ? num(t.amount) : 0;
-    byDay.set(t.date, (byDay.get(t.date) ?? 0) + delta);
+    if (t.date < first) total += delta;
+    else byDay.set(t.date, (byDay.get(t.date) ?? 0) + delta);
   }
   return dayKeys.map((d) => {
     total += byDay.get(d) ?? 0;
