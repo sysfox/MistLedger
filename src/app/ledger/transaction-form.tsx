@@ -1,6 +1,14 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
 import { CHANNELS } from "@/lib/ledger/constants";
 import { createTransaction } from "./actions";
 
@@ -60,120 +68,112 @@ export default function TransactionForm({
     <form action={formAction} className="panel flex flex-col gap-3 p-5">
       <p className="eyebrow">记一笔</p>
       <h2 className="font-display text-[17px] font-semibold text-ink">新建流水</h2>
-      <div className="flex gap-2 text-sm">
+      <input type="hidden" name="type" value={type} />
+      <Box role="radiogroup" aria-label="收支类型" sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
         {TYPES.map((t) => (
-          <label
+          <Chip
             key={t.value}
-            className={`cursor-pointer rounded-full px-3 py-1 focus-within:ring-2 focus-within:ring-lamp/60 ${
-              type === t.value ? "chip-active" : "chip"
-            }`}
-          >
-            <input
-              type="radio"
-              name="type"
-              value={t.value}
-              checked={type === t.value}
-              onChange={() => setType(t.value)}
-              className="sr-only"
-            />
-            {t.label}
-          </label>
+            label={t.label}
+            clickable
+            role="radio"
+            aria-checked={type === t.value}
+            color={type === t.value ? "primary" : "default"}
+            variant="outlined"
+            onClick={() => setType(t.value)}
+          />
         ))}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <label className="sr-only" htmlFor="tx-date">
-          日期
-        </label>
-        <input
-          ref={dateRef}
+      </Box>
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+        <TextField
+          inputRef={dateRef}
           id="tx-date"
           name="date"
           type="date"
+          label="日期"
           required
-          className="input"
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ flex: "1 1 150px" }}
         />
-        <label className="sr-only" htmlFor="tx-amount">
-          金额
-        </label>
-        <input
+        <TextField
           id="tx-amount"
           name="amount"
           type="number"
-          step="0.01"
-          min="0.01"
+          label="金额"
           required
-          inputMode="decimal"
-          enterKeyHint="done"
-          placeholder="金额"
-          className="input w-32"
+          slotProps={{
+            htmlInput: { step: "0.01", min: "0.01", inputMode: "decimal", enterKeyHint: "done" },
+          }}
+          sx={{ width: 132 }}
         />
-        <label className="sr-only" htmlFor="tx-account">
-          {ACCOUNT_LABEL[type]}
-        </label>
-        <select id="tx-account" name="account_id" required className="input">
-          <option value="">{ACCOUNT_PLACEHOLDER[type]}</option>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
+        <FormControl sx={{ flex: "1 1 180px" }}>
+          <InputLabel>{ACCOUNT_LABEL[type]}</InputLabel>
+          <Select name="account_id" label={ACCOUNT_LABEL[type]} defaultValue="">
+            <MenuItem value="">{ACCOUNT_PLACEHOLDER[type]}</MenuItem>
+            {accounts.map((a) => (
+              <MenuItem key={a.id} value={a.id}>
+                {a.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         {type === "transfer" ? (
-          <>
-            <label className="sr-only" htmlFor="tx-to-account">
-              转入账户
-            </label>
-            <select id="tx-to-account" name="to_account_id" required className="input">
-              <option value="">转入账户</option>
+          <FormControl sx={{ flex: "1 1 180px" }}>
+            <InputLabel>转入账户</InputLabel>
+            <Select name="to_account_id" label="转入账户" defaultValue="">
+              <MenuItem value="">转入账户</MenuItem>
               {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
+                <MenuItem key={a.id} value={a.id}>
                   {a.name}
-                </option>
+                </MenuItem>
               ))}
-            </select>
-          </>
+            </Select>
+          </FormControl>
         ) : (
-          <>
-            <label className="sr-only" htmlFor="tx-category">
-              分类
-            </label>
-            <select key={type} id="tx-category" name="category_id" className="input">
-              <option value="">分类（可选）</option>
+          <FormControl key={type} sx={{ flex: "1 1 180px" }}>
+            <InputLabel>分类</InputLabel>
+            <Select name="category_id" label="分类" defaultValue="">
+              <MenuItem value="">分类（可选）</MenuItem>
               {visibleCategories.map((c) => (
-                <option key={c.id} value={c.id}>
+                <MenuItem key={c.id} value={c.id}>
                   {c.name}
-                </option>
+                </MenuItem>
               ))}
-            </select>
-          </>
+            </Select>
+          </FormControl>
         )}
-        <label className="sr-only" htmlFor="tx-channel">
-          {isIncome ? "来源渠道" : "渠道"}
-        </label>
-        <select id="tx-channel" name="channel" className="input">
-          {CHANNELS.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <label className="sr-only" htmlFor="tx-counterparty">
-          交易对方
-        </label>
-        <input
+        <FormControl sx={{ flex: "1 1 150px" }}>
+          <InputLabel>{isIncome ? "来源渠道" : "渠道"}</InputLabel>
+          <Select
+            name="channel"
+            label={isIncome ? "来源渠道" : "渠道"}
+            defaultValue="alipay"
+          >
+            {CHANNELS.map((c) => (
+              <MenuItem key={c.value} value={c.value}>
+                {c.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+        <TextField
           id="tx-counterparty"
           name="counterparty"
-          maxLength={50}
+          label={isIncome ? "对方" : "交易对方"}
           placeholder={isIncome ? "对方（可选，如：发红包的人）" : "交易对方（可选）"}
-          className="input flex-1"
+          slotProps={{ htmlInput: { maxLength: 50 } }}
+          sx={{ flex: "1 1 220px" }}
         />
-        <label className="sr-only" htmlFor="tx-note">
-          备注
-        </label>
-        <input id="tx-note" name="note" maxLength={100} placeholder="备注（可选）" className="input flex-1" />
-      </div>
+        <TextField
+          id="tx-note"
+          name="note"
+          label="备注"
+          placeholder="备注（可选）"
+          slotProps={{ htmlInput: { maxLength: 100 } }}
+          sx={{ flex: "1 1 220px" }}
+        />
+      </Box>
       {state && !state.ok ? (
         <p role="alert" className="rounded-md bg-veil px-3 py-2 text-sm text-ember">
           {state.message}
@@ -184,9 +184,14 @@ export default function TransactionForm({
           {state.message}
         </p>
       ) : null}
-      <button type="submit" disabled={pending} className="btn-primary w-fit disabled:opacity-60">
+      <Button
+        type="submit"
+        variant="contained"
+        disabled={pending}
+        sx={{ alignSelf: "flex-start" }}
+      >
         {pending ? "保存中…" : "保存"}
-      </button>
+      </Button>
     </form>
   );
 }

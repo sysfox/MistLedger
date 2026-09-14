@@ -1,6 +1,19 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
+import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
 import { CHANNELS } from "@/lib/ledger/constants";
 import { updateTransaction } from "./actions";
 
@@ -48,8 +61,11 @@ export default function EditTransactionButton({
   categories: Category[];
 }) {
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [type, setType] = useState(transaction.type);
   const [state, formAction, pending] = useActionState(updateTransaction, null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const armedRef = useRef(false);
   const visibleCategories = categories.filter((c) =>
     type === "income" ? c.kind === "income" : c.kind === "expense",
   );
@@ -57,176 +73,192 @@ export default function EditTransactionButton({
   const isIncome = type === "income";
   const uid = `tx-edit-${transaction.id}`;
 
+  const confirmSubmit = () => {
+    armedRef.current = true;
+    setConfirmOpen(false);
+    formRef.current?.requestSubmit();
+  };
+
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="text"
+        color="primary"
         aria-expanded={open}
+        disabled={pending}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-sm text-xs text-dim hover:text-ink focus-visible:ring-2 focus-visible:ring-lamp/60"
+        sx={{ minHeight: 44, minWidth: 44, fontSize: "0.75rem" }}
       >
         修改
-      </button>
+      </Button>
       {open && !state?.ok ? (
         <form
+          ref={formRef}
           action={formAction}
           onSubmit={(e) => {
-            if (!window.confirm("确认保存这笔流水的修改？修改后相关账户余额会同步更新")) e.preventDefault();
+            if (!armedRef.current) {
+              e.preventDefault();
+              setConfirmOpen(true);
+              return;
+            }
+            armedRef.current = false;
           }}
           className="w-full flex flex-col gap-2 rounded-xl border border-fogline px-4 py-3"
         >
           <input type="hidden" name="id" value={transaction.id} />
+          <input type="hidden" name="type" value={type} />
           <p className="eyebrow">修改流水</p>
-          <div className="flex gap-2 text-sm">
+          <Box role="radiogroup" aria-label="收支类型" sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             {TYPES.map((t) => (
-              <label
+              <Chip
                 key={t.value}
-                className={`cursor-pointer rounded-full px-3 py-1 focus-within:ring-2 focus-within:ring-lamp/60 ${
-                  type === t.value ? "chip-active" : "chip"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="type"
-                  value={t.value}
-                  checked={type === t.value}
-                  onChange={() => setType(t.value)}
-                  className="sr-only"
-                />
-                {t.label}
-              </label>
+                label={t.label}
+                clickable
+                role="radio"
+                aria-checked={type === t.value}
+                color={type === t.value ? "primary" : "default"}
+                variant="outlined"
+                onClick={() => setType(t.value)}
+              />
             ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <label className="sr-only" htmlFor={`${uid}-date`}>
-              日期
-            </label>
-            <input
+          </Box>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <TextField
               id={`${uid}-date`}
               name="date"
               type="date"
+              label="日期"
               required
               defaultValue={transaction.date}
-              className="input"
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ flex: "1 1 150px" }}
             />
-            <label className="sr-only" htmlFor={`${uid}-amount`}>
-              金额
-            </label>
-            <input
+            <TextField
               id={`${uid}-amount`}
               name="amount"
               type="number"
-              step="0.01"
-              min="0.01"
+              label="金额"
               required
-              inputMode="decimal"
-              enterKeyHint="done"
               defaultValue={transaction.amount}
-              placeholder="金额"
-              className="input w-32"
+              slotProps={{
+                htmlInput: { step: "0.01", min: "0.01", inputMode: "decimal", enterKeyHint: "done" },
+              }}
+              sx={{ width: 132 }}
             />
-            <label className="sr-only" htmlFor={`${uid}-account`}>
-              {ACCOUNT_LABEL[type]}
-            </label>
-            <select
-              id={`${uid}-account`}
-              name="account_id"
-              required
-              defaultValue={transaction.account_id}
-              className="input"
-            >
-              <option value="">{ACCOUNT_PLACEHOLDER[type]}</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+            <FormControl sx={{ flex: "1 1 180px" }}>
+              <InputLabel>{ACCOUNT_LABEL[type]}</InputLabel>
+              <Select
+                name="account_id"
+                label={ACCOUNT_LABEL[type]}
+                defaultValue={transaction.account_id}
+              >
+                <MenuItem value="">{ACCOUNT_PLACEHOLDER[type]}</MenuItem>
+                {accounts.map((a) => (
+                  <MenuItem key={a.id} value={a.id}>
+                    {a.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             {type === "transfer" ? (
-              <>
-                <label className="sr-only" htmlFor={`${uid}-to-account`}>
-                  转入账户
-                </label>
-                <select
-                  id={`${uid}-to-account`}
+              <FormControl sx={{ flex: "1 1 180px" }}>
+                <InputLabel>转入账户</InputLabel>
+                <Select
                   name="to_account_id"
-                  required
+                  label="转入账户"
                   defaultValue={transaction.to_account_id ?? ""}
-                  className="input"
                 >
-                  <option value="">转入账户</option>
+                  <MenuItem value="">转入账户</MenuItem>
                   {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
+                    <MenuItem key={a.id} value={a.id}>
                       {a.name}
-                    </option>
+                    </MenuItem>
                   ))}
-                </select>
-              </>
+                </Select>
+              </FormControl>
             ) : (
-              <>
-                <label className="sr-only" htmlFor={`${uid}-category`}>
-                  分类
-                </label>
-                <select
-                  key={type}
-                  id={`${uid}-category`}
+              <FormControl key={type} sx={{ flex: "1 1 180px" }}>
+                <InputLabel>分类</InputLabel>
+                <Select
                   name="category_id"
+                  label="分类"
                   defaultValue={transaction.category_id ?? ""}
-                  className="input"
                 >
-                  <option value="">分类（可选）</option>
+                  <MenuItem value="">分类（可选）</MenuItem>
                   {visibleCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <MenuItem key={c.id} value={c.id}>
                       {c.name}
-                    </option>
+                    </MenuItem>
                   ))}
-                </select>
-              </>
+                </Select>
+              </FormControl>
             )}
-            <label className="sr-only" htmlFor={`${uid}-channel`}>
-              {isIncome ? "来源渠道" : "渠道"}
-            </label>
-            <select id={`${uid}-channel`} name="channel" defaultValue={transaction.channel} className="input">
-              {CHANNELS.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <label className="sr-only" htmlFor={`${uid}-counterparty`}>
-              交易对方
-            </label>
-            <input
+            <FormControl sx={{ flex: "1 1 150px" }}>
+              <InputLabel>{isIncome ? "来源渠道" : "渠道"}</InputLabel>
+              <Select
+                name="channel"
+                label={isIncome ? "来源渠道" : "渠道"}
+                defaultValue={transaction.channel}
+              >
+                {CHANNELS.map((c) => (
+                  <MenuItem key={c.value} value={c.value}>
+                    {c.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <TextField
               id={`${uid}-counterparty`}
               name="counterparty"
-              maxLength={50}
-              defaultValue={transaction.counterparty ?? ""}
+              label={isIncome ? "对方" : "交易对方"}
               placeholder={isIncome ? "对方（可选，如：发红包的人）" : "交易对方（可选）"}
-              className="input flex-1"
+              defaultValue={transaction.counterparty ?? ""}
+              slotProps={{ htmlInput: { maxLength: 50 } }}
+              sx={{ flex: "1 1 220px" }}
             />
-            <label className="sr-only" htmlFor={`${uid}-note`}>
-              备注
-            </label>
-            <input
+            <TextField
               id={`${uid}-note`}
               name="note"
-              maxLength={100}
-              defaultValue={transaction.note ?? ""}
+              label="备注"
               placeholder="备注（可选）"
-              className="input flex-1"
+              defaultValue={transaction.note ?? ""}
+              slotProps={{ htmlInput: { maxLength: 100 } }}
+              sx={{ flex: "1 1 220px" }}
             />
-          </div>
+          </Box>
           {state && !state.ok ? (
             <p role="alert" className="text-xs text-ember">
               {state.message}
             </p>
           ) : null}
-          <button type="submit" disabled={pending} className="btn-primary w-fit disabled:opacity-60">
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={pending}
+            sx={{ alignSelf: "flex-start" }}
+          >
             {pending ? "保存中…" : "保存"}
-          </button>
+          </Button>
         </form>
+      ) : null}
+      {confirmOpen ? (
+        <Dialog open onClose={() => setConfirmOpen(false)}>
+          <DialogTitle>确认保存这笔流水的修改？</DialogTitle>
+          <DialogContent>
+            <DialogContentText>修改后相关账户余额会同步更新。</DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button color="primary" variant="text" disabled={pending} onClick={() => setConfirmOpen(false)}>
+              取消
+            </Button>
+            <Button color="primary" variant="contained" disabled={pending} onClick={confirmSubmit}>
+              确认修改
+            </Button>
+          </DialogActions>
+        </Dialog>
       ) : null}
     </>
   );

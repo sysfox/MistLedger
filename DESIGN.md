@@ -278,7 +278,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 ## 十三、MUI 试验（进行中，experiment/mui-trial）
 
-仅 `/mui-demo` 可用 MUI 组件，现有页面（总览/记账/数据/设置/登录）一律不动。
+`/mui-demo` 与 `/ledger`（记账）可用 MUI 组件，其余现有页面（总览/数据/设置/登录）一律不动。
 主题（`src/components/mui-theme.tsx`）把第二节令牌映射到 MUI palette：
 `primary` 灯 `#E3B341`、`error` 烬 `#E2574C`、`success` 玉 `#6FBF8F`、
 `background` 夜空 `#0A0E14` / 雾面 `#111826`、`text` 纸墨 `#E9E4D8` / 远雾 `#8B93A7`、
@@ -289,8 +289,8 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 使用约束：
 
-1. MUI 组件只出现在 `/mui-demo`；金额一律 `.money`（mono），不用 MUI Typography 渲染金额。
-2. 大面积灯色与渐变禁用；灯线本页 0 条（≤1）。
+1. MUI 组件只出现在 `/mui-demo` 与 `/ledger`；金额一律 `.money`（mono），不用 MUI Typography 渲染金额（金额输入框本身不加 mono，提交前仍走 formatMoney）。
+2. 大面积灯色与渐变禁用；灯线 0 条（≤1）。
 3. 无 `dark:` 变体、无 zinc/neutral/slate；`warning`/`info` 已指回令牌，`error` 仅用于删除确认。
 4. 焦点环一律灯色（`0 0 0 2px rgba(227,179,65,.6)`），与第七节一致。
 5. 动画全部钉为 150ms；TouchRipple 默认 550ms 超 §十一 #8 上限，已全局 `disableRipple`，
@@ -305,6 +305,8 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
   （不装 `x-date-pickers`，保持最小）。
 
 ## 变更记录
+
+- 2026-09-14 · MUI 迁入记账页（experiment/mui-trial）：`/ledger` 交互控件全部迁移到 MUI——新建流水与行内修改面板的日期/金额/对方/备注改 TextField（可见 label，日期 shrink），账户/转入账户/分类/渠道改 FormControl+Select+MenuItem（空值 MenuItem 保留占位文案，渠道默认值保持首项支付宝，分类仍随类型 key 重挂载），类型支出/收入/转账改 Chip（colorPrimary 选中态复刻 `.chip-active`，`role=radiogroup/radio` + 隐藏 input 提交 type），提交/保存改 Button contained，「修改」改 text Button；删除与修改的 `window.confirm` 改 MUI Dialog（确认删除用 error 色），删除按钮改 text error（常驻烬色提示危险，原为远雾字 hover 转烬）。useActionState 流程、server action、中文文案、`role=alert`/`aria-live` 反馈完全不变；行为变化：必填 select 的浏览器原生 required 拦截改为服务端中文校验（MUI Select 的隐藏原生 input 会不可见地阻断提交，故不传 required），日期/金额仍保留原生 required；表单控件由 sr-only 标签改为 MUI 可见浮动标签。lint 与 build 通过。
 
 - 2026-09-14 · MUI 最小侵入试验（experiment/mui-trial）：新增依赖 `@mui/material` `@emotion/react` `@emotion/styled` `@mui/material-nextjs`（Next 16 用 `v16-appRouter` 通道）；新增 `src/components/mui-theme.tsx`（令牌全量映射 + `.input`/`.btn` 复刻 + ripple 禁用）与 `src/components/mui-provider.tsx`（`AppRouterCacheProvider + ThemeProvider + CssBaseline`，`CssBaseline` 输出与 `globals.css` 同值）；`layout` 用 provider 包裹 `SiteNav`/`children`（其余不动）；新增 `/mui-demo`（Button/TextField/Select/Chip/Dialog 各一，中文动词文案，金额 `.money`，计数「笔」，灯线 0 条）；新增第十二节后的第十三节「MUI 试验」约束说明。lint 与 build 通过。
 
