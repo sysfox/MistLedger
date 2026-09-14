@@ -29,8 +29,8 @@ export default function CreateAccountForm() {
       />
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
         <FormControl sx={{ flex: "1 1 180px" }}>
-          <InputLabel>账户类型</InputLabel>
-          <Select id="account-type" name="type" label="账户类型" defaultValue="bank_card">
+          <InputLabel id="account-type-label">账户类型</InputLabel>
+          <Select id="account-type" name="type" label="账户类型" labelId="account-type-label" defaultValue="bank_card">
             {ACCOUNT_TYPES.map((t) => (
               <MenuItem key={t.value} value={t.value}>
                 {t.label}

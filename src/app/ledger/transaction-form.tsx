@@ -106,8 +106,8 @@ export default function TransactionForm({
           sx={{ width: 132 }}
         />
         <FormControl sx={{ flex: "1 1 180px" }}>
-          <InputLabel>{ACCOUNT_LABEL[type]}</InputLabel>
-          <Select name="account_id" label={ACCOUNT_LABEL[type]} defaultValue="">
+          <InputLabel id="tx-account-label">{ACCOUNT_LABEL[type]}</InputLabel>
+          <Select id="tx-account" name="account_id" label={ACCOUNT_LABEL[type]} labelId="tx-account-label" defaultValue="">
             <MenuItem value="">{ACCOUNT_PLACEHOLDER[type]}</MenuItem>
             {accounts.map((a) => (
               <MenuItem key={a.id} value={a.id}>
@@ -118,8 +118,8 @@ export default function TransactionForm({
         </FormControl>
         {type === "transfer" ? (
           <FormControl sx={{ flex: "1 1 180px" }}>
-            <InputLabel>转入账户</InputLabel>
-            <Select name="to_account_id" label="转入账户" defaultValue="">
+            <InputLabel id="tx-to-account-label">转入账户</InputLabel>
+            <Select id="tx-to-account" name="to_account_id" label="转入账户" labelId="tx-to-account-label" defaultValue="">
               <MenuItem value="">转入账户</MenuItem>
               {accounts.map((a) => (
                 <MenuItem key={a.id} value={a.id}>
@@ -130,8 +130,8 @@ export default function TransactionForm({
           </FormControl>
         ) : (
           <FormControl key={type} sx={{ flex: "1 1 180px" }}>
-            <InputLabel>分类</InputLabel>
-            <Select name="category_id" label="分类" defaultValue="">
+            <InputLabel id="tx-category-label">分类</InputLabel>
+            <Select id="tx-category" name="category_id" label="分类" labelId="tx-category-label" defaultValue="">
               <MenuItem value="">分类（可选）</MenuItem>
               {visibleCategories.map((c) => (
                 <MenuItem key={c.id} value={c.id}>
@@ -142,10 +142,12 @@ export default function TransactionForm({
           </FormControl>
         )}
         <FormControl sx={{ flex: "1 1 150px" }}>
-          <InputLabel>{isIncome ? "来源渠道" : "渠道"}</InputLabel>
+          <InputLabel id="tx-channel-label">{isIncome ? "来源渠道" : "渠道"}</InputLabel>
           <Select
+            id="tx-channel"
             name="channel"
             label={isIncome ? "来源渠道" : "渠道"}
+            labelId="tx-channel-label"
             defaultValue="alipay"
           >
             {CHANNELS.map((c) => (

@@ -24,8 +24,8 @@ export default function CreateCategoryForm() {
         sx={{ flex: "1 1 180px" }}
       />
       <FormControl sx={{ width: 120 }}>
-        <InputLabel>分类类型</InputLabel>
-        <Select id="category-kind" name="kind" label="分类类型" defaultValue="expense">
+        <InputLabel id="category-kind-label">分类类型</InputLabel>
+        <Select id="category-kind" name="kind" label="分类类型" labelId="category-kind-label" defaultValue="expense">
           <MenuItem value="expense">支出</MenuItem>
           <MenuItem value="income">收入</MenuItem>
         </Select>

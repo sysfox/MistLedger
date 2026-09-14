@@ -238,7 +238,7 @@ export default function ImportClient({
         </label>
       </div>
 
-      <form action={formAction} className="flex flex-col gap-4">
+      <form id="import-form" action={formAction} className="flex flex-col gap-4">
         <input type="hidden" name="source" value={source} />
         <input type="hidden" name="filename" value={filename} />
         <input type="hidden" name="accountId" value={accountId} />
@@ -333,7 +333,7 @@ export default function ImportClient({
             <Button color="primary" variant="text" disabled={isPending} onClick={() => setConfirmOpen(false)}>
               取消
             </Button>
-            <Button color="primary" variant="contained" disabled={isPending} type="submit">
+            <Button color="primary" variant="contained" disabled={isPending} type="submit" form="import-form">
               确认导入
             </Button>
           </DialogActions>

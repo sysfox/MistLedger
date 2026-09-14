@@ -34,8 +34,8 @@ export default function CreateBudgetForm({
         sx={{ width: 170 }}
       />
       <FormControl sx={{ flex: "1 1 180px" }}>
-        <InputLabel>支出分类</InputLabel>
-        <Select id="budget-category" name="category_id" label="支出分类" defaultValue="">
+        <InputLabel id="budget-category-label">支出分类</InputLabel>
+        <Select id="budget-category" name="category_id" label="支出分类" labelId="budget-category-label" defaultValue="">
           <MenuItem value="">支出分类</MenuItem>
           {categories.map((c) => (
             <MenuItem key={c.id} value={c.id}>

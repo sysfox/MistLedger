@@ -147,10 +147,12 @@ export default function EditTransactionButton({
               sx={{ width: 132 }}
             />
             <FormControl sx={{ flex: "1 1 180px" }}>
-              <InputLabel>{ACCOUNT_LABEL[type]}</InputLabel>
+              <InputLabel id={`${uid}-account-label`}>{ACCOUNT_LABEL[type]}</InputLabel>
               <Select
+                id={`${uid}-account`}
                 name="account_id"
                 label={ACCOUNT_LABEL[type]}
+                labelId={`${uid}-account-label`}
                 defaultValue={transaction.account_id}
               >
                 <MenuItem value="">{ACCOUNT_PLACEHOLDER[type]}</MenuItem>
@@ -163,10 +165,12 @@ export default function EditTransactionButton({
             </FormControl>
             {type === "transfer" ? (
               <FormControl sx={{ flex: "1 1 180px" }}>
-                <InputLabel>转入账户</InputLabel>
+                <InputLabel id={`${uid}-to-account-label`}>转入账户</InputLabel>
                 <Select
+                  id={`${uid}-to-account`}
                   name="to_account_id"
                   label="转入账户"
+                  labelId={`${uid}-to-account-label`}
                   defaultValue={transaction.to_account_id ?? ""}
                 >
                   <MenuItem value="">转入账户</MenuItem>
@@ -179,10 +183,12 @@ export default function EditTransactionButton({
               </FormControl>
             ) : (
               <FormControl key={type} sx={{ flex: "1 1 180px" }}>
-                <InputLabel>分类</InputLabel>
+                <InputLabel id={`${uid}-category-label`}>分类</InputLabel>
                 <Select
+                  id={`${uid}-category`}
                   name="category_id"
                   label="分类"
+                  labelId={`${uid}-category-label`}
                   defaultValue={transaction.category_id ?? ""}
                 >
                   <MenuItem value="">分类（可选）</MenuItem>
@@ -195,10 +201,12 @@ export default function EditTransactionButton({
               </FormControl>
             )}
             <FormControl sx={{ flex: "1 1 150px" }}>
-              <InputLabel>{isIncome ? "来源渠道" : "渠道"}</InputLabel>
+              <InputLabel id={`${uid}-channel-label`}>{isIncome ? "来源渠道" : "渠道"}</InputLabel>
               <Select
+                id={`${uid}-channel`}
                 name="channel"
                 label={isIncome ? "来源渠道" : "渠道"}
+                labelId={`${uid}-channel-label`}
                 defaultValue={transaction.channel}
               >
                 {CHANNELS.map((c) => (
