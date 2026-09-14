@@ -4,7 +4,7 @@
 
 MistLedger (雾夜账) is a Chinese-language personal bookkeeping PWA: "a lamp lit in fog at night to read the ledger." Track where every yuan goes and how much remains. Forced permanent night theme.
 
-- Stack: Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 (`@theme` tokens) · Supabase (Postgres + Auth via `@supabase/ssr`) · Recharts · SheetJS (xlsx)
+- Stack: Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS v4 (`@theme` tokens) · Supabase (Postgres + Auth via `@supabase/ssr`) · Recharts · SheetJS (xlsx) · MUI 试验中 (`@mui/material` + `@emotion/react` + `@emotion/styled` + `@mui/material-nextjs`，仅 `/mui-demo` 使用，详见 DESIGN.md §十三)
 - Runtime notes: scripts `dev`, `build`, `start`, `lint` (`eslint`), `typecheck` (`tsc --noEmit`); path alias `@/* → ./src/*`; no `middleware.ts` — Next 16 uses `src/proxy.ts` instead.
 
 ## 1. Directory layout
@@ -45,6 +45,8 @@ src/
                         # adjust-balance-button.tsx adjusts account balance inline
                         # via initial_balance rewrite + confirm)
     globals.css         # Design tokens (@theme) + component classes + fog/lamp effects
+    mui-demo/           # MUI 试验演示页 page.tsx (client，仅 Button/TextField/
+                        # Select/Chip/Dialog 各一，不动现有页面；走 proxy 默认鉴权)
   proxy.ts              # Edge auth gate (Next 16 replacement for middleware.ts); forwards
                         # Supabase anti-cache headers and excludes PWA/manifest assets
   components/
@@ -56,6 +58,12 @@ src/
                         # aware; figure/aria labels
     dashboard-charts-lazy.tsx   # next/dynamic (ssr:false) wrappers + skeleton
     service-worker-register.tsx # Registers /sw.js on window load (silent failure)
+    mui-theme.tsx       # MUI 试验主题 ("use client")：palette/typography/components
+                        # 全量映射 DESIGN tokens（灯/烬/玉/夜空/雾面/纱面/雾线/远雾），
+                        # 复刻 .input/.btn 观感；warning/info 指回灯色/远雾
+    mui-provider.tsx    # "use client"：AppRouterCacheProvider
+                        # (@mui/material-nextjs/v16-appRouter) + ThemeProvider +
+                        # CssBaseline；layout 用其包裹 SiteNav/children
   lib/
     supabase/client.ts  # Browser client (createBrowserClient, publishable key)
     supabase/server.ts  # Server client with cookie getAll/setAll adapters
@@ -90,6 +98,7 @@ Config: `next.config.ts` (empty), `eslint.config.mjs` (flat config, core-web-vit
 | `/data` | Query (数据) | URL-searchParams queries applied server-side; summary via `filtered_tx_stats`; list ≤200 |
 | `/settings` | Settings (设置) | Accounts (#accounts) · categories · budgets · bill import (#import); anchors for in-page sections; balances via `account_balances` RPC + inline balance adjustment (adjusts `initial_balance` by the delta), imports via atomic `import_transactions` RPC |
 | `/login` | Auth | Client page; only route without auth gate |
+| `/mui-demo` | MUI trial (试验中) | Client page; one each of Button/TextField/Select/Chip/Dialog in mist-night tokens; same proxy auth gate as existing pages; no existing page touched |
 
 Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except `/login`), and authenticated users away from `/login`; it excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest`, and image assets from the matcher, applies Supabase's `Cache-Control: private, no-cache…` headers on token refresh, and copies refreshed cookies onto redirect responses. Pages double-check via `supabase.auth.getClaims()` and throw on session errors. All pages are `force-dynamic`.
 

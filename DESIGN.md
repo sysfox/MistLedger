@@ -276,7 +276,37 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 每次界面改动后：`npm run lint` 与 `npm run build` 必须通过。
 - 验收动作：键盘 Tab 走一遍（焦点环可见）、`prefers-reduced-motion` 开启走一遍（无动画）、375px 宽度走一遍（不横向滚动）。
 
+## 十三、MUI 试验（进行中，experiment/mui-trial）
+
+仅 `/mui-demo` 可用 MUI 组件，现有页面（总览/记账/数据/设置/登录）一律不动。
+主题（`src/components/mui-theme.tsx`）把第二节令牌映射到 MUI palette：
+`primary` 灯 `#E3B341`、`error` 烬 `#E2574C`、`success` 玉 `#6FBF8F`、
+`background` 夜空 `#0A0E14` / 雾面 `#111826`、`text` 纸墨 `#E9E4D8` / 远雾 `#8B93A7`、
+`divider` 雾线 `#28324A`；`warning` 指回灯色、`info` 指回远雾（不引入新标准色）；
+`fontFamily` 指回 `var(--font-noto-sans-sc)`；`components` 复刻 `.input`（纱底+雾线边+灯焦点环）
+与 `.btn`（主按钮灯底夜空字 + `brightness(1.1)` hover + `translate-y-px` active，
+次按钮远雾字 hover 转纸墨）；纸面（Menu/Dialog）雾面+雾线边+面板级阴影，无渐变、无辉光。
+
+使用约束：
+
+1. MUI 组件只出现在 `/mui-demo`；金额一律 `.money`（mono），不用 MUI Typography 渲染金额。
+2. 大面积灯色与渐变禁用；灯线本页 0 条（≤1）。
+3. 无 `dark:` 变体、无 zinc/neutral/slate；`warning`/`info` 已指回令牌，`error` 仅用于删除确认。
+4. 焦点环一律灯色（`0 0 0 2px rgba(227,179,65,.6)`），与第七节一致。
+5. 动画全部钉为 150ms；TouchRipple 默认 550ms 超 §十一 #8 上限，已全局 `disableRipple`，
+   按压反馈改用 `active:translateY(1px)`。
+6. 注入顺序（`src/components/mui-provider.tsx`）：`AppRouterCacheProvider`
+  （`@mui/material-nextjs/v16-appRouter`，Next 16 通道）+ `ThemeProvider` + `CssBaseline`，
+   包裹 `SiteNav` 与 `children`；`CssBaseline` 的 body 输出与 `globals.css` 完全同值。
+   现有页面不渲染 MUI 组件即不产生 MUI 组件样式，故无回归；演示页内同一元素不混用
+   Tailwind 与 MUI 竞争属性（布局间距走 `sx` 或外层 `div`）。有意不用 `enableCssLayer`，
+   隔离靠上述两条保证，而非 layer 顺序。
+7. 依赖仅 `@mui/material` `@emotion/react` `@emotion/styled` `@mui/material-nextjs`
+  （不装 `x-date-pickers`，保持最小）。
+
 ## 变更记录
+
+- 2026-09-14 · MUI 最小侵入试验（experiment/mui-trial）：新增依赖 `@mui/material` `@emotion/react` `@emotion/styled` `@mui/material-nextjs`（Next 16 用 `v16-appRouter` 通道）；新增 `src/components/mui-theme.tsx`（令牌全量映射 + `.input`/`.btn` 复刻 + ripple 禁用）与 `src/components/mui-provider.tsx`（`AppRouterCacheProvider + ThemeProvider + CssBaseline`，`CssBaseline` 输出与 `globals.css` 同值）；`layout` 用 provider 包裹 `SiteNav`/`children`（其余不动）；新增 `/mui-demo`（Button/TextField/Select/Chip/Dialog 各一，中文动词文案，金额 `.money`，计数「笔」，灯线 0 条）；新增第十二节后的第十三节「MUI 试验」约束说明。lint 与 build 通过。
 
 - 2026-09-13 · 初版：确立「雾里点灯看账」理念、常夜模式、灯线签名、雾散转场、组件契约。
 - 2026-09-13 · 契约全站落地：globals.css 建立全部令牌与组件类；layout 接入 Noto Serif SC / Noto Sans SC / Geist Mono；新增 template.tsx（雾散显影转场）与 loading.tsx（掌灯加载）；导航激活灯线；图表骨架灯下化；总览/登录/记账/账户/导入/设置六页全部按契约重写，清除 zinc 与 red/green/indigo 标准色。lint 与 build 通过。

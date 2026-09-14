@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Serif_SC, Noto_Sans_SC, Geist_Mono } from "next/font/google";
 import SiteNav from "@/components/site-nav";
 import ServiceWorkerRegister from "@/components/service-worker-register";
+import MuiProvider from "@/components/mui-provider";
 import "./globals.css";
 
 const fontDisplay = Noto_Serif_SC({
@@ -47,8 +48,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col pb-[var(--nav-bottom-h)] sm:pt-[var(--nav-top-h)] sm:pb-0">
         <ServiceWorkerRegister />
-        <SiteNav />
-        {children}
+        <MuiProvider>
+          <SiteNav />
+          {children}
+        </MuiProvider>
       </body>
     </html>
   );
