@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { accountTypeLabel } from "@/lib/ledger/constants";
 import { formatMoney } from "@/lib/ledger/format";
@@ -9,24 +10,19 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountsPage() {
   const supabase = await createClient();
-  const [{ data: accounts }, { data: transactions }] = await Promise.all([
-    supabase.from("accounts").select("*").order("created_at"),
-    supabase.from("transactions").select("amount, type, account_id, to_account_id"),
-  ]);
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError) throw new Error("会话校验失败，请稍后重试");
+  if (!claimsData?.claims) redirect("/login");
+
+  const [{ data: accounts, error: accountsError }, { data: balanceRows, error: balancesError }] =
+    await Promise.all([
+      supabase.from("accounts").select("id, name, type, initial_balance, is_active").order("created_at"),
+      supabase.rpc("account_balances"),
+    ]);
+  if (accountsError || balancesError) throw new Error("账户数据加载失败，请稍后重试");
 
   const balances = new Map<string, number>();
-  for (const a of accounts ?? []) balances.set(a.id, Number(a.initial_balance));
-  for (const t of transactions ?? []) {
-    const amount = Number(t.amount);
-    if (t.type === "expense") {
-      balances.set(t.account_id, (balances.get(t.account_id) ?? 0) - amount);
-    } else if (t.type === "income") {
-      balances.set(t.account_id, (balances.get(t.account_id) ?? 0) + amount);
-    } else if (t.type === "transfer" && t.to_account_id) {
-      balances.set(t.account_id, (balances.get(t.account_id) ?? 0) - amount);
-      balances.set(t.to_account_id, (balances.get(t.to_account_id) ?? 0) + amount);
-    }
-  }
+  for (const b of balanceRows ?? []) balances.set(b.account_id, Number(b.balance));
   const total = [...balances.values()].reduce((s, v) => s + v, 0);
 
   return (
