@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Button from "@mui/material/Button";
 import { ensureDefaultCategories } from "./actions";
 
 export default function EnsureDefaultCategoriesButton() {
@@ -8,18 +9,20 @@ export default function EnsureDefaultCategoriesButton() {
   const [result, setResult] = useState({ ok: true, message: "" });
   return (
     <div className="flex flex-col items-start gap-1">
-      <button
+      <Button
         type="button"
+        variant="text"
+        color="primary"
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
             setResult(await ensureDefaultCategories());
           })
         }
-        className="link-subtle text-sm disabled:opacity-50"
+        sx={{ minHeight: 44, fontSize: "0.875rem" }}
       >
         一键补齐默认分类
-      </button>
+      </Button>
       <p aria-live="polite" className={`text-xs ${result.ok ? "text-jade" : "text-ember"}`}>
         {result.message}
       </p>

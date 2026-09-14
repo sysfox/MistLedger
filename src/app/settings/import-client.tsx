@@ -1,6 +1,13 @@
 "use client";
 
 import { memo, useCallback, useMemo, useRef, useState, useActionState } from "react";
+import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
 import { parseBillFile, type ImportSource, type ParsedRow } from "@/lib/ledger/import-parse";
 import { submitImportAction, type ImportResult } from "./import-actions";
 
@@ -97,6 +104,7 @@ export default function ImportClient({
   const [filename, setFilename] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const parsingRef = useRef(false);
 
   const [state, formAction, isPending] = useActionState(submitImportAction, initialImportState);
@@ -108,6 +116,7 @@ export default function ImportClient({
   }
 
   const tooMany = rows.length > 2000;
+  const accountName = accounts.find((a) => a.id === accountId)?.name ?? "";
 
   const guessToAccount = useCallback(
     (r: ParsedRow): string => {
@@ -288,17 +297,47 @@ export default function ImportClient({
               <p className="text-xs text-dim">仅预览前 200 笔，点「确认导入」会导入全部 {rows.length} 笔。</p>
             ) : null}
             <div className="flex flex-col items-start gap-1">
-              <button
-                type="submit"
+              <Button
+                type="button"
+                variant="contained"
                 disabled={isPending || !accountId || tooMany}
-                className="btn-primary w-fit disabled:opacity-50"
+                onClick={() => setConfirmOpen(true)}
               >
                 {isPending ? "导入中…" : `确认导入 ${rows.length} 笔`}
-              </button>
+              </Button>
               {!accountId ? <p className="text-xs text-dim">先选择记账账户</p> : null}
             </div>
           </>
         ) : null}
+
+        <Dialog
+          open={confirmOpen}
+          onClose={() => setConfirmOpen(false)}
+          disableRestoreFocus
+        >
+          <DialogTitle>确认导入这批账单？</DialogTitle>
+          <DialogContent>
+            <DialogContentText component="div">
+              <Box component="p" sx={{ margin: 0, mb: 1 }}>
+                文件「{filename || "（未命名）"}」
+              </Box>
+              <Box component="p" sx={{ margin: 0, mb: 1 }}>
+                共 {rows.length} 笔，记入账户「{accountName || "未选择"}」。
+              </Box>
+              <Box component="p" sx={{ margin: 0 }}>
+                同一文件重复导入会自动去重，不会产生重复流水。
+              </Box>
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button color="primary" variant="text" disabled={isPending} onClick={() => setConfirmOpen(false)}>
+              取消
+            </Button>
+            <Button color="primary" variant="contained" disabled={isPending} type="submit">
+              确认导入
+            </Button>
+          </DialogActions>
+        </Dialog>
       </form>
     </div>
   );

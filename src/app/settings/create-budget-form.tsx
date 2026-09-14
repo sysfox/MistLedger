@@ -1,6 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import Button from "@mui/material/Button";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import TextField from "@mui/material/TextField";
 import { createBudget } from "./actions";
 
 const INITIAL = { ok: true, message: "" };
@@ -16,45 +22,43 @@ export default function CreateBudgetForm({
 }) {
   const [state, action, pending] = useActionState(createBudget, INITIAL);
   return (
-    <form action={action} className="panel flex flex-wrap gap-2 p-4">
-      <label className="sr-only" htmlFor="budget-month">
-        预算月份
-      </label>
-      <input
+    <form action={action} className="panel flex flex-wrap items-center gap-2 p-4">
+      <TextField
         id="budget-month"
         name="month"
         type="date"
+        label="预算月份"
         required
         defaultValue={defaultMonth}
-        className="input"
+        slotProps={{ inputLabel: { shrink: true } }}
+        sx={{ width: 170 }}
       />
-      <label className="sr-only" htmlFor="budget-category">
-        支出分类
-      </label>
-      <select id="budget-category" name="category_id" required className="input">
-        <option value="">支出分类</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-      <label className="sr-only" htmlFor="budget-limit">
-        上限金额
-      </label>
-      <input
+      <FormControl sx={{ flex: "1 1 180px" }}>
+        <InputLabel>支出分类</InputLabel>
+        <Select id="budget-category" name="category_id" label="支出分类" defaultValue="">
+          <MenuItem value="">支出分类</MenuItem>
+          {categories.map((c) => (
+            <MenuItem key={c.id} value={c.id}>
+              {c.name}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <TextField
         id="budget-limit"
         name="limit_amount"
         type="number"
-        step="0.01"
-        min="0.01"
+        label="上限金额"
         required
         placeholder="上限金额"
-        className="input w-32"
+        slotProps={{
+          htmlInput: { step: "0.01", min: "0.01", inputMode: "decimal", enterKeyHint: "done" },
+        }}
+        sx={{ width: 140 }}
       />
-      <button type="submit" disabled={pending} className="btn-primary disabled:opacity-50">
+      <Button type="submit" variant="contained" disabled={pending}>
         {pending ? "保存中…" : "保存"}
-      </button>
+      </Button>
       <p aria-live="polite" className={`w-full text-sm ${state.ok ? "text-jade" : "text-ember"}`}>
         {state.message}
       </p>

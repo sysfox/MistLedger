@@ -26,8 +26,8 @@ src/
                         # 3 lazy charts; month/day keys use Asia/Shanghai. force-dynamic,
                         # getClaims-gated
     login/page.tsx      # Client page; email/password sign-in + sign-up via browser
-                        # Supabase client; friendly Chinese error mapping; surfaces the
-                        # "confirm email" path instead of bouncing back
+                        # Supabase client; MUI TextField/Button; friendly Chinese error
+                        # mapping; surfaces the "confirm email" path instead of bouncing
     ledger/             # Manual bookkeeping: page.tsx (form + recent 100 transactions),
                         # transaction-form.tsx (client, useActionState, MUI: TextField/
                         # Select/Chip/Button), delete-transaction-button.tsx (MUI Dialog
@@ -41,10 +41,12 @@ src/
                         # filters + dashboard_snapshot / filtered_tx_stats RPCs), list
                         # capped at 200 rows, no full-history fetch
     settings/           # Accounts + categories + budgets + bill import unified (anchors
-                        # #accounts / #import; account-actions.ts, import-actions.ts;
-                        # import-client.tsx parses files in the browser;
-                        # adjust-balance-button.tsx adjusts account balance inline
-                        # via initial_balance rewrite + confirm)
+                        # #accounts / #import; account-actions.ts, import-actions.ts);
+                        # controls on MUI (trial): forms use TextField/Select/Button,
+                        # delete/adjust/confirm flows use MUI Dialog;
+                        # import-client.tsx parses files in the browser (preview table
+                        # stays native); adjust-balance-button.tsx adjusts account
+                        # balance inline via initial_balance rewrite + Dialog confirm
     globals.css         # Design tokens (@theme) + component classes + fog/lamp effects
     mui-demo/           # MUI 试验演示页 page.tsx (client，仅 Button/TextField/
                         # Select/Chip/Dialog 各一，不动现有页面；走 proxy 默认鉴权)
@@ -97,8 +99,8 @@ Config: `next.config.ts` (empty), `eslint.config.mjs` (flat config, core-web-vit
 | `/` | Overview (总览) | Single `dashboard_snapshot` RPC for balances/trend/share/curve; budget bars; 3 lazy charts |
 | `/ledger` | Record (记账) | Transaction form + recent 100 rows; edit/delete with MUI Dialog confirm; controls on MUI (trial); writes validate owner |
 | `/data` | Query (数据) | URL-searchParams queries applied server-side; summary via `filtered_tx_stats`; list ≤200 |
-| `/settings` | Settings (设置) | Accounts (#accounts) · categories · budgets · bill import (#import); anchors for in-page sections; balances via `account_balances` RPC + inline balance adjustment (adjusts `initial_balance` by the delta), imports via atomic `import_transactions` RPC |
-| `/login` | Auth | Client page; only route without auth gate |
+| `/settings` | Settings (设置) | Accounts (#accounts) · categories · budgets · bill import (#import); anchors for in-page sections; controls on MUI (trial) with Dialog confirmations; balances via `account_balances` RPC + inline balance adjustment (adjusts `initial_balance` by the delta), imports via atomic `import_transactions` RPC |
+| `/login` | Auth | Client page; only route without auth gate; controls on MUI (trial) |
 | `/mui-demo` | MUI trial (试验中) | Client page; one each of Button/TextField/Select/Chip/Dialog in mist-night tokens; same proxy auth gate as existing pages; `/ledger` is the first business page migrated to MUI |
 
 Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except `/login`), and authenticated users away from `/login`; it excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest`, and image assets from the matcher, applies Supabase's `Cache-Control: private, no-cache…` headers on token refresh, and copies refreshed cookies onto redirect responses. Pages double-check via `supabase.auth.getClaims()` and throw on session errors. All pages are `force-dynamic`.
