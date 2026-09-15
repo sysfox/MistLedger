@@ -226,7 +226,17 @@ const muiTheme = createTheme({
     },
     MuiBackdrop: {
       styleOverrides: {
-        root: { backgroundColor: "rgba(10, 14, 20, 0.7)" },
+        // 确认框背后的世界「起雾」后退：轻模糊 + 夜空压暗，把焦点交给纸面
+        root: {
+          backgroundColor: "rgba(10, 14, 20, 0.7)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
+          "@media (prefers-reduced-transparency: reduce)": {
+            backgroundColor: "rgba(10, 14, 20, 0.85)",
+            backdropFilter: "none",
+            WebkitBackdropFilter: "none",
+          },
+        },
       },
     },
   },

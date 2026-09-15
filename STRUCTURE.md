@@ -88,8 +88,9 @@ src/
                         # page layouts (no lamp dot, no visible text)
     service-worker-register.tsx # Registers /sw.js on window load (silent failure)
     mui-theme.tsx       # MUI 主题 ("use client")：palette/typography/components
-                        # 全量映射 DESIGN tokens（灯/�?�?夜空/雾面/纱面/雾线/远雾），
-                        # 复刻 .input/.btn 观感；warning/info 指回灯色/远雾
+                        # 全量映射 DESIGN tokens（灯/余烬/夜空/雾面/纱面/雾线/远雾），
+                        # 复刻 .input/.btn 观感；warning/info 指回灯色/远雾；
+                        # Backdrop 雾化（夜空 70% + blur(6px)，reduced-transparency 下降级）
     mui-provider.tsx    # "use client"：AppRouterCacheProvider
                         # (@mui/material-nextjs/v16-appRouter) + ThemeProvider +
                         # CssBaseline；layout 用其包裹 SiteNav/children

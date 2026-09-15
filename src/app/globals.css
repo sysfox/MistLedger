@@ -415,3 +415,12 @@ body::after {
     transition-duration: 0s !important;
   }
 }
+
+/* ── 提高对比度偏好：雾线提亮、远雾提亮，边框与次要文字更实 ──
+   （令牌覆盖为无层级声明，优先于 @theme 的 theme 层） */
+@media (prefers-contrast: more) {
+  :root {
+    --color-fogline: #46516e;
+    --color-dim: #b6bed1;
+  }
+}
