@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const LINKS = [
@@ -19,6 +19,27 @@ export default function SiteNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  // 滚动边缘只在内容真正经过工具栏下方时出现（移动端顶栏 sticky 压住内容）；
+  // rAF 节流 + 仅在跨过阈值时 setState，避免滚动期高频重渲染。
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    let raf = 0;
+    const read = () => {
+      raf = 0;
+      const next = window.scrollY > 4;
+      setScrolled((prev) => (prev === next ? prev : next));
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(read);
+    };
+    read();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
 
   if (pathname === "/login") return null;
 
@@ -38,7 +59,7 @@ export default function SiteNav() {
   return (
     <>
       <header
-        className="hidden border-b border-fogline bg-night/80 backdrop-blur sm:block sm:fixed sm:inset-x-0 sm:top-0 sm:z-40"
+        className="material-bar material-bar-top hidden sm:block sm:fixed sm:inset-x-0 sm:top-0 sm:z-40"
         style={{ height: "var(--nav-top-h)" }}
       >
         <div
@@ -77,7 +98,8 @@ export default function SiteNav() {
         </div>
       </header>
       <header
-        className="sticky top-0 z-40 border-b border-fogline bg-night/80 pt-[env(safe-area-inset-top)] backdrop-blur sm:hidden"
+        className="material-bar material-bar-top scroll-edge sticky top-0 z-40 pt-[env(safe-area-inset-top)] sm:hidden"
+        data-scrolled={scrolled ? "true" : "false"}
         style={{ height: "var(--nav-top-h-m)" }}
       >
         <div
@@ -99,7 +121,7 @@ export default function SiteNav() {
       </header>
       <nav
         aria-label="主导航"
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-fogline bg-night/90 backdrop-blur pb-[env(safe-area-inset-bottom)] sm:hidden"
+        className="material-bar material-bar-bottom fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)] sm:hidden"
         style={{ height: "var(--nav-bottom-h)" }}
       >
         <div className="flex items-stretch">

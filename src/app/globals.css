@@ -4,13 +4,14 @@
   color-scheme: dark;
 
   /* ── 导航栏高度锁定（layout 的 body 预留与 site-nav 的栏高共用同一变量，
-        含 1px 雾线边框与 safe-area，保证「预留空间 = 栏实际高度」严格相等）── */
+        含 safe-area，保证「预留空间 = 栏实际高度」严格相等）。
+        工具栏不再带 1px 雾线边框（改为浮动雾面 + 滚动边缘），故高度不再 +1px ── */
   --nav-top-inner-h: 68px; /* 桌面顶栏内芯：44px 触控目标 + 上下 py-3 共 24px */
   --nav-top-inner-m: 52px; /* 移动端顶栏内芯 */
   --nav-tab-inner-h: 56px; /* 底部 tab 栏内芯 */
-  --nav-top-h: calc(var(--nav-top-inner-h) + 1px);
-  --nav-top-h-m: calc(env(safe-area-inset-top) + var(--nav-top-inner-m) + 1px);
-  --nav-bottom-h: calc(var(--nav-tab-inner-h) + env(safe-area-inset-bottom) + 1px);
+  --nav-top-h: var(--nav-top-inner-h);
+  --nav-top-h-m: calc(env(safe-area-inset-top) + var(--nav-top-inner-m));
+  --nav-bottom-h: calc(var(--nav-tab-inner-h) + env(safe-area-inset-bottom));
 }
 
 /* ── 滚动条槽位稳定：长页加载滚动条出现/消失时不引发横向宽度抖动 ── */
@@ -247,6 +248,57 @@ body::after {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.025em;
+}
+
+/* ── 浮动雾面工具栏与滚动边缘（DESIGN.md 第十二节）─────────
+   导航不是一条不透明横幅，而是浮在内容之上的一层半透明雾面：
+   blur + saturate 让栏下内容化开，硬雾线边框换成一枚极轻落影做分隔。
+   只有移动端顶栏（sticky）会真的压住内容，故滚动边缘只给它。 */
+.material-bar {
+  background-color: color-mix(in oklab, var(--color-night) 80%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+.material-bar-top {
+  box-shadow: 0 12px 18px -16px rgba(0, 0, 0, 0.85);
+}
+
+.material-bar-bottom {
+  box-shadow: 0 -12px 18px -16px rgba(0, 0, 0, 0.85);
+}
+
+.scroll-edge::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  height: 18px;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--color-night) 80%, transparent),
+    transparent
+  );
+  transition: opacity 200ms ease;
+}
+
+.scroll-edge[data-scrolled="true"]::after {
+  opacity: 1;
+}
+
+/* 降低透明度偏好：工具栏转为实底、去掉模糊，仍保留落影分隔 */
+@media (prefers-reduced-transparency: reduce) {
+  .material-bar {
+    background-color: var(--color-night);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .scroll-edge::after {
+    background: linear-gradient(to bottom, var(--color-night), transparent);
+  }
 }
 
 /* ── 签名灯线（DESIGN.md 第四节）───────────────────────── */

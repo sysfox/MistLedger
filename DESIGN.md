@@ -154,7 +154,9 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - **预算进度条**：底轨 `veil`，填充未超支用 `ink/70`（灰纸色，克制），超支才用 `ember`。禁止渐变进度条。
 - 登录页：居中窄卡（max-w-sm），词标 serif + 灯线 + 标语，是全站的「门」。
 - 导航在 `/login` 隐藏（登录页是门，不需要房间内的指示牌）。
-- 移动端（<sm）双层导航：顶部 sticky 品牌栏（词标「雾夜账」+「退出」，`pt-[env(safe-area-inset-top)]` 撑开刘海/挖孔区，滚动时内容从雾面下穿过）+ 固定底部 tab 栏（4 项导航，safe-area 底距由 body padding 预留）。桌面仍是单层顶栏。导航四项为总览/记账/数据/设置，导入与账户并入设置页，以区块锚点 #accounts / #import 呈现。
+- 移动端（<sm）双层导航：顶部 sticky 品牌栏（词标「雾夜账」+「退出」，`pt-[env(safe-area-inset-top)]` 撑开刘海/挖孔区，滚动时内容从雾面下穿过）+ 固定底部 tab 栏（4 项导航，safe-area 底距由 body padding 预留）。桌面仍是单层顶栏。
+- **导航是浮在内容上的一层雾，不是横幅**（第十二节材料）：三栏统一 `.material-bar`（夜空 80% + `backdrop-filter: blur(20px) saturate(180%)`），深雾线硬边框换成极轻落影（`.material-bar-top` / `.material-bar-bottom`），高度变量随之去掉 `+1px`。只有移动端顶栏会真的压住内容，故仅它启用 `.scroll-edge`——`site-nav` 在 `scrollY > 4` 时置 `data-scrolled="true"`，交界处显出一段 18px 夜空→透明渐变，内容从雾中化开；回到顶部完全隐去，栏与夜空融成一片。桌面因 body 顶部预留而内容不进入栏下，不加边缘。
+- `.material-bar` 与 `.scroll-edge` 一并受 `prefers-reduced-transparency: reduce` 约束：转实底、关模糊、渐变改实色，落影分隔保留。导航四项为总览/记账/数据/设置，导入与账户并入设置页，以区块锚点 #accounts / #import 呈现。
 - 数据页（/data）：曲线与查询的账房档案柜。结构自上而下：近 12 个月收支趋势 → 总资产曲线（30/90/180 天 chip 切换，选中态用 `chip-active`）→ 常用查询（chip 预设链接）→ 自定义查询表单（可见小标签 + `.input`）→ 查询结果（汇总行 + 流水列表 + 支出构成饼图）。查询条件全部走 URL searchParams，可分享、可后退。
 
 ---
@@ -320,6 +322,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 ## 变更记录
 
+- 2026-09-15 · 导航转为浮动雾面材料 + 滚动边缘（材料与深度）：三栏去掉 `border-b/t border-fogline` 硬边框，改 `.material-bar`（夜空 80% + `blur(20px) saturate(180%)`）与极轻落影（`.material-bar-top`/`.material-bar-bottom`）——内容在栏下化开而非被一条线切断；`.panel`/`.input`/`.chip` 的雾线边框与桌面内容预留不变（内容本就不进入桌面栏下，硬线在主栏下毫无信息量）。新增 `.scroll-edge`（`::after` 18px 夜空→透明渐变，200ms 淡入）只给移动端 sticky 顶栏：`site-nav` 用 rAF 节流滚动监听、仅在跨过 `scrollY > 4` 阈值时 `setState`，`data-scrolled` 驱动显隐——内容真正经过栏下才出现边缘，回到顶部即隐去。高度变量 `--nav-top-h`/`--nav-top-h-m`/`--nav-bottom-h` 去掉 `+1px`（不再有边框），预留学 = 栏高仍严格相等。新增 `prefers-reduced-transparency: reduce` 降级：`.material-bar` 实底、关模糊，`.scroll-edge` 渐变改实色，落影保留。§六补材料说明；无令牌/配色/文案变更。lint 与 build 通过。
 - 2026-09-15 · 即时按压反馈（响应原则）：补齐所有可交互面在 pointer-down 上的反馈，消除「按下无反应、抬起才动」的迟滞感。`.btn-ghost` 增加 `:active` 纸墨色 + `translateY(1px)`（与 `.btn-primary` 对齐）；`.link-subtle:active` 转纸墨；`.chip` 增加 `:hover` 转纸墨、`:active` 提亮纱底（内联元素位移不生效，故用底色；`.chip-active` 悬停/按压保持灯色并加深灯底，避免被 `.chip:hover` 的纸墨色覆盖）；导航桌面项/移动 tab/词标链接补 `active:opacity-60`；MUI `MuiChip`（类型选择）补 `MuiChip-clickable` 的 `:hover` 转纸墨与 `:active scale(0.97)`，选中态悬停保持灯色。按压反馈全部走 `transform`/`opacity`（不在全局 150ms 颜色过渡内）→ 即时，不拖沓。第七节 3 微交互补「即时响应」条款；无新配色、无令牌变更、无动效时长变更。lint 与 build 通过。
 - 2026-09-14 · 页面分区流式渲染（Suspense 分节 + 页内骨架兜底）：总览/记账/数据/设置四页改为分区 Suspense 流式渲染，每个分区是独立 async 组件并配页内骨架兜底（复用 `page-skeleton` 零件：SkeletonLine/Panel/Chart/Row/Bar/Chip，数据页查询表单骨架镜像真实表单结构）；分区数据失败由分区级 try/catch 渲染内联错误面板（panel + 「这一栏暂时加载失败，刷新后再试」，dim 文字，不新增配色）替代整页 error.tsx 兜底（error.tsx 根节点是 `<main>`，分区抛错会被其原位替换造成嵌套非法）；共享数据源经 React `cache()` 单次请求，失败时仅主分区显示错误面板、其余分区静默收起，不叠错误卡；骨架行补 `py-2` / `py-2.5` 内边距贴近真实行高；各 loading.tsx 的 `role=status aria-busy` 移入 `<main>` 内的包裹层（不再覆盖 main 地标），sr-only「掌灯中…」不变。无配色/动效变更；lint 与 build 通过。
 

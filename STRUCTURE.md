@@ -72,7 +72,11 @@ src/
   components/
     site-nav.tsx        # Desktop top bar; mobile sticky top bar (wordmark + sign-out,
                         # safe-area-inset-top for notch) + fixed bottom tab bar (4 links),
-                        # active lamp-line, sign-out via browser Supabase, hidden on /login
+                        # active lamp-line, sign-out via browser Supabase, hidden on /login.
+                        # All three bars are `.material-bar` fog surfaces (backdrop-blur)
+                        # with a soft drop shadow instead of a hairline border; the mobile
+                        # top bar (sticky) adds a scroll-triggered `.scroll-edge` fog fade
+                        # (rAF-throttled scrollY>4 -> data-scrolled, no border)
     dashboard-charts.tsx        # Recharts: TrendChart (bar, ember/jade), AssetChart
                         # (line, lamp), ShareChart (pie, 8-color palette); reduced-motion
                         # aware; figure/aria labels
@@ -170,7 +174,7 @@ Conventions:
 - Tokens (`@theme` in globals.css): night `#0a0e14`, ink `#e9e4d8`, lamp `#e3b341`, ember `#e2574c` (expense), jade `#6fbf8f` (income), mist `#111826`, veil `#1b2436`, fogline `#28324a`, dim `#8b93a7`.
 - Typography: Noto Serif SC (display only), Noto Sans SC (body), Geist Mono (`tabular-nums`) for every amount via `.money`.
 - Signature: `.lamp-line` (whitelisted positions only), fog layers on `body::before/::after`, `mist-in` route transition 380ms, `lamp-breathe` loading.
-- Component classes in `@layer components`: `.panel .input .btn-primary .btn-ghost .link-subtle .chip .chip-active .eyebrow .money .skeleton`.
+- Component classes in `@layer components`: `.panel .input .btn-primary .btn-ghost .link-subtle .chip .chip-active .eyebrow .money .skeleton .material-bar .material-bar-top .material-bar-bottom .scroll-edge`.
 - Charts: ember/jade bars, lamp asset line, 8-color pie palette, fogline grid, veil tooltips.
 - Copy tone: old bookkeeper �?verb-first buttons (保存/创建/确认导入), no 提交/确定, fixed vocabulary, counter word always �?
 
