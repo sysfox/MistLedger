@@ -172,7 +172,7 @@ Conventions:
 
 - Concept: night (blue-black layered surfaces), fog (drifting atmosphere, fogline borders), lamp (amber accent �?CTA, active lamp line, ¥ on key numbers), ledger (serif titles, mono tabular amounts).
 - Tokens (`@theme` in globals.css): night `#0a0e14`, ink `#e9e4d8`, lamp `#e3b341`, ember `#e2574c` (expense), jade `#6fbf8f` (income), mist `#111826`, veil `#1b2436`, fogline `#28324a`, dim `#8b93a7`.
-- Typography: Noto Serif SC (display only), Noto Sans SC (body), Geist Mono (`tabular-nums`) for every amount via `.money`.
+- Typography: Noto Serif SC (display only), Noto Sans SC (body), Geist Mono (`tabular-nums`) for every amount via `.money`; headings and `.money` carry size-specific tracking/leading (`@layer base` in globals.css, tighter as type grows).
 - Signature: `.lamp-line` (whitelisted positions only), fog layers on `body::before/::after`, `mist-in` route transition 380ms, `lamp-breathe` loading.
 - Component classes in `@layer components`: `.panel .input .btn-primary .btn-ghost .link-subtle .chip .chip-active .eyebrow .money .skeleton .material-bar .material-bar-top .material-bar-bottom .scroll-edge`.
 - Charts: ember/jade bars, lamp asset line, 8-color pie palette, fogline grid, veil tooltips.

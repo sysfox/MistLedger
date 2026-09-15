@@ -78,13 +78,18 @@
 
 | 层级 | 规格 |
 |---|---|
-| 页面主标题（hero 数字除外） | serif 600 · 22–24px |
-| Hero 大数字（总资产） | mono 600 · 40–48px · `tabular-nums` · tracking-tight |
-| 区块标题 | serif 600 · 16–17px |
+| 页面主标题（hero 数字除外） | serif 600 · 20–30px · `letter-spacing: -0.02em` · `line-height: 1.2` |
+| Hero 大数字（总资产） | mono 600 · 40–48px · `tabular-nums` · `tracking-tight` · `leading-none` |
+| 区块标题 | serif 600 · 16–17px · `letter-spacing: -0.01em` · `line-height: 1.3` |
 | eyebrow 小标 | sans 500 · 11px · `letter-spacing: 0.2em` · `dim` 色 |
 | 正文 | sans 400 · 14px · `ink` |
 | 次要说明 | sans 400 · 12–13px · `dim` |
-| 金额 | mono · 13–15px · `tabular-nums` |
+| 金额 | mono · 13–15px · `tabular-nums` · `letter-spacing: -0.01em` |
+
+**字距随字号变化，不用固定值**（固定字距必然在某个字号上出错）：字号越大字越显散，故越大越负——
+`h1/h2/h3` 由 `globals.css` 的 `@layer base` 统一收紧（-0.02em / -0.01em）并用 `text-wrap: balance` 均衡折行；
+`.money` 基础字距 -0.01em（照顾 12–15px 小金额），hero 大数字再由页面叠加 `tracking-tight` 单独收紧。
+行高同理：标题紧、正文松（正文走 Tailwind 默认 1.5）。
 
 ### 金额书写铁律
 
@@ -322,6 +327,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 ## 变更记录
 
+- 2026-09-15 · 字号相关字距与行高（排版）：标题不再是无字距/无行高的裸字号。`globals.css` 新增 `@layer base`：`h1` `letter-spacing: -0.02em` + `line-height: 1.2`，`h2/h3` `-0.01em` + `1.3`，并统一 `text-wrap: balance`（折行更均衡，避免孤字）。`.money` 基础字距由 `-0.025em` 放宽到 `-0.01em`——原先一刀切在 12–15px 的小金额上过紧；hero 大数字本就叠加 `tracking-tight`，仍保持收紧，从而「字距随字号变化」。MUI `MuiTypography` 类选择器优先级高于元素选择器，Dialog 标题不受影响。第三节字阶表补字距/行高并列明规则；无令牌/配色/组件类变更。lint 与 build 通过。
 - 2026-09-15 · 导航转为浮动雾面材料 + 滚动边缘（材料与深度）：三栏去掉 `border-b/t border-fogline` 硬边框，改 `.material-bar`（夜空 80% + `blur(20px) saturate(180%)`）与极轻落影（`.material-bar-top`/`.material-bar-bottom`）——内容在栏下化开而非被一条线切断；`.panel`/`.input`/`.chip` 的雾线边框与桌面内容预留不变（内容本就不进入桌面栏下，硬线在主栏下毫无信息量）。新增 `.scroll-edge`（`::after` 18px 夜空→透明渐变，200ms 淡入）只给移动端 sticky 顶栏：`site-nav` 用 rAF 节流滚动监听、仅在跨过 `scrollY > 4` 阈值时 `setState`，`data-scrolled` 驱动显隐——内容真正经过栏下才出现边缘，回到顶部即隐去。高度变量 `--nav-top-h`/`--nav-top-h-m`/`--nav-bottom-h` 去掉 `+1px`（不再有边框），预留学 = 栏高仍严格相等。新增 `prefers-reduced-transparency: reduce` 降级：`.material-bar` 实底、关模糊，`.scroll-edge` 渐变改实色，落影保留。§六补材料说明；无令牌/配色/文案变更。lint 与 build 通过。
 - 2026-09-15 · 即时按压反馈（响应原则）：补齐所有可交互面在 pointer-down 上的反馈，消除「按下无反应、抬起才动」的迟滞感。`.btn-ghost` 增加 `:active` 纸墨色 + `translateY(1px)`（与 `.btn-primary` 对齐）；`.link-subtle:active` 转纸墨；`.chip` 增加 `:hover` 转纸墨、`:active` 提亮纱底（内联元素位移不生效，故用底色；`.chip-active` 悬停/按压保持灯色并加深灯底，避免被 `.chip:hover` 的纸墨色覆盖）；导航桌面项/移动 tab/词标链接补 `active:opacity-60`；MUI `MuiChip`（类型选择）补 `MuiChip-clickable` 的 `:hover` 转纸墨与 `:active scale(0.97)`，选中态悬停保持灯色。按压反馈全部走 `transform`/`opacity`（不在全局 150ms 颜色过渡内）→ 即时，不拖沓。第七节 3 微交互补「即时响应」条款；无新配色、无令牌变更、无动效时长变更。lint 与 build 通过。
 - 2026-09-14 · 页面分区流式渲染（Suspense 分节 + 页内骨架兜底）：总览/记账/数据/设置四页改为分区 Suspense 流式渲染，每个分区是独立 async 组件并配页内骨架兜底（复用 `page-skeleton` 零件：SkeletonLine/Panel/Chart/Row/Bar/Chip，数据页查询表单骨架镜像真实表单结构）；分区数据失败由分区级 try/catch 渲染内联错误面板（panel + 「这一栏暂时加载失败，刷新后再试」，dim 文字，不新增配色）替代整页 error.tsx 兜底（error.tsx 根节点是 `<main>`，分区抛错会被其原位替换造成嵌套非法）；共享数据源经 React `cache()` 单次请求，失败时仅主分区显示错误面板、其余分区静默收起，不叠错误卡；骨架行补 `py-2` / `py-2.5` 内边距贴近真实行高；各 loading.tsx 的 `role=status aria-busy` 移入 `<main>` 内的包裹层（不再覆盖 main 地标），sr-only「掌灯中…」不变。无配色/动效变更；lint 与 build 通过。
