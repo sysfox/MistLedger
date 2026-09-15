@@ -164,6 +164,12 @@ body::after {
   }
 }
 
+/* 按压反馈在 pointer-down 上，且不经过渡（transform 不在全局过渡属性内）——即时响应 */
+.btn-ghost:active {
+  color: var(--color-ink);
+  transform: translateY(1px);
+}
+
 .btn-ghost:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(227, 179, 65, 0.6);
@@ -179,6 +185,10 @@ body::after {
   @media (hover: hover) {
     color: var(--color-ink);
   }
+}
+
+.link-subtle:active {
+  color: var(--color-ink);
 }
 
 .link-subtle:focus-visible {
@@ -199,6 +209,24 @@ body::after {
   border-color: color-mix(in oklab, var(--color-lamp) 70%, transparent);
   background-color: color-mix(in oklab, var(--color-lamp) 10%, transparent);
   color: var(--color-lamp);
+}
+
+/* chip 为内联元素，位移/缩放在其盒上不生效——按压反馈改用底色即时变化 */
+.chip:hover {
+  color: var(--color-ink);
+}
+
+.chip:active {
+  background-color: color-mix(in oklab, var(--color-veil) 82%, var(--color-ink));
+}
+
+.chip-active:hover,
+.chip-active:active {
+  color: var(--color-lamp);
+}
+
+.chip-active:active {
+  background-color: color-mix(in oklab, var(--color-lamp) 16%, transparent);
 }
 
 .chip:focus-visible,

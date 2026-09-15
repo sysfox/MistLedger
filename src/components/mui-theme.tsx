@@ -185,11 +185,18 @@ const muiTheme = createTheme({
           color: mistNightTokens.dim,
           borderRadius: 9999,
           "&:focus-visible": { outline: "none", boxShadow: LAMP_RING },
+          // 按压反馈：pointer-down 即时响应（transform 不参与 150ms 过渡）
+          "&.MuiChip-clickable:hover": { color: mistNightTokens.ink },
+          "&.MuiChip-clickable:active": { transform: "scale(0.97)" },
         },
         colorPrimary: {
           borderColor: "rgba(227, 179, 65, 0.7)",
           backgroundColor: "rgba(227, 179, 65, 0.1)",
           color: mistNightTokens.lamp,
+          "&.MuiChip-clickable:hover": {
+            backgroundColor: "rgba(227, 179, 65, 0.1)",
+            color: mistNightTokens.lamp,
+          },
         },
         deleteIcon: {
           color: mistNightTokens.dim,

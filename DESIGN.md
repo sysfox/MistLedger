@@ -196,7 +196,12 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 ### 3. 微交互
 
-- 面板/行 hover：背景 `mist → veil`，150ms。
+- **即时响应（pointer-down）**：所有可交互面在按下的**那一帧**给反馈，不等抬起、不等 `click`。
+  `.btn-primary` / `.btn-ghost` / MUI Button·Chip 用 `:active` 位移或缩放（`transform` 不在全局过渡属性内 → 无过渡、即时）；
+  `.chip` 为内联元素（位移不生效）改用底色即时变化（`.chip:active` 提亮纱底，`.chip-active:active` 加深灯底）；
+  导航链接用 `active:opacity-60`。悬停态仍走 150ms 颜色过渡，按压态不走。
+- 面板/行 hover：背景 `mist → veil`，150ms。行本身不可点则**不加** hover（避免假 affordance），
+  反馈只给真正可点的元素（按钮在行内时由按钮自身给）。
 - 焦点环：一律 `ring-lamp/60`（键盘可见焦点，灯色）。禁止 outline-none 裸奔。
 - 按钮 active：`translate-y-px`。
 - 金额数字不做滚动/计数动画（账要稳，不要炫）。
@@ -315,6 +320,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 ## 变更记录
 
+- 2026-09-15 · 即时按压反馈（响应原则）：补齐所有可交互面在 pointer-down 上的反馈，消除「按下无反应、抬起才动」的迟滞感。`.btn-ghost` 增加 `:active` 纸墨色 + `translateY(1px)`（与 `.btn-primary` 对齐）；`.link-subtle:active` 转纸墨；`.chip` 增加 `:hover` 转纸墨、`:active` 提亮纱底（内联元素位移不生效，故用底色；`.chip-active` 悬停/按压保持灯色并加深灯底，避免被 `.chip:hover` 的纸墨色覆盖）；导航桌面项/移动 tab/词标链接补 `active:opacity-60`；MUI `MuiChip`（类型选择）补 `MuiChip-clickable` 的 `:hover` 转纸墨与 `:active scale(0.97)`，选中态悬停保持灯色。按压反馈全部走 `transform`/`opacity`（不在全局 150ms 颜色过渡内）→ 即时，不拖沓。第七节 3 微交互补「即时响应」条款；无新配色、无令牌变更、无动效时长变更。lint 与 build 通过。
 - 2026-09-14 · 页面分区流式渲染（Suspense 分节 + 页内骨架兜底）：总览/记账/数据/设置四页改为分区 Suspense 流式渲染，每个分区是独立 async 组件并配页内骨架兜底（复用 `page-skeleton` 零件：SkeletonLine/Panel/Chart/Row/Bar/Chip，数据页查询表单骨架镜像真实表单结构）；分区数据失败由分区级 try/catch 渲染内联错误面板（panel + 「这一栏暂时加载失败，刷新后再试」，dim 文字，不新增配色）替代整页 error.tsx 兜底（error.tsx 根节点是 `<main>`，分区抛错会被其原位替换造成嵌套非法）；共享数据源经 React `cache()` 单次请求，失败时仅主分区显示错误面板、其余分区静默收起，不叠错误卡；骨架行补 `py-2` / `py-2.5` 内边距贴近真实行高；各 loading.tsx 的 `role=status aria-busy` 移入 `<main>` 内的包裹层（不再覆盖 main 地标），sr-only「掌灯中…」不变。无配色/动效变更；lint 与 build 通过。
 
 - 2026-09-14 · sw v2 precache/SWR + staleTimes 路由缓存：`public/sw.js` 升级为 `mistledger-v2`——安装期预缓存 manifest 与图标，静态资源 cache-first，图标/清单 stale-while-revalidate（后台刷新挂 `event.waitUntil` 防 SW 提前终止），导航 network-first 且不缓存带 `Set-Cookie` 或 `cache-control` 含 no-store/private 的响应（避免缓存 /login 与过期会话页），离线兜底仍为内置「雾夜账 · 离线」页；登录墙内页面不预缓存，离线兜底为内置页（权衡：登录后页面离线不可用，换取不缓存会话态页面）；`next.config.ts` 设 `staleTimes.dynamic: 30`（static 保留默认），缓解 force-dynamic 页面返回导航时的重新取数闪烁。无配色/组件类/文案变更；lint 与 build 通过。

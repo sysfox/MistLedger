@@ -45,7 +45,7 @@ export default function SiteNav() {
           className="mx-auto flex w-full max-w-4xl items-center justify-between gap-2 px-4"
           style={{ height: "var(--nav-top-inner-h)", lineHeight: "1.5" }}
         >
-          <Link href="/" className={`shrink-0 font-display font-semibold text-ink ${FOCUS_RING}`}>
+          <Link href="/" className={`shrink-0 font-display font-semibold text-ink active:opacity-60 ${FOCUS_RING}`}>
             雾夜账
           </Link>
           <nav aria-label="主导航" className="flex items-center gap-1 overflow-x-auto whitespace-nowrap text-sm sm:gap-2">
@@ -56,7 +56,7 @@ export default function SiteNav() {
                   key={l.href}
                   href={l.href}
                   aria-current={active ? "page" : undefined}
-                  className={`flex min-h-[44px] items-center px-2 py-2 ${active ? "text-ink" : "text-dim hover:text-ink"} ${FOCUS_RING}`}
+                  className={`flex min-h-[44px] items-center px-2 py-2 active:opacity-60 ${active ? "text-ink" : "text-dim hover:text-ink"} ${FOCUS_RING}`}
                 >
                   <span className="flex flex-col items-center">
                     {l.label}
@@ -84,7 +84,7 @@ export default function SiteNav() {
           className="flex items-center justify-between gap-2 px-4"
           style={{ height: "var(--nav-top-inner-m)", lineHeight: "1.5" }}
         >
-          <Link href="/" className={`shrink-0 font-display font-semibold text-ink ${FOCUS_RING}`}>
+          <Link href="/" className={`shrink-0 font-display font-semibold text-ink active:opacity-60 ${FOCUS_RING}`}>
             雾夜账
           </Link>
           <button
@@ -110,7 +110,7 @@ export default function SiteNav() {
                 key={l.href}
                 href={l.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center px-1 text-xs ${active ? "text-ink" : "text-dim"} ${FOCUS_RING}`}
+                className={`flex min-h-[56px] flex-1 flex-col items-center justify-center px-1 text-xs active:opacity-60 ${active ? "text-ink" : "text-dim"} ${FOCUS_RING}`}
               >
                 <span className="flex flex-col items-center">
                   {l.label}
