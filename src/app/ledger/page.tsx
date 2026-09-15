@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { channelLabel } from "@/lib/ledger/constants";
 import { formatMoney } from "@/lib/ledger/format";
 import { SkeletonLine } from "@/components/page-skeleton";
+import { SectionError, catchSection, SECTION_FAILED } from "@/components/section-error";
 import TransactionForm from "./transaction-form";
 import DeleteTransactionButton from "./delete-transaction-button";
 import EditTransactionButton from "./edit-transaction-button";
@@ -59,7 +60,8 @@ const getTransactions = cache(async () => {
 });
 
 async function LedgerIntro() {
-  const accounts = await getAccounts();
+  const accounts = await catchSection(getAccounts);
+  if (accounts === SECTION_FAILED) return null;
   return (
     <p className="mt-1 text-sm text-dim">
       {accounts.length === 0
@@ -70,7 +72,11 @@ async function LedgerIntro() {
 }
 
 async function TransactionFormSection() {
-  const [accounts, categories] = await Promise.all([getAccounts(), getCategories()]);
+  const [accounts, categories] = await Promise.all([
+    catchSection(getAccounts),
+    catchSection(getCategories),
+  ]);
+  if (accounts === SECTION_FAILED || categories === SECTION_FAILED) return <SectionError />;
   return <TransactionForm accounts={accounts} categories={categories} />;
 }
 
@@ -103,11 +109,13 @@ function TransactionFormFallback() {
 }
 
 async function TransactionListSection() {
-  const [accounts, categories, transactions] = await Promise.all([
-    getAccounts(),
-    getCategories(),
-    getTransactions(),
+  const [accounts, categories] = await Promise.all([
+    catchSection(getAccounts),
+    catchSection(getCategories),
   ]);
+  if (accounts === SECTION_FAILED || categories === SECTION_FAILED) return null;
+  const transactions = await catchSection(getTransactions);
+  if (transactions === SECTION_FAILED) return <SectionError />;
   return (
     <ul className="flex flex-col gap-2">
       {transactions.map((t) => {

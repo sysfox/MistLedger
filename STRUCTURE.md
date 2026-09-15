@@ -106,13 +106,20 @@ src/
                         # (xlsx), parseCCB (建行 hqmx xls); parseBillFile entrypoint lazily
                         # imports xlsx (code-split) and decodes CSV with TextDecoder
 public/
-  sw.js                 # Service worker (cache "mistledger-v1"): static cache-first,
-                        # navigation network-first + inline offline page
+  sw.js                 # Service worker (cache "mistledger-v2"): install-time precache of
+                        # manifest + icons; static assets cache-first; icons/manifest
+                        # stale-while-revalidate (background refresh kept alive via
+                        # event.waitUntil); navigations network-first with a cache guard
+                        # (responses carrying Set-Cookie or cache-control no-store/private
+                        # are never cached, so /login and stale session pages are not
+                        # persisted) + built-in offline fallback page; authenticated
+                        # (login-walled) pages are NOT precached — offline fallback is the
+                        # built-in page by design
   icons/                # PWA icons 192/512 (+ maskable)
 data/                   # Personal bank statements �?gitignored, never commit
 ```
 
-Config: `next.config.ts` (empty), `eslint.config.mjs` (flat config, core-web-vitals + TS), `tsconfig.json` (strict, bundler resolution), `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` only �?never service_role).
+Config: `next.config.ts` sets `experimental.staleTimes.dynamic: 30` (dynamic routes stay fresh in the client router cache for 30 s after navigation, avoiding refetch flashes on back/forward; `static` left at the Next default), `eslint.config.mjs` (flat config, core-web-vitals + TS), `tsconfig.json` (strict, bundler resolution), `.env.example` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` only �?never service_role).
 
 ## 2. Routes
 

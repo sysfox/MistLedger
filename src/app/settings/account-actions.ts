@@ -28,6 +28,8 @@ export async function createAccount(_prev: ActionResult, formData: FormData): Pr
   if (error) return { ok: false, message: "创建失败，请稍后再试" };
   revalidatePath("/settings");
   revalidatePath("/");
+  revalidatePath("/ledger");
+  revalidatePath("/data");
   return { ok: true, message: `已创建账户：${name}` };
 }
 
@@ -50,6 +52,8 @@ export async function toggleAccountActive(_prev: ActionResult, formData: FormDat
   if (!data || data.length === 0) return { ok: false, message: "账户不存在，请刷新后重试" };
   revalidatePath("/settings");
   revalidatePath("/");
+  revalidatePath("/ledger");
+  revalidatePath("/data");
   return { ok: true, message: isActive ? "已停用" : "已启用" };
 }
 
@@ -90,6 +94,8 @@ export async function adjustAccountBalance(_prev: ActionResult, formData: FormDa
   if (!data || data.length === 0) return { ok: false, message: "账户不存在，请刷新后重试" };
   revalidatePath("/settings");
   revalidatePath("/");
+  revalidatePath("/ledger");
+  revalidatePath("/data");
   return { ok: true, message: "已调整余额" };
 }
 
@@ -116,5 +122,7 @@ export async function deleteAccount(_prev: ActionResult, formData: FormData): Pr
   if (!data || data.length === 0) return { ok: false, message: "账户不存在，请刷新后重试" };
   revalidatePath("/settings");
   revalidatePath("/");
+  revalidatePath("/ledger");
+  revalidatePath("/data");
   return { ok: true, message: "" };
 }

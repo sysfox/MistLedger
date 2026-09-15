@@ -315,6 +315,10 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 ## 变更记录
 
+- 2026-09-14 · 页面分区流式渲染（Suspense 分节 + 页内骨架兜底）：总览/记账/数据/设置四页改为分区 Suspense 流式渲染，每个分区是独立 async 组件并配页内骨架兜底（复用 `page-skeleton` 零件：SkeletonLine/Panel/Chart/Row/Bar/Chip，数据页查询表单骨架镜像真实表单结构）；分区数据失败由分区级 try/catch 渲染内联错误面板（panel + 「这一栏暂时加载失败，刷新后再试」，dim 文字，不新增配色）替代整页 error.tsx 兜底（error.tsx 根节点是 `<main>`，分区抛错会被其原位替换造成嵌套非法）；共享数据源经 React `cache()` 单次请求，失败时仅主分区显示错误面板、其余分区静默收起，不叠错误卡；骨架行补 `py-2` / `py-2.5` 内边距贴近真实行高；各 loading.tsx 的 `role=status aria-busy` 移入 `<main>` 内的包裹层（不再覆盖 main 地标），sr-only「掌灯中…」不变。无配色/动效变更；lint 与 build 通过。
+
+- 2026-09-14 · sw v2 precache/SWR + staleTimes 路由缓存：`public/sw.js` 升级为 `mistledger-v2`——安装期预缓存 manifest 与图标，静态资源 cache-first，图标/清单 stale-while-revalidate（后台刷新挂 `event.waitUntil` 防 SW 提前终止），导航 network-first 且不缓存带 `Set-Cookie` 或 `cache-control` 含 no-store/private 的响应（避免缓存 /login 与过期会话页），离线兜底仍为内置「雾夜账 · 离线」页；登录墙内页面不预缓存，离线兜底为内置页（权衡：登录后页面离线不可用，换取不缓存会话态页面）；`next.config.ts` 设 `staleTimes.dynamic: 30`（static 保留默认），缓解 force-dynamic 页面返回导航时的重新取数闪烁。无配色/组件类/文案变更；lint 与 build 通过。
+
 - 2026-09-14 · 路由级结构骨架屏：新增 `src/components/page-skeleton.tsx`（SkeletonLine/Panel/Chart/Row/Bar/Chip 六个零件，全部基于 `.skeleton`）；根级 `loading.tsx` 由全屏「掌灯…」灯点改为总览结构骨架，并新增 `/ledger`、`/data`、`/settings`、`/login` 四个 route 级 `loading.tsx`，布局镜像各页真实结构防跳动；骨架不放 lamp-dot / 灯线 / 可见文案 / emoji，根节点统一 `role=status aria-busy=true` + sr-only「掌灯中…」；§七加载态改写为结构骨架屏契约，`lamp-breathe` 仅保留给离线兜底页。lint 与 build 通过。
 
 - 2026-09-14 · 记账页流水行「修改」「删除」再收紧（去掉按钮内边距留白）：两按钮 `minWidth` 由 44 改为 0、`px` 收到 0.75，不再被 44px 触控宽度把文字撑到盒子两端居中，标签间视觉距离由约 22px 收至约 14px；`minHeight: 44` 触控高度与 `-ml-2.5` 负边距不变。lint 通过。

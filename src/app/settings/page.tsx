@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { accountTypeLabel } from "@/lib/ledger/constants";
 import { formatMoney } from "@/lib/ledger/format";
 import { SkeletonChip, SkeletonLine, SkeletonPanel } from "@/components/page-skeleton";
+import { SectionError, catchSection, SECTION_FAILED } from "@/components/section-error";
 import AdjustBalanceButton from "./adjust-balance-button";
 import CreateAccountForm from "./create-account-form";
 import DeleteAccountButton from "./delete-account-button";
@@ -106,7 +107,13 @@ const getRules = cache(async () => {
 });
 
 async function AccountsSection() {
-  const [accounts, balanceRows] = await Promise.all([getAccounts(), getBalances()]);
+  const [accounts, balanceRows] = await Promise.all([
+    catchSection(getAccounts),
+    catchSection(getBalances),
+  ]);
+  if (accounts === SECTION_FAILED || balanceRows === SECTION_FAILED) {
+    return <SectionError />;
+  }
   const balances = new Map<string, number>();
   for (const b of balanceRows) balances.set(b.account_id, Number(b.balance));
   const total = [...balances.values()].reduce((s, v) => s + v, 0);
@@ -196,7 +203,8 @@ function AccountsFallback() {
 }
 
 async function CategorySections() {
-  const categories = await getCategories();
+  const categories = await catchSection(getCategories);
+  if (categories === SECTION_FAILED) return <SectionError />;
   const expense = categories.filter((c) => c.kind === "expense");
   const income = categories.filter((c) => c.kind === "income");
   return (
@@ -230,7 +238,10 @@ function CategoryFallback() {
 }
 
 async function BudgetSection({ month }: { month: string }) {
-  const [budgets, categories] = await Promise.all([getBudgets(month), getCategories()]);
+  const categories = await catchSection(getCategories);
+  if (categories === SECTION_FAILED) return null;
+  const budgets = await catchSection(() => getBudgets(month));
+  if (budgets === SECTION_FAILED) return <SectionError />;
   const expense = categories.filter((c) => c.kind === "expense");
   return (
     <>
@@ -275,12 +286,18 @@ function BudgetFallback() {
 }
 
 async function ImportSection() {
-  const [accounts, categories, batches, rules] = await Promise.all([
-    getAccounts(),
-    getCategories(),
-    getBatches(),
-    getRules(),
+  const [accounts, categories] = await Promise.all([
+    catchSection(getAccounts),
+    catchSection(getCategories),
   ]);
+  if (accounts === SECTION_FAILED || categories === SECTION_FAILED) return null;
+  const [batches, rules] = await Promise.all([
+    catchSection(getBatches),
+    catchSection(getRules),
+  ]);
+  if (batches === SECTION_FAILED || rules === SECTION_FAILED) {
+    return <SectionError />;
+  }
   const activeAccounts = accounts
     .filter((a) => a.is_active)
     .map((a) => ({ id: a.id, name: a.name }));

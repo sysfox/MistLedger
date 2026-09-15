@@ -26,6 +26,8 @@ export async function ensureDefaultCategories(): Promise<ActionResult> {
   if (error) return { ok: false, message: "补齐默认分类失败，请稍后再试" };
   revalidatePath("/settings");
   revalidatePath("/ledger");
+  revalidatePath("/");
+  revalidatePath("/data");
   return { ok: true, message: `已补齐 ${missing.length} 个默认分类` };
 }
 
@@ -49,6 +51,8 @@ export async function createCategory(_prev: ActionResult, formData: FormData): P
   }
   revalidatePath("/settings");
   revalidatePath("/ledger");
+  revalidatePath("/");
+  revalidatePath("/data");
   return { ok: true, message: `已创建分类：${name}` };
 }
 
@@ -73,6 +77,8 @@ export async function deleteCategory(_prev: ActionResult, formData: FormData): P
   if (!data || data.length === 0) return { ok: false, message: "分类不存在，请刷新后重试" };
   revalidatePath("/settings");
   revalidatePath("/ledger");
+  revalidatePath("/");
+  revalidatePath("/data");
   return { ok: true, message: "" };
 }
 

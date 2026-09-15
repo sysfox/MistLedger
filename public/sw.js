@@ -70,7 +70,7 @@ async function cacheFirst(request) {
   return fresh;
 }
 
-async function staleWhileRevalidate(request) {
+async function staleWhileRevalidate(request, event) {
   const cache = await caches.open(CACHE);
   const cached = await cache.match(request);
   const refresh = fetch(request)
@@ -79,14 +79,23 @@ async function staleWhileRevalidate(request) {
       return fresh;
     })
     .catch(() => null);
+  if (event) event.waitUntil(refresh);
   return cached || refresh;
+}
+
+function isCacheableResponse(response) {
+  if (response.headers.get("set-cookie")) return false;
+  const cacheControl = response.headers.get("cache-control") ?? "";
+  return !(cacheControl.includes("no-store") || cacheControl.includes("private"));
 }
 
 async function networkFirstNavigation(request) {
   const cache = await caches.open(CACHE);
   try {
     const fresh = await fetch(request);
-    if (fresh && fresh.ok) cache.put(request, fresh.clone());
+    if (fresh && fresh.ok && isCacheableResponse(fresh)) {
+      cache.put(request, fresh.clone());
+    }
     return fresh;
   } catch {
     const cached = await cache.match(request);
@@ -161,7 +170,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (isIconOrManifest(url)) {
-    event.respondWith(staleWhileRevalidate(request));
+    event.respondWith(staleWhileRevalidate(request, event));
     return;
   }
 

@@ -7,7 +7,9 @@ import { monthKey } from "@/lib/ledger/stats";
 import { formatMoney } from "@/lib/ledger/format";
 import { channelLabel } from "@/lib/ledger/constants";
 import { SkeletonChart, SkeletonLine, SkeletonRow } from "@/components/page-skeleton";
+import { SectionError, catchSection, SECTION_FAILED } from "@/components/section-error";
 import QueryForm, { type QueryCurrent } from "./query-form";
+import QueryFormFallback from "./query-form-fallback";
 
 export const dynamic = "force-dynamic";
 
@@ -171,7 +173,8 @@ const getTransactions = cache(async (f: QueryFilter) => {
 });
 
 async function TrendSection({ days }: { days: number }) {
-  const snapshot = await getSnapshot(days);
+  const snapshot = await catchSection(() => getSnapshot(days));
+  if (snapshot === SECTION_FAILED) return <SectionError />;
   const trend = (snapshot?.monthly ?? []).map((m) => ({
     month: m.month.slice(5),
     expense: Number(m.expense),
@@ -187,7 +190,8 @@ async function TrendSection({ days }: { days: number }) {
 }
 
 async function AssetCurveSection({ days, today }: { days: number; today: string }) {
-  const snapshot = await getSnapshot(days);
+  const snapshot = await catchSection(() => getSnapshot(days));
+  if (snapshot === SECTION_FAILED) return null;
   const dayKeys = lastDayKeys(days, today);
   const deltaByDay = new Map((snapshot?.daily ?? []).map((d) => [d.date, Number(d.delta)]));
   const total = (snapshot?.accounts ?? []).reduce((s, a) => s + Number(a.balance), 0);
@@ -202,7 +206,11 @@ async function AssetCurveSection({ days, today }: { days: number; today: string 
 }
 
 async function QueryFormSection({ days, current }: { days: number; current: QueryCurrent }) {
-  const [accounts, categories] = await Promise.all([getAccounts(), getCategories()]);
+  const result = await catchSection(() => Promise.all([getAccounts(), getCategories()]));
+  if (result === SECTION_FAILED) {
+    return <p className="mt-3 text-sm text-dim">这一栏暂时加载失败，刷新后再试</p>;
+  }
+  const [accounts, categories] = result;
   return (
     <QueryForm
       accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
@@ -214,7 +222,14 @@ async function QueryFormSection({ days, current }: { days: number; current: Quer
 }
 
 async function ResultsSummary({ filter }: { filter: QueryFilter }) {
-  const stats = await getStats(filter);
+  const stats = await catchSection(() => getStats(filter));
+  if (stats === SECTION_FAILED) {
+    return (
+      <p aria-live="polite" className="text-sm text-dim">
+        这一栏暂时加载失败，刷新后再试
+      </p>
+    );
+  }
   const summary = {
     count: Number(stats?.count ?? 0),
     expense: Number(stats?.expense ?? 0),
@@ -248,12 +263,20 @@ async function ResultsSummary({ filter }: { filter: QueryFilter }) {
 }
 
 async function ResultsBody({ filter }: { filter: QueryFilter }) {
-  const [stats, listed, accounts, categories] = await Promise.all([
-    getStats(filter),
-    getTransactions(filter),
-    getAccounts(),
-    getCategories(),
+  const stats = await catchSection(() => getStats(filter));
+  if (stats === SECTION_FAILED) return null;
+  const [listed, accounts, categories] = await Promise.all([
+    catchSection(() => getTransactions(filter)),
+    catchSection(getAccounts),
+    catchSection(getCategories),
   ]);
+  if (
+    listed === SECTION_FAILED ||
+    accounts === SECTION_FAILED ||
+    categories === SECTION_FAILED
+  ) {
+    return <SectionError />;
+  }
   const accountName = new Map(accounts.map((a) => [a.id, a.name]));
   const catName = new Map(categories.map((c) => [c.id, c.name]));
   const summary = {
@@ -478,7 +501,7 @@ export default async function DataPage({
       <section className="panel p-5">
         <p className="eyebrow">自定义查询</p>
         <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">按条件查流水</h2>
-        <Suspense fallback={<div className="skeleton mt-3 h-[260px] w-full rounded-lg" aria-busy="true" />}>
+        <Suspense fallback={<QueryFormFallback />}>
           <QueryFormSection days={days} current={current} />
         </Suspense>
       </section>

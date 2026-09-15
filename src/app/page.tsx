@@ -11,6 +11,7 @@ import {
   SkeletonPanel,
   SkeletonRow,
 } from "@/components/page-skeleton";
+import { SectionError, catchSection, SECTION_FAILED } from "@/components/section-error";
 
 export const dynamic = "force-dynamic";
 
@@ -123,7 +124,8 @@ function ChartPanelFallback() {
 }
 
 async function HeroSection() {
-  const snapshot = await getSnapshot();
+  const snapshot = await catchSection(getSnapshot);
+  if (snapshot === SECTION_FAILED) return <SectionError />;
   const curMonth = snapshot.months[snapshot.months.length - 1] ?? shanghaiDateKey(new Date()).slice(0, 7);
   const balances = new Map(snapshot.accounts.map((a) => [a.id, Number(a.balance)]));
   const total = [...balances.values()].reduce((s, v) => s + v, 0);
@@ -171,7 +173,8 @@ function HeroFallback() {
 }
 
 async function TrendSection() {
-  const snapshot = await getSnapshot();
+  const snapshot = await catchSection(getSnapshot);
+  if (snapshot === SECTION_FAILED) return null;
   const trend = snapshot.monthly.map((m) => ({
     month: m.month.slice(5),
     expense: Number(m.expense),
@@ -187,7 +190,12 @@ async function TrendSection() {
 }
 
 async function ShareSection() {
-  const [snapshot, categories] = await Promise.all([getSnapshot(), getCategories()]);
+  const [snapshot, categories] = await Promise.all([
+    catchSection(getSnapshot),
+    catchSection(getCategories),
+  ]);
+  if (snapshot === SECTION_FAILED) return null;
+  if (categories === SECTION_FAILED) return <SectionError />;
   const catName = new Map(categories.map((c) => [c.id, c.name]));
   const share = snapshot.category
     .map((c) => ({
@@ -209,7 +217,8 @@ async function ShareSection() {
 }
 
 async function AssetSection() {
-  const snapshot = await getSnapshot();
+  const snapshot = await catchSection(getSnapshot);
+  if (snapshot === SECTION_FAILED) return null;
   const balances = new Map(snapshot.accounts.map((a) => [a.id, Number(a.balance)]));
   const total = [...balances.values()].reduce((s, v) => s + v, 0);
   const dayKeys = dayKeysFrom(shanghaiDateKey(new Date()), 30);
@@ -226,7 +235,12 @@ async function AssetSection() {
 }
 
 async function BalanceSection() {
-  const [snapshot, accounts] = await Promise.all([getSnapshot(), getAccounts()]);
+  const [snapshot, accounts] = await Promise.all([
+    catchSection(getSnapshot),
+    catchSection(getAccounts),
+  ]);
+  if (snapshot === SECTION_FAILED) return null;
+  if (accounts === SECTION_FAILED) return <SectionError />;
   const balances = new Map(snapshot.accounts.map((a) => [a.id, Number(a.balance)]));
   return (
     <section className="panel p-5">
@@ -249,8 +263,12 @@ async function BalanceSection() {
   );
 }
 
-async function BudgetSection({ month }: { month: string }) {
-  const [snapshot, budgets] = await Promise.all([getSnapshot(), getBudgets(month)]);
+async function BudgetSection() {
+  const snapshot = await catchSection(getSnapshot);
+  if (snapshot === SECTION_FAILED) return null;
+  const month = snapshot.months[snapshot.months.length - 1] ?? shanghaiDateKey(new Date()).slice(0, 7);
+  const budgets = await catchSection(() => getBudgets(month));
+  if (budgets === SECTION_FAILED) return <SectionError />;
   const spent = new Map(snapshot.category.map((c) => [c.category_id, Number(c.spent)]));
   return (
     <section className="panel p-5">
@@ -356,8 +374,6 @@ export default async function Home() {
   if (claimsError) throw new Error("会话校验失败，请稍后重试");
   if (!claimsData?.claims) redirect("/login");
 
-  const curMonth = `${shanghaiDateKey(new Date()).slice(0, 7)}-01`;
-
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <Suspense fallback={<HeroFallback />}>
@@ -382,7 +398,7 @@ export default async function Home() {
       </Suspense>
 
       <Suspense fallback={<BudgetFallback />}>
-        <BudgetSection month={curMonth} />
+        <BudgetSection />
       </Suspense>
     </main>
   );
