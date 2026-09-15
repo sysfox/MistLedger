@@ -2,7 +2,8 @@ import { SkeletonLine, SkeletonPanel, SkeletonChip } from "@/components/page-ske
 
 export default function Loading() {
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6" role="status" aria-busy="true">
+    <main className="mx-auto flex w-full max-w-4xl flex-col px-4 py-6">
+      <div role="status" aria-busy="true" className="flex flex-col gap-6">
       <span className="sr-only">掌灯中…</span>
       <div>
         <SkeletonLine className="h-3 w-16" />
@@ -60,6 +61,32 @@ export default function Loading() {
         </div>
       </SkeletonPanel>
 
+      <SkeletonPanel>
+        <div className="flex flex-wrap gap-2">
+          <SkeletonChip />
+          <SkeletonChip />
+          <SkeletonChip />
+          <SkeletonChip />
+        </div>
+      </SkeletonPanel>
+      <SkeletonPanel>
+        <div className="flex flex-wrap gap-2">
+          <SkeletonChip />
+          <SkeletonChip />
+          <SkeletonChip />
+        </div>
+      </SkeletonPanel>
+
+      <div className="panel flex flex-col gap-3 p-5">
+        <SkeletonLine className="h-3 w-12" />
+        <SkeletonLine className="mt-2 h-4 w-24" />
+        <div className="flex flex-wrap items-center gap-2">
+          <SkeletonLine className="h-14 min-w-[180px] flex-1" />
+          <SkeletonLine className="h-14 w-[120px]" />
+          <SkeletonLine className="h-10 w-16" />
+        </div>
+      </div>
+
       <section className="flex flex-col gap-3">
         <div>
           <SkeletonLine className="h-3 w-12" />
@@ -102,6 +129,7 @@ export default function Loading() {
           </div>
         </SkeletonPanel>
       </section>
+      </div>
     </main>
   );
 }

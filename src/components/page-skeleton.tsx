@@ -18,7 +18,7 @@ export function SkeletonChart() {
 
 export function SkeletonRow() {
   return (
-    <div aria-hidden="true" className="flex items-center justify-between gap-3">
+    <div aria-hidden="true" className="flex items-center justify-between gap-3 py-2">
       <SkeletonLine className="h-3.5 w-2/5" />
       <SkeletonLine className="h-3.5 w-20 shrink-0" />
     </div>
