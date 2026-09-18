@@ -18,7 +18,7 @@ export function accountTypeLabel(type: string) {
   return ACCOUNT_TYPES.find((t) => t.value === type)?.label ?? type;
 }
 
-export function channelLabel(channel: string) {
+export function channelLabel(channel: string | null | undefined) {
   return CHANNELS.find((c) => c.value === channel)?.label ?? channel;
 }
 

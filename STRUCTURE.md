@@ -45,15 +45,15 @@ src/
                         # Dialog confirm), actions.ts (createTransaction /
                         # updateTransaction / deleteTransaction; all validate
                         # account/category ownership before writing)
-    data/               # Query & analytics: sectioned Suspense streaming — trend panel,
-                        # asset curve (30/90/180-day chips, static, in the shell), preset
-                        # query chips (static, shell), QueryForm Suspense (unchanged
-                        # pattern), results summary + body; dashboard_snapshot /
-                        # filtered_tx_stats / list query shared via React cache();
-                        # loading.tsx (header/two chart panels/chips/form/results skeleton),
-                        # results — filters and aggregation run server-side (PostgREST
-                        # filters + dashboard_snapshot / filtered_tx_stats RPCs), list
-                        # capped at 200 rows, no full-history fetch
+    data/               # Query & analytics: static shell page.tsx (Suspense + DataClient)
+                        # data-client.tsx (client): parses URL searchParams (days snap
+                        # 30/90/180 default 90, date/type/min/max/q validation, Shanghai
+                        # dates for today/presets), fetches /api/data via useApiData —
+                        # path changes with filters/presets trigger refetch; skeleton
+                        # fallbacks while loading, SectionError per section on error;
+                        # trend + asset curve (30/90/180 chips) + preset chips +
+                        # QueryForm + results summary/body render from the API payload;
+                        # list capped at 200 rows
     settings/           # Accounts + categories + budgets + bill import unified, sectioned
                         # Suspense streaming (accounts / categories / budgets / import as
                         # async sections with skeleton fallbacks; the no-data create-
@@ -99,6 +99,11 @@ src/
     supabase/server.ts  # Server client with cookie getAll/setAll adapters
     supabase/proxy.ts   # (session helper used by proxy.ts)
     supabase/database.types.ts  # Generated Database type, incl. the Functions (RPCs) below
+    api/client.ts       # apiGet (same-origin GET with cookies; 401 -> redirect /login,
+                        # ApiError with Chinese message), notifyDataChanged (fires the
+                        # "mistledger:reload" event)
+    api/use-api-data.ts # useApiData<T>(path): data/error/loading/reload; refetches on
+                        # path change and on "mistledger:reload"
     ledger/constants.ts # ACCOUNT_TYPES, CHANNELS, accountTypeLabel/channelLabel,
                         # DEFAULT_CATEGORIES seed (expense: 餐饮/交�?购物/学习/宿舍/娱乐;
                         # income: 生活�?兼职/红包)
@@ -132,11 +137,11 @@ Config: `next.config.ts` sets `experimental.staleTimes.dynamic: 30` (dynamic rou
 |---|---|---|
 | `/` | Overview (总览) | Sectioned Suspense streaming (hero/trend/share/asset/balance/budget); single `dashboard_snapshot` RPC shared via React `cache()`; budget bars; 3 lazy charts |
 | `/ledger` | Record (记账) | Sectioned Suspense streaming (intro + form + list); recent 100 rows; edit/delete with MUI Dialog confirm; controls on MUI; writes validate owner |
-| `/data` | Query (数据) | Sectioned Suspense streaming (trend/asset curve/chips/QueryForm/results); URL-searchParams queries applied server-side; summary via `filtered_tx_stats`; shared fetches via React `cache()`; list ≤ 200 |
+| `/data` | Query (数据) | Static shell + `data-client.tsx`; URL-searchParams filters parsed client-side, data via `GET /api/data` (useApiData refetch on param change); snapshot/stats/transactions from the API; list ≤ 200 |
 | `/settings` | Settings (设置) | Sectioned Suspense streaming (accounts/categories/budgets/import); Accounts (#accounts) · categories · budgets · bill import (#import); anchors for in-page sections; controls on MUI with Dialog confirmations; balances via `account_balances` RPC + inline balance adjustment (adjusts `initial_balance` by the delta), imports via atomic `import_transactions` RPC |
 | `/login` | Auth | Client page; only route without auth gate; controls on MUI |
 
-Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except `/login`), and authenticated users away from `/login`; it excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest`, and image assets from the matcher, applies Supabase's `Cache-Control: private, no-cache…` headers on token refresh, and copies refreshed cookies onto redirect responses. Pages double-check via `supabase.auth.getClaims()` and throw on session errors. All pages are `force-dynamic`.
+Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except `/login`), and authenticated users away from `/login`; it excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest`, and image assets from the matcher, applies Supabase's `Cache-Control: private, no-cache…` headers on token refresh, and copies refreshed cookies onto redirect responses. Pages double-check via `supabase.auth.getClaims()` and throw on session errors. `/` and `/data` are statically prerendered shells; their data comes from the `getClaims`-gated `/api/*` routes (401 bounces to `/login`). Remaining pages are `force-dynamic`.
 
 ## 3. Data model (Supabase `public` schema)
 
