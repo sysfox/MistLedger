@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 
   const failed = [accountsRes, categoriesRes, transactionsRes].filter((r) => r.error);
   if (failed.length > 0) {
+    console.error("[api/ledger] query failed:", failed.filter((r) => r.error).map((r) => r.error));
     return sessionResponse(auth, { error: "流水加载失败，请稍后重试" }, { status: 502 });
   }
 

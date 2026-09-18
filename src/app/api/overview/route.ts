@@ -11,11 +11,13 @@ export async function GET(request: NextRequest) {
     auth.supabase.rpc("dashboard_snapshot", { p_months: 6, p_days: 30 }),
     auth.supabase.from("accounts").select("id, name").eq("is_active", true).order("created_at"),
     auth.supabase.from("categories").select("id, name"),
-    auth.supabase.from("budgets").select("id, limit_amount, category:categories(id, name)").eq("month", new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit" }).format(new Date())),
+    // budgets.month is a date column: it stores the first day of the month
+    auth.supabase.from("budgets").select("id, limit_amount, category:categories(id, name)").eq("month", `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit" }).format(new Date())}-01`),
   ]);
 
   const failed = [snapshotRes, accountsRes, categoriesRes, budgetsRes].filter((r) => r.error);
   if (failed.length > 0) {
+    console.error("[api/overview] query failed:", failed.filter((r) => r.error).map((r) => r.error));
     return sessionResponse(auth, { error: "数据加载失败，请稍后重试" }, { status: 502 });
   }
 

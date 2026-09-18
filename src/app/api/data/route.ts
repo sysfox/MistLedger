@@ -61,7 +61,6 @@ export async function GET(request: NextRequest) {
 
   const [snapshotRes, accountsRes, categoriesRes, statsRes, transactionsRes] = await Promise.all([
     auth.supabase.rpc("dashboard_snapshot", { p_months: 12, p_days: days }),
-    auth.supabase.rpc("dashboard_snapshot", { p_months: 12, p_days: days }),
     auth.supabase.from("accounts").select("id, name, initial_balance, is_active").order("created_at"),
     auth.supabase.from("categories").select("id, name, kind").order("kind").order("sort").order("name"),
     auth.supabase.rpc("filtered_tx_stats", {
@@ -101,6 +100,7 @@ export async function GET(request: NextRequest) {
 
   const failed = [snapshotRes, accountsRes, categoriesRes, statsRes, transactionsRes].filter((r) => r.error);
   if (failed.length > 0) {
+    console.error("[api/data] query failed:", failed.filter((r) => r.error).map((r) => r.error));
     return sessionResponse(auth, { error: "账目读取失败，请稍后重试" }, { status: 502 });
   }
 
