@@ -10,6 +10,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import { CHANNELS } from "@/lib/ledger/constants";
+import { notifyDataChanged } from "@/lib/api/client";
 import { createTransaction } from "./actions";
 
 type Account = { id: string; name: string };
@@ -61,6 +62,10 @@ export default function TransactionForm({
     el.defaultValue = today;
     el.value = today;
   }, []);
+
+  useEffect(() => {
+    if (state?.ok) notifyDataChanged();
+  }, [state]);
 
   const isIncome = type === "income";
 

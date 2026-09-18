@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
@@ -15,6 +15,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import { CHANNELS } from "@/lib/ledger/constants";
+import { notifyDataChanged } from "@/lib/api/client";
 import { updateTransaction } from "./actions";
 
 type Account = { id: string; name: string };
@@ -69,6 +70,10 @@ export default function EditTransactionButton({
   const visibleCategories = categories.filter((c) =>
     type === "income" ? c.kind === "income" : c.kind === "expense",
   );
+
+  useEffect(() => {
+    if (state?.ok) notifyDataChanged();
+  }, [state]);
 
   const isIncome = type === "income";
   const uid = `tx-edit-${transaction.id}`;
