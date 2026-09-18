@@ -23,28 +23,28 @@ src/
     global-error.tsx    # Root error boundary (renders its own html/body with bg-night)
     manifest.ts         # Web App Manifest (雾夜�? standalone, portrait, zh-CN,
                         # theme/background #0a0e14, icons 192/512 + maskable)
-    page.tsx            # "/" Overview: sectioned Suspense streaming (hero / trend / share
-                        # / asset / balance / budget, each its own async component with a
-                        # page-skeleton fallback); dashboard_snapshot RPC shared across
-                        # sections via React cache() (single request) + accounts /
-                        # categories / budgets lookups; 3 lazy charts; month/day keys
-                        # use Asia/Shanghai. force-dynamic, getClaims-gated
+    page.tsx            # "/" Overview: static shell (no data fetch) rendering
+                        # overview-client.tsx — client fetches GET /api/overview via
+                        # useApiData and renders hero / trend / share / asset / balance /
+                        # budget from the payload with the same page-skeleton fallbacks
+                        # (3 lazy charts; month/day keys use Asia/Shanghai)
     login/page.tsx      # Client page; email/password sign-in + sign-up via browser
                         # Supabase client; MUI TextField/Button; friendly Chinese error
                         # mapping; surfaces the "confirm email" path instead of bouncing
     login/loading.tsx   # Centered card skeleton (wordmark + divider + tagline lines,
                         # 2 input blocks + button block) mirroring the login layout
-    ledger/             # Manual bookkeeping: page.tsx (sectioned Suspense streaming:
-                        # intro subtitle + transaction form + recent-100 list, each an
-                        # async section with skeleton fallbacks; accounts/categories
-                        # shared via React cache()),
+    ledger/             # Manual bookkeeping: page.tsx (static shell) +
+                        # ledger-client.tsx (client: GET /api/ledger via useApiData,
+                        # intro subtitle + transaction form + recent-100 list with the
+                        # same skeleton fallbacks / SectionError),
                         # loading.tsx (header/form-card/8-row list skeleton),
                         # transaction-form.tsx (client, useActionState, MUI: TextField/
                         # Select/Chip/Button), delete-transaction-button.tsx (MUI Dialog
                         # confirm), edit-transaction-button.tsx (inline edit panel, MUI,
                         # Dialog confirm), actions.ts (createTransaction /
                         # updateTransaction / deleteTransaction; all validate
-                        # account/category ownership before writing)
+                        # account/category ownership before writing; successes fire
+                        # notifyDataChanged() so the client refetches)
     data/               # Query & analytics: static shell page.tsx (Suspense + DataClient)
                         # data-client.tsx (client): parses URL searchParams (days snap
                         # 30/90/180 default 90, date/type/min/max/q validation, Shanghai
@@ -54,21 +54,35 @@ src/
                         # trend + asset curve (30/90/180 chips) + preset chips +
                         # QueryForm + results summary/body render from the API payload;
                         # list capped at 200 rows
-    settings/           # Accounts + categories + budgets + bill import unified, sectioned
-                        # Suspense streaming (accounts / categories / budgets / import as
-                        # async sections with skeleton fallbacks; the no-data create-
-                        # category form streams in the shell; accounts, balances RPC,
-                        # categories, batches, rules shared via React cache()) (anchors
+    settings/           # Accounts + categories + budgets + bill import unified: static
+                        # shell page.tsx + settings-client.tsx (client: GET /api/settings
+                        # via useApiData; accounts / categories / budgets / import render
+                        # from the payload with the same skeleton fallbacks / SectionError;
+                        # the no-data create-category form stays in the shell) (anchors
                         # #accounts / #import; account-actions.ts, import-actions.ts);
                         # loading.tsx (header/accounts/categories/budgets/import skeletons);
                         # controls on MUI: forms use TextField/Select/Button,
                         # delete/adjust/confirm flows use MUI Dialog;
                         # import-client.tsx parses files in the browser (preview table
                         # stays native); adjust-balance-button.tsx adjusts account
-                        # balance inline via initial_balance rewrite + Dialog confirm
+                        # balance inline via initial_balance rewrite + Dialog confirm;
+                        # every mutating child fires notifyDataChanged() on success
+    api/                # JSON data layer for the static shells (all force-dynamic, nodejs):
+        overview/route.ts   # GET /api/overview — dashboard_snapshot(6mo/30d) + active
+                            # accounts + categories + current-month budgets (Promise.all)
+        ledger/route.ts     # GET /api/ledger — active accounts + categories + last 100 txs
+        data/route.ts       # GET /api/data?days&from&to&type&cat&acc&min&max&q —
+                            # dashboard_snapshot(12mo/days) + accounts + categories +
+                            # filtered_tx_stats + filtered list (≤200); params validated
+                            # server-side (same rules the page used)
+        settings/route.ts   # GET /api/settings — accounts + account_balances RPC +
+                            # categories + month budgets + last 10 batches + rules
     globals.css         # Design tokens (@theme) + component classes + fog/lamp effects
-  proxy.ts              # Edge auth gate (Next 16 replacement for middleware.ts); forwards
-                        # Supabase anti-cache headers and excludes PWA/manifest assets
+  proxy.ts              # Edge auth gate (Next 16 replacement for middleware.ts), now
+                        # only for /login (bounce authenticated users back) — app pages
+                        # are static shells with no data, so the proxy's Supabase
+                        # getUser roundtrip no longer blocks their first byte; the API
+                        # layer is the auth boundary (401 → client redirects to /login)
   components/
     site-nav.tsx        # Desktop top bar; mobile sticky top bar (wordmark + sign-out,
                         # safe-area-inset-top for notch) + fixed bottom tab bar (4 links),
@@ -102,8 +116,12 @@ src/
     api/client.ts       # apiGet (same-origin GET with cookies; 401 -> redirect /login,
                         # ApiError with Chinese message), notifyDataChanged (fires the
                         # "mistledger:reload" event)
-    api/use-api-data.ts # useApiData<T>(path): data/error/loading/reload; refetches on
-                        # path change and on "mistledger:reload"
+    api/session.ts      # requireApiSession (Route Handler auth guard: getClaims, 401 on
+                        # failure; collects Supabase token refreshes), sessionResponse
+                        # (JSON + refreshed cookies), apiErrorResponse helper
+    api/use-api-data.ts # useApiData<T>(path) built on useSyncExternalStore: data/error/
+                        # loading/reload; refetches on path change and on
+                        # "mistledger:reload" (silent refresh, no skeleton flash)
     ledger/constants.ts # ACCOUNT_TYPES, CHANNELS, accountTypeLabel/channelLabel,
                         # DEFAULT_CATEGORIES seed (expense: 餐饮/交�?购物/学习/宿舍/娱乐;
                         # income: 生活�?兼职/红包)
@@ -135,13 +153,20 @@ Config: `next.config.ts` sets `experimental.staleTimes.dynamic: 30` (dynamic rou
 
 | Route | Purpose | Notes |
 |---|---|---|
-| `/` | Overview (总览) | Sectioned Suspense streaming (hero/trend/share/asset/balance/budget); single `dashboard_snapshot` RPC shared via React `cache()`; budget bars; 3 lazy charts |
-| `/ledger` | Record (记账) | Sectioned Suspense streaming (intro + form + list); recent 100 rows; edit/delete with MUI Dialog confirm; controls on MUI; writes validate owner |
+| `/` | Overview (总览) | Static prerendered shell + `overview-client.tsx`; data via `GET /api/overview` (useApiData); hero/trend/share/asset/balance/budget from the payload; budget bars; 3 lazy charts |
+| `/ledger` | Record (记账) | Static shell + `ledger-client.tsx`; data via `GET /api/ledger`; intro + form + recent 100 rows; edit/delete with MUI Dialog confirm; controls on MUI; writes validate owner |
 | `/data` | Query (数据) | Static shell + `data-client.tsx`; URL-searchParams filters parsed client-side, data via `GET /api/data` (useApiData refetch on param change); snapshot/stats/transactions from the API; list ≤ 200 |
-| `/settings` | Settings (设置) | Sectioned Suspense streaming (accounts/categories/budgets/import); Accounts (#accounts) · categories · budgets · bill import (#import); anchors for in-page sections; controls on MUI with Dialog confirmations; balances via `account_balances` RPC + inline balance adjustment (adjusts `initial_balance` by the delta), imports via atomic `import_transactions` RPC |
-| `/login` | Auth | Client page; only route without auth gate; controls on MUI |
+| `/settings` | Settings (设置) | Static shell + `settings-client.tsx`; data via `GET /api/settings`; Accounts (#accounts) · categories · budgets · bill import (#import); anchors for in-page sections; controls on MUI with Dialog confirmations; balances via `account_balances` RPC + inline balance adjustment (adjusts `initial_balance` by the delta), imports via atomic `import_transactions` RPC |
+| `/login` | Auth | Client page; the only route the proxy still gates (bounces authenticated users back to `/`); controls on MUI |
 
-Auth gating: `src/proxy.ts` redirects unauthenticated users to `/login` (except `/login`), and authenticated users away from `/login`; it excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest`, and image assets from the matcher, applies Supabase's `Cache-Control: private, no-cache…` headers on token refresh, and copies refreshed cookies onto redirect responses. Pages double-check via `supabase.auth.getClaims()` and throw on session errors. `/` and `/data` are statically prerendered shells; their data comes from the `getClaims`-gated `/api/*` routes (401 bounces to `/login`). Remaining pages are `force-dynamic`.
+| API route | Purpose | Notes |
+|---|---|---|
+| `GET /api/overview` | Overview payload | `dashboard_snapshot(6mo/30d)` + active accounts + categories + current-month budgets, one `Promise.all`; cookie-session auth (`getClaims`, 401) |
+| `GET /api/ledger` | Ledger payload | Active accounts + categories + last 100 transactions |
+| `GET /api/data` | Query payload | days snapped to 30/90/180 (default 90) + validated from/to/type/cat/acc/min/max/q; `dashboard_snapshot(12mo)` + `filtered_tx_stats` + filtered list ≤ 200 |
+| `GET /api/settings` | Settings payload | Accounts + `account_balances` + categories + month budgets + last 10 batches + rules |
+
+Auth gating: `src/proxy.ts` now gates only `/login` (redirects authenticated users to `/`); the matcher additionally excludes `_next/static`, `_next/image`, `favicon.ico`, `sw.js`, `manifest.webmanifest`, image assets, `/api/*`, and the four app pages. App pages (`/`, `/ledger`, `/data`, `/settings`) are statically prerendered skeletons with no data — the `proxy`'s Supabase `getUser` roundtrip no longer blocks their first byte. The API layer is the auth boundary: `requireApiSession` validates the cookie session per request (`getClaims`, 401 with `{error:"unauthenticated"}` on failure/expiry), the browser client (`apiGet`) bounces 401s to `/login`, and RLS scopes every query. Server actions keep their `getUser()` + ownership checks and `revalidatePath` calls; client components additionally refetch via `notifyDataChanged()`. Token refreshes performed in API routes ride back on the JSON response (`sessionResponse`).
 
 ## 3. Data model (Supabase `public` schema)
 
@@ -191,5 +216,6 @@ Taboo list (DESIGN.md §十一, 10 items): no new standard reds/greens/blues; no
 1. Before touching Next.js conventions, read the relevant guide in `node_modules/next/dist/docs/` (this Next version may differ from training data).
 2. Agents should delegate exploration/research to subagents; see `AGENTS.md` for the full workflow contract (commit discipline, message format, lint/build gates).
 3. Verify: `npm run lint` before every commit; `npm run build` for build-affecting changes; UI changes additionally get a `DESIGN.md` changelog entry and the §十一 taboo self-check.
-4. Accessibility acceptance: keyboard Tab pass (lamp focus rings visible), reduced-motion pass (no animation), 375px width pass (no horizontal scroll).
-5. Commit message format: `<type>(<scope>): <summary>` �?types feat/fix/style/refactor/docs/chore; scopes design-system, dashboard, ledger, accounts, import, settings, login, charts, etc.
+4. Performance: `node scripts/bench.mjs [--base URL] [--runs N] [--cookie "..."]` measures page TTFB/total and API latency against a running `next start` (default port 3000). The build output route table (○ static vs ƒ dynamic) is the architectural check: the four app pages must stay ○.
+5. Accessibility acceptance: keyboard Tab pass (lamp focus rings visible), reduced-motion pass (no animation), 375px width pass (no horizontal scroll).
+6. Commit message format: `<type>(<scope>): <summary>` — types feat/fix/style/refactor/docs/chore; scopes design-system, dashboard, ledger, accounts, import, settings, login, charts, api, bench, etc.
