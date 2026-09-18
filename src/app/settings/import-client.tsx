@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useRef, useState, useActionState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useActionState } from "react";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
@@ -10,6 +10,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import { parseBillFile, type ImportSource, type ParsedRow } from "@/lib/ledger/import-parse";
 import { submitImportAction, type ImportResult } from "./import-actions";
+import { notifyDataChanged } from "@/lib/api/client";
 
 type Account = { id: string; name: string };
 type Category = { id: string; name: string; kind: string };
@@ -108,6 +109,10 @@ export default function ImportClient({
   const parsingRef = useRef(false);
 
   const [state, formAction, isPending] = useActionState(submitImportAction, initialImportState);
+
+  useEffect(() => {
+    if (state?.ok && state.message) notifyDataChanged();
+  }, [state]);
 
   const [lastOkState, setLastOkState] = useState<ImportResult | null>(null);
   if (state.ok && state !== lastOkState) {

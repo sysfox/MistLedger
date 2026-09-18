@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
@@ -11,6 +11,7 @@ import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
 import { formatMoney } from "@/lib/ledger/format";
 import { adjustAccountBalance } from "./account-actions";
+import { notifyDataChanged } from "@/lib/api/client";
 
 const INITIAL = { ok: true, message: "" };
 
@@ -27,6 +28,9 @@ export default function AdjustBalanceButton({
 }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(adjustAccountBalance, INITIAL);
+  useEffect(() => {
+    if (state?.ok && state.message) notifyDataChanged();
+  }, [state]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [targetBalance, setTargetBalance] = useState(String(currentBalance));
   const formRef = useRef<HTMLFormElement>(null);

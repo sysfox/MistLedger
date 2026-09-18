@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Button from "@mui/material/Button";
 import { ensureDefaultCategories } from "./actions";
+import { notifyDataChanged } from "@/lib/api/client";
 
 export default function EnsureDefaultCategoriesButton() {
   const [pending, startTransition] = useTransition();
@@ -16,7 +17,9 @@ export default function EnsureDefaultCategoriesButton() {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            setResult(await ensureDefaultCategories());
+            const result = await ensureDefaultCategories();
+            setResult(result);
+            if (result.ok) notifyDataChanged();
           })
         }
         sx={{ minHeight: 44, fontSize: "0.875rem" }}

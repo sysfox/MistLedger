@@ -1,13 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import Button from "@mui/material/Button";
 import { toggleAccountActive } from "./account-actions";
+import { notifyDataChanged } from "@/lib/api/client";
 
 const INITIAL = { ok: true, message: "" };
 
 export default function ToggleAccountButton({ id, isActive }: { id: string; isActive: boolean }) {
   const [state, action, pending] = useActionState(toggleAccountActive, INITIAL);
+  useEffect(() => {
+    if (state?.ok && state.message) notifyDataChanged();
+  }, [state]);
   return (
     <form action={action} className="flex flex-col items-end">
       <input type="hidden" name="id" value={id} />

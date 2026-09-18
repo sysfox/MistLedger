@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -8,11 +8,15 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import { deleteBudget } from "./actions";
+import { notifyDataChanged } from "@/lib/api/client";
 
 const INITIAL = { ok: true, message: "" };
 
 export default function DeleteBudgetButton({ id, label }: { id: string; label: string }) {
   const [state, action, pending] = useActionState(deleteBudget, INITIAL);
+  useEffect(() => {
+    if (state?.ok && state.message) notifyDataChanged();
+  }, [state]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const armedRef = useRef(false);

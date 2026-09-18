@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import FormControl from "@mui/material/FormControl";
@@ -10,11 +10,15 @@ import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import { ACCOUNT_TYPES } from "@/lib/ledger/constants";
 import { createAccount } from "./account-actions";
+import { notifyDataChanged } from "@/lib/api/client";
 
 const INITIAL = { ok: true, message: "" };
 
 export default function CreateAccountForm() {
   const [state, action, pending] = useActionState(createAccount, INITIAL);
+  useEffect(() => {
+    if (state?.ok && state.message) notifyDataChanged();
+  }, [state]);
   return (
     <form action={action} className="panel flex flex-col gap-3 p-5">
       <p className="eyebrow">账房</p>

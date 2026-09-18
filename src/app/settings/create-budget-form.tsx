@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import Button from "@mui/material/Button";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
@@ -8,6 +8,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import { createBudget } from "./actions";
+import { notifyDataChanged } from "@/lib/api/client";
 
 const INITIAL = { ok: true, message: "" };
 
@@ -21,6 +22,9 @@ export default function CreateBudgetForm({
   defaultMonth: string;
 }) {
   const [state, action, pending] = useActionState(createBudget, INITIAL);
+  useEffect(() => {
+    if (state?.ok && state.message) notifyDataChanged();
+  }, [state]);
   return (
     <form action={action} className="panel flex flex-wrap items-center gap-2 p-4">
       <TextField
