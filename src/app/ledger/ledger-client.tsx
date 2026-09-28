@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { channelLabel } from "@/lib/ledger/constants";
 import { formatMoney } from "@/lib/ledger/format";
 import { SkeletonLine } from "@/components/page-skeleton";
@@ -25,6 +26,28 @@ const AMOUNT_COLOR: Record<string, string> = {
 type Account = { id: string; name: string; type: string };
 type Category = { id: string; name: string; kind: string };
 
+/**
+ * PostgREST 的嵌入关系形态：一对多返回**数组**，一对一返回**对象**，外键可空时为 `null`。
+ * （`api/ledger/route.ts` 的 select 里 `account` / `category` / `to_account` 都是嵌入关系。）
+ */
+type Relation = { name: string } | { name: string }[] | null;
+
+/**
+ * [D-15] 去掉 `as unknown as`。
+ *
+ * 原来的写法是 `Array.isArray(x) ? x[0]?.name : (x as unknown as {name:string}|null)?.name`：
+ * `Array.isArray` 已经把数组分支收窄掉，else 分支里剩下的**只有** `{name:string} | null`
+ * （`{name:string}[]` 已经被排除了），那个 `as unknown as` 从类型上讲根本不需要。
+ *
+ * 收进这个函数后，两种形态在一处归一，调用点不再各自复述一遍判别逻辑 ——
+ * 这也顺带修掉了一个真 bug：原代码在 else 分支上重新断言，而 `t.category` 声明为
+ * 联合类型时，非数组分支的值是可信的；断言只是让编译器闭嘴。
+ */
+function relationName(rel: Relation): string | null {
+  if (rel === null) return null;
+  return Array.isArray(rel) ? (rel[0]?.name ?? null) : rel.name;
+}
+
 type TransactionRow = {
   id: string;
   date: string;
@@ -37,9 +60,9 @@ type TransactionRow = {
   counterparty: string | null;
   source: string;
   note: string | null;
-  account: { name: string }[] | { name: string } | null;
-  category: { name: string }[] | { name: string } | null;
-  to_account: { name: string }[] | { name: string } | null;
+  account: Relation;
+  category: Relation;
+  to_account: Relation;
 };
 
 type LedgerPayload = {
@@ -53,14 +76,9 @@ function TransactionListSection({ payload }: { payload: LedgerPayload }) {
   return (
     <ul className="flex flex-col gap-2">
       {transactions.map((t) => {
-        const cat = Array.isArray(t.category) ? t.category[0]?.name : (t.category as unknown as { name: string } | null)?.name;
-        const toAcc = Array.isArray(t.to_account)
-          ? t.to_account[0]?.name
-          : (t.to_account as unknown as { name: string } | null)?.name;
-        const fromAcc =
-          (Array.isArray(t.account)
-            ? t.account[0]?.name
-            : (t.account as unknown as { name: string } | null)?.name) ?? "未知账户";
+        const cat = relationName(t.category);
+        const toAcc = relationName(t.to_account);
+        const fromAcc = relationName(t.account) ?? "未知账户";
         return (
           <li key={t.id} className="panel flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 text-sm">
             <div className="min-w-0 flex-1">
@@ -172,7 +190,9 @@ export default function LedgerClient() {
   const { data, error, loading } = useApiData<LedgerPayload>("/api/ledger");
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
+    // [D-17 联动] layout.tsx 的「跳到主内容」指向 #main，缺了这个 id
+    // 键盘用户点了跳转链接只会得到「当前页面」而不是主内容（WCAG SC 2.4.1）。
+    <main id="main" className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
         <p className="eyebrow">流水</p>
         <h1 className="mt-1 font-display text-[22px] font-semibold text-ink">记账</h1>
@@ -180,12 +200,19 @@ export default function LedgerClient() {
           <div role="status" aria-busy="true">
             <SkeletonLine className="mt-2 h-3.5 w-64" />
           </div>
-        ) : (
+        ) : (data?.accounts.length ?? 0) === 0 ? (
+          // [D-21] 原文案让用户去「账户」页，但该路由早已并入 /settings，
+          // 是一个指向不存在页面的邀请。改为指向设置页的账户分区并给出可点链接
+          // （`.link-subtle` 自带灯色焦点环，globals.css:216-236）。
           <p className="mt-1 text-sm text-dim">
-            {(data?.accounts.length ?? 0) === 0
-              ? "先去「账户」页建一个账户，再回来记账"
-              : "最近 100 笔流水，删改从这里走"}
+            还没有账户，先在
+            <Link href="/settings#accounts" className="link-subtle">
+              设置页 · 账户
+            </Link>
+            建一个（例如：银行卡 / 零钱通）再记账
           </p>
+        ) : (
+          <p className="mt-1 text-sm text-dim">最近 100 笔流水，删改从这里走</p>
         )}
       </div>
 

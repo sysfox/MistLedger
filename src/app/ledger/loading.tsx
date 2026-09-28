@@ -2,7 +2,7 @@ import { SkeletonLine } from "@/components/page-skeleton";
 
 export default function Loading() {
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col px-4 py-6">
+    <main id="main" className="mx-auto flex w-full max-w-4xl flex-col px-4 py-6">
       <div role="status" aria-busy="true" className="flex flex-col gap-6">
       <span className="sr-only">掌灯中…</span>
       <div>
