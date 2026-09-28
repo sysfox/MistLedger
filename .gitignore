@@ -36,6 +36,17 @@ yarn-error.log*
 # personal bank statements — never commit
 /data/
 
+# ── .hermes/ 的版本化策略 ──────────────────────────────────────
+# 审计流水（.hermes/audits/*.md、*.mjs）是**项目资产**，入库：它们记录了每一次
+# 设计裁定所依据的实测数据与「为什么」，是 DESIGN.md 变更记录里 [D-xx] 编号的
+# 唯一出处。撤出仓库 = 让所有裁定失去可追溯的依据，下一个接手的人只能重新猜。
+# 唯一的例外是构建锁（并发跑 next build 的互斥目录，纯运行时状态）。
+.hermes/.build-lock/
+.hermes/.build-lock
+.hermes/tmp/
+.hermes/cache/
+.hermes/*.log
+
 # vercel
 .vercel
 

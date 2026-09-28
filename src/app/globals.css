@@ -289,6 +289,29 @@ body::after {
   letter-spacing: -0.01em;
 }
 
+/* 计数（笔数/条数/个数）—— 只要数字等宽，不要字族等宽 [D-44]
+   边界：计数需要的是「多行逐行对齐」，不是「用等宽字体渲染汉字」。把中文量词
+   （「笔」）和数字一起塞进 mono 是浪费 —— mono 的价值在对齐数字，不在渲染汉字。
+   语义边界：金额走 .money（mono + tabular + 紧字距），计数走 .num（仅 tabular，
+   沿用正文字族）。两者互不替代；计数同时应带千分位（toLocaleString("zh-CN")）。 */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 只读标签 —— .chip 的静态版 [D-42]
+   边界：.chip 在本项目语义里 =「可点的选择器/标签」，其 :hover 转纸墨是一次
+   明确的 affordance 承诺。只读展示（关键词→分类规则、纯展示的元信息）套 .chip
+   就是假 affordance：它亮一下却点不动，用户只会以为漏了实现。故 .tag 外形同
+   .chip，但零反馈 —— 没有 :hover / :active / :focus-visible，也不在 Tab 序列。 */
+.tag {
+  border: 1px solid var(--color-fogline-strong);
+  background-color: var(--color-veil);
+  color: var(--color-dim);
+  border-radius: 9999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+}
+
 /* ── 浮动雾面工具栏与滚动边缘（DESIGN.md 第十二节）─────────
    导航不是一条不透明横幅，而是浮在内容之上的一层半透明雾面：
    blur + saturate 让栏下内容化开，硬雾线边框换成一枚极轻落影做分隔。

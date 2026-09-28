@@ -59,6 +59,8 @@
 1. **灯火只做点睛**：每屏常亮灯色不超过 3 处（导航激活灯线、关键数字的 ¥、主按钮）。大面积铺灯色 = 犯规。
 2. 支出/收入一律用 `ember` / `jade`，禁止再引入其他红绿。
 3. 边框一律 `fogline`（装饰）或 `fogline-strong`（交互控件边界），禁止纯灰 zinc/neutral。
+   **需要「中性的一档」（图表第 N 槽、只读元信息）时用 `var(--color-dim)`，不写死 hex**——
+   写死值不受 `prefers-contrast: more` 覆盖，等于在一处偷偷开后门（见 §九 饼图色板与 §十一 #6）。
 4. 转账（中性）用 `ink`/`dim`，不染色。
 5. 超支警示：`ember` + 文字「超支」，不用刺眼纯红。
 6. `:root` 声明 `color-scheme: dark`；删除 prefers-color-scheme 媒体查询（常夜）。
@@ -104,6 +106,25 @@
 - 支出前缀 `−`（U+2212）、收入前缀 `+`、转账前缀 `⇄`，¥ 紧跟其后。
 - 保留两位小数，`toLocaleString("zh-CN")`。
 
+**调用点写法**（[D-08]）：金额渲染一律经 `formatSignedMoney(n, kind)` / `amountSign(n, kind)`
+（`src/lib/ledger/format.ts`），**调用点不手写 `¥`**：
+
+- 余额 / 总资产 / 上限等中性数字 → `formatSignedMoney(n)`（默认 `neutral`，正数不带 `+`）；
+- 收支流水行 → `formatSignedMoney(n, "expense" | "income" | "transfer")`；
+- hero 需要把 `¥` 单独染成灯色时 → `amountSign(n, kind)` + `YUAN` + `formatMoney(Math.abs(n))` 三段拼接。
+
+**为什么符号要下沉到格式化层而不是留在调用点**：把「符号 + 币种 + 数字」拼一遍再抄一遍，
+就是上一轮负数符号出错的土壤——`¥−12.50`（符号夹在 `¥` 之后、且是 ASCII hyphen）
+是复制粘贴的必然产物，而不是有人写错了。`formatSignedMoney` 在 `n < 0` 时吞掉 kind 前缀
+只留一个 U+2212，因此即使 RPC 意外返回负值也不会叠出 `−−¥`。可见文本与
+`aria-valuetext`（预算进度条）必须复用**同一个**格式化结果：两处各写一遍，正是同一个 bug
+的第二个藏身处。
+
+**符号与 `¥` 之间的空格是 bug，不是排版。**
+
+**计数不是金额**：笔数 / 条数 / 个数走 `.num`（仅 tabular-nums，不改字体），不套 `.money`
+—— 见 §八「`.money` / `.num` / `.tag` 的语义边界」。[D-44]
+
 ---
 
 ## 四、签名元素：灯线（lamp line）
@@ -145,6 +166,15 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 容器：`max-w-4xl` 居中，`px-4 py-6`，区块间距 `gap-6`。不做超宽仪表盘——账房是一张桌子，不是指挥中心。
 - 面板：`.panel`（雾面 + 雾线边框 + 大圆角 xl + 极轻内高光），内部留白 `p-4`~`p-5`。
 - 区块头部统一结构：**eyebrow 小标（雾气里的字）+ serif 标题**，标题下不再加线。
+- **总览页 hero 是这条规则的唯一例外（[D-49] 裁定）**：hero 只有 eyebrow + 灯下大数字，
+  **没有** serif 标题行——线框图比通则更具体，冲突时以线框图为准。理由有二：
+  ① 总览 hero 承担的是「本月账是多少」这一件事，页名「总览」对它没有信息量；其余三页
+  的 serif 标题都在回答「我在哪」（记账 / 曲线与查询 / 设置），是导航锚点而非装饰。
+  ② hero 上方再压一行 serif 标题会把灯下大数字挤到首屏折线以下，而大数字是本页唯一
+  需要被一眼看到的东西。**唯一要求**：hero 的 eyebrow 同时是 `<h1>`（可见文本，不是
+  `sr-only` + `aria-hidden` 的两份文本），四个分支（加载 / 错误 / 有数据）都有 h1，
+  且加载分支的 h1 **不含月份**（该分支会进静态预渲染 HTML，取「今天」会造成
+  构建日 ≠ 访问日的 hydration 不一致）。
 - 总览页信息层级（信息结构即布局）：
 
 ```
@@ -205,7 +235,53 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 布局镜像真实页面：main 容器类与页面完全一致（如总览 `mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6`），区块顺序、双列网格、行高对齐真实内容，杜绝加载完成后的布局跳动。
 - 图表占位固定 220px（与图表容器一致）；每个 loading.tsx 根节点 `role="status" aria-busy="true"` + `<span class="sr-only">掌灯中…</span>`，骨架不放可见文案、不放 emoji。
 - `prefers-reduced-motion` 下骨架静止（全局降级规则覆盖 `skeleton-pulse`）。
-- 根级 `src/app/loading.tsx` 现为总览骨架（hero 大金额线 + 趋势/双列图表 220px + 余额行 + 预算进度条），不再用全屏「掌灯…」灯点；`lamp-breathe` 灯点仅保留给离线兜底页（第七节 2.5）。
+
+#### 三条硬规则
+
+1. **不设根级 `src/app/loading.tsx`。** 根级 `loading.tsx` 比任何路由级 `loading.tsx`
+   **更外层**：在 App Router 里它包裹的是整个 `children`，于是它在预渲染产物中**占据
+   可见槽位**，而路由自己的骨架被推进内层。实测（`.next/server/app/*.html` 的 `<main>`
+   逐字节比对，删除前）：`/`、`/data`、`/settings` 三者 `<main>` 的 SHA-256 **完全相同**
+   （`340ad480728c`，3893 字符），即 `/data` 与 `/settings` 的首屏显示的是**总览页**的
+   骨架——`/data` 上写着「各账户余额 / 本月预算进度」，`/settings` 上同样，而这两页都
+   没有这两个区块；`/data` 另带 `BAILOUT_TO_CLIENT_SIDE_RENDERING` 标记，即真实内容
+   被推到客户端渲染之后才出现。删除根级文件后复测：五条路由的 `<main>` 哈希**两两不同**
+   （`/data` `58d7b867fc48`、`/settings` `29be8f92ca75`、`/ledger` `de43cc4d903d`），
+   且各自带上真实 h1（「总览」/「曲线与查询」/「记账」/「雾夜账」），
+   `/data` / `/settings` 各自渲染自己的 `掌灯中…` 骨架。**四页形状各异，根级那份必然
+   是某一页的复制品**，而复制品在别的路由上就是错的。
+2. **一个区块的骨架只能有一份。** 同一路由的「静态壳 Suspense fallback」「`loading.tsx`」
+   「client 组件的 loading 分支」必须渲染**同一个骨架组件**。拆成两个导出：
+   `XxxShell`（含 `<main>`）与 `XxxShellBody`（不含），后者用于塞进 client 组件自己的
+   `<main>` —— 嵌套 `<main>` 是非法 HTML。
+3. **骨架里不得含随时间或访问者变化的值，尤其日期。** 判据：产物 HTML 全文搜
+   `20\d\d-\d\d-\d\d` 应当零命中（页面本就展示静态历史数据的除外）。凡是要进
+   `<a href>` 的日期必须是**访问时求值**，且求值位置不能被模块作用域污染——
+   把日期做成纯函数的入参（`buildPresets(today)`），而不是在函数内部调 `new Date()`。
+   前者让「构建日」这个状态在类型层面不可表达；后者只能靠注释提醒，而注释一定会被
+   后来者挪动的代码绕过。**能不能写出「构建后第 2 天访问，chip 仍指向今天」这条断言，
+   比代码里有没有注释更能说明问题修没修到位。**
+
+> **为什么「更具体的线框」在这里不够**：`/data` 用 `useSearchParams()`，静态预渲染时
+> Next.js 会把到最近 Suspense 边界为止的客户端子树改为客户端渲染，fallback 写 `null`
+> 就会让这棵子树在产物里**完全是空的**（用户打开 `/data` 只看到导航，直到 JS 拉起）。
+> 所以 fallback 必须是真实结构骨架，**且必须是这条路由自己的那一副**。
+
+### 2.8 长列表与大数据的渲染
+
+超过约 200 行的列表：
+
+1. 行元素加 `content-visibility: auto` + `contain-intrinsic-size`（**必须成对**）——后者不给，
+   滚动条长度会随渲染进度抖；
+2. 视口外的行用**固定值**占位，不用 `<Skeleton>` —— 一旦随滚动进出视口就开始闪；
+3. **大数组不通过 DOM 传递**：hidden input 的 value 每次 change 都要重算 + 重写，实测在
+   移动端是明显的主线程长任务来源（导入 2000 行时，改任一行的分类会触发全量
+   `JSON.stringify`）。改用 `useRef` 持有最新数组，在提交那一刻 `formData.set()` 注入；
+   预览只渲染前 200 笔。
+
+判据不是「行数」而是**「滚动时会不会重排 + 每次 change 要不要重写全量」**：一个 2000 行的
+静态表格（滚动期间不重排）不需要 `content-visibility`，一个 30 行但每行都触发全量重算的
+列表同样需要修。
 
 ### 2.5 离线兜底（PWA Service Worker）
 
@@ -219,6 +295,12 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
   导航链接用 `active:opacity-60`。悬停态仍走 150ms 颜色过渡，按压态不走。
 - 面板/行 hover：背景 `mist → veil`，150ms。行本身不可点则**不加** hover（避免假 affordance），
   反馈只给真正可点的元素（按钮在行内时由按钮自身给）。
+- **「只读还是可交互」是选型的判据，不是「要不要加 hover」的细节**：按二选一，不存在第三种。
+  - **可交互** → `.chip` / `.btn-*` / `.link-subtle`，给 hover + active + 焦点环；
+  - **只读** → `.tag`（或等价的静态工具类），**零反馈**：没有 `:hover`、没有 `:active`、
+    不进 Tab 序列。[D-07] [D-42]
+
+  「加了 hover 却点不动」比没有反馈更糟：用户会以为漏了实现，而不是以为这里不可点。
 - 焦点环：一律 `ring-lamp/60`（键盘可见焦点，灯色）。禁止 outline-none 裸奔。
 - 按钮 active：`translate-y-px`。
 - 金额数字不做滚动/计数动画（账要稳，不要炫）。
@@ -245,15 +327,35 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 | `.chip` | `border border-fogline-strong bg-veil text-dim rounded-full px-3 py-1 text-sm` | 分类标签、单选组未选中态（边框用 `fogline-strong`：chip 边框是它识别「可点」的视觉线索） |
 | `.chip-active` | `border-lamp/70 bg-lamp/10 text-lamp` | 单选组选中态（支出/收入/转账、数据来源） |
 | `.eyebrow` | `text-[11px] tracking-[0.2em] text-dim font-medium` | 区块小标 |
-| `.money` | `font-mono tabular-nums tracking-tight` | 一切金额 |
+| `.money` | `font-mono tabular-nums tracking-tight` | **一切金额**。mono + tabular + 紧字距 |
+| `.num` | `tabular-nums`（**无** `font-family`） | **一切计数**（笔数、条数、个数）。只要数字等宽，沿用正文字族 |
+| `.tag` | 与 `.chip` 同外形，**无** `:hover` / `:active` / `:focus-visible` | **只读标签**（关键词→分类规则、纯展示的元信息） |
 | `.lamp-line` | 见第四节 | 签名灯线 |
+
+> **`.money` / `.num` / `.tag` 的语义边界**（三者互不替代，改错即为契约违规）：
+>
+> - **`.money` 只给金额。** 金额需要 mono：它要在表格、汇总行、hero 大数字之间
+>   保持同一套「账房笔笔清楚」的骨架。
+> - **`.num` 只给计数**（笔数 / 条数 / 个数）。计数需要的是**数字等宽**（多行逐行
+>   对齐），不是**字族等宽** —— 把中文量词「笔」和数字一起塞进 mono 是浪费，mono 的
+>   价值在对齐数字，不在渲染汉字。计数同时应带千分位（`toLocaleString("zh-CN")`）：
+>   `1200` 读作「一千二」远慢于「1,200」，而计数是要被快速扫读的。[D-44]
+> - **`.tag` 只给不可点的标签。** `.chip` 在本项目语义里 =「可点的选择器/标签」，
+>   它的 `:hover` 转纸墨是一次明确的 affordance 承诺；给只读元素套 `.chip` 就是假
+>   affordance —— 它亮一下却点不动，用户只会以为漏了实现。`.tag` 外形同 `.chip`，
+>   但**零反馈**：没有 hover / active / 焦点环，也不在 Tab 序列里。[D-42]
+>
+> 判定依据是**元素本身是否可交互**，而不是「它在一个看起来像列表/像标签的容器里」。
 
 **CSS 优先级纪律**：组件类只定义自身属性，页面用 Tailwind 工具类补充间距/字号；禁止在页面里用元素选择器覆盖组件类。
 
-**已批准的例外**（仅以下两处，其余一律按契约执行）：
+**已批准的例外**（仅以下三处，其余一律按契约执行）：
 
 - 设置页分类列表 `chip + text-ink`：已创建的分类是用户资产的一部分，用 `text-ink` 提高可读，对比度优先于“未选中态用 dim”的默认规则。
 - 设置页导入区块文件选择 `input + border-dashed`：文件拖放/点选区用虚线雾线边框以表达“可投放”，hover 时 `border-lamp/60`；焦点环仍为灯色不变。
+- 设置页导入预览表格 `bg-gradient-to-l` 横滑遮罩（[D-11 审计禁忌 #4]，此前未登记）：表格右侧的渐变遮罩是**「右边还有内容、可以横滑」的方向提示层**，不是渐变按钮也不是渐变进度条（§十一 #4 禁的是后两者），故不违规。它是 `pointer-events-none` + `aria-hidden` 的纯装饰，`md` 以上不渲染。**边界**：此例外只授权「单向指示还有更多内容」的遮罩渐变；不得用于任何可点元素本身、不得改为双向、不得承载文案。
+
+**「已批准的例外」清单本身的纪律**：新增例外必须写明**为什么它是必要的**、**边界在哪**、以及**为什么它不违反被引的那条禁忌**。只写「已批准」而不写边界的例外，等于把禁忌开了一个没有形状的口子——下一个人会照着它做第二件事。
 
 ---
 
@@ -268,9 +370,20 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 | 支出柱 | `ember` |
 | 收入柱 | `jade` |
 | 资产曲线 | `lamp`，宽 2，无点（hover 出点，点填充 `lamp`、描边 `night`） |
-| 饼图色板（按序循环） | `#E3B341` `#6FBF8F` `#E2574C` `#7EA2D6` `#B48BE0` `#5CC8C0` `#D98A4B` `#94A3B8` |
+| 饼图色板（按序循环） | `#E3B341` `#6FBF8F` `#E2574C` `#7EA2D6` `#B48BE0` `#5CC8C0` `#D98A4B` `var(--color-dim)` |
 
 图表容器高度 220px；加载骨架见第七节。
+
+> **第 8 槽由 `#94A3B8` 改为 `var(--color-dim)`（`#8B93A7`）**——原值是 Tailwind
+> `slate-400` 的字面值，与 §十一 #6「禁 zinc/neutral/slate 灰阶」**字面自相矛盾**：
+> 一份契约不能一边禁灰阶、一边在自己的色板里写死一个灰阶色值。改用既有令牌而非换
+> 一个「新灰」，因为令牌同时带来两件白名单做不到的事：① 它受 `prefers-contrast:
+> more` 覆盖（`#b6bed1`，对 mist 9.54:1），写死的 hex 不受；② 它是契约的一部分，
+> 换主题时跟着走。对比度实测 `#8B93A7` 对 mist 5.78:1 · 对 night 6.29:1 · 对 veil
+> 5.05:1，均高于图形对象 3:1 的下限（原 `#94A3B8` 为 6.93 / 7.54 / 6.20:1 —— 唯一
+> 的变化是比值略降，离下限仍有一倍以上余量）。与相邻槽的色相距离：距 #7 `#D98A4B`
+> RGB 距离 121、距 #1 `#E3B341` 138、距 #5 `#B48BE0` 71，均**大于**原 `#94A3B8` 的
+> 对应值（25 / 31 / 42），相邻切片更易分辨而非更难。
 
 ---
 
@@ -281,6 +394,10 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 按钮 = 动作本身：「保存」「创建」「确认导入 128 笔」，禁止「提交」「确定」。
 - 动作前后同名：点「导入」→ 结果提示「导入完成：新增 128 笔」。
 - 错误文案说清**发生了什么 + 怎么办**，不道歉不模糊：「有 3 笔转账没选转入账户，请先补齐」。
+- **错误粒度 = 请求粒度，不是区块粒度。** 一次请求失败就是**一张**错误面板，不是一栏一张：
+  N 个一模一样的「这一栏暂时加载失败」既让用户判断不出是网络、鉴权还是服务端，也把同一个
+  `role="alert"` 播报 N 遍。`SectionError` 的 `label` 必传（否则读屏用户听到的还是
+  「某处失败了」），`onRetry` 有值才渲染按钮——没有可执行补救动作时，按钮是装饰不是控件。
 - 空状态是邀请，不是叹息：「还没有账户，先在下面建一个（例如：银行卡 / 零钱通）」。
 - 界面词汇表（全站一致）：账户、分类、流水、期初余额、上限、记账账户、转入账户。禁止同义漂移（如"记录/条目/行"混用，数量一律用"笔"）。
 - 金额语境下数字永远用阿拉伯数字；月份在 eyebrow 中可用汉字数字（二零二六年九月）。
@@ -294,7 +411,7 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 3. ❌ 常亮灯线超过每屏 1 条（导航除外）。
 4. ❌ 渐变按钮、渐变进度条、发光大标题。
 5. ❌ `dark:` 变体（全站常夜，无需变体）。
-6. ❌ zinc/neutral/slate 灰阶——用 night/mist/veil/fogline/dim。
+6. ❌ zinc/neutral/slate 灰阶——用 night/mist/veil/fogline/dim。**这条对色值同样生效，不只对类名**：写死一个 Tailwind 灰阶的字面值（如 `slate-400` = `#94A3B8`）与写一个 `slate-400` 类名是同一件事，只是绕过了 eslint 守卫的字符串匹配。需要「中性的一档」时用 `var(--color-dim)`（#8B93A7），它受 `prefers-contrast: more` 覆盖，且本身就是 §二 的既有令牌。
 7. ❌ 非 mono 字体的金额。
 8. ❌ 单次转场/微交互动画 > 500ms；reduced-motion 下仍会动的元素。`fog-drift` / `lamp-breathe` / `skeleton-pulse` 为持续环境类豁免（不计入 500ms 上限），但必须受 `prefers-reduced-motion` 约束静止。
 9. ❌ 焦点环被移除或换成非灯色。
@@ -307,6 +424,9 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 - 技术栈：Next.js 16 App Router + Tailwind v4（`@theme` token）+ Recharts。改动 Next 约定前先查 `node_modules/next/dist/docs/`。
 - 每次界面改动后：`npm run lint` 与 `npm run build` 必须通过。
 - 验收动作：键盘 Tab 走一遍（焦点环可见）、`prefers-reduced-motion` 开启走一遍（无动画）、375px 宽度走一遍（不横向滚动）。
+- **每页 `<main>` 必须有 `id="main"`**，否则根 layout 的 skip link 静默失效——不报错、不可见，只是跳不过去。慢网络下用户面对的是骨架屏，故 `loading.tsx` / 静态壳里的 `<main>` 也要有。
+- **锚点滚动偏移只在 `globals.css` 定义一次**（`:root { --nav-scroll-offset }` + `:target, section[id] { scroll-margin-top }`）。页面组件不得自写 `scroll-mt-*`：自写值既覆盖了变量（改了 `:root` 也不生效，配置成了谎言），数值本身也容易错（80px 不足以避开 iPhone 上约 99px 的顶栏）。
+- **构建产物抽查**（`next build` 后读 `.next/server/app/*.html`）：① 各路由 `<main>` 的内容互不相同（根级 `loading.tsx` 串味的判据，见 §七.2）；② 静态壳里搜 `20\d\d-\d\d-\d\d` 零命中（日期烤进产物 = 构建日泄漏）。
 
 ## 十三、MUI 接入（进行中，experiment/mui-trial）
 
@@ -343,11 +463,24 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
    因为样式丢失是**可见回归**，而 `/` `/data` 多一层 provider 只是无用 DOM。
 7. 依赖仅 `@mui/material` `@emotion/react` `@emotion/styled` `@mui/material-nextjs`
   （不装 `x-date-pickers`，保持最小）。
-8. `/settings` 的导入预览表格内紧凑 `select`、来源单选 chip、文件拖放虚线 `label`
+8. **嵌在紧凑容器（`.chip`、表格行）内的 MUI Button，44px 触控目标一律配 `margin:` 负值**
+   收回视觉撑开——触控目标与视觉尺寸**可以不一致**：前者管可达性（WCAG SC 2.5.5），
+   后者管密度。把 chip 内的 32px 按钮提到 44px 而不收负边距，chip 会被视觉撑高一行。
+9. `/settings` 的导入预览表格内紧凑 `select`、来源单选 chip、文件拖放虚线 `label`
    仍按第八节契约类实现（预览区逐行控件保持原生以维持 44px 触控与紧凑密度），
    仅区块级触发按钮（确认导入）与各二次确认迁移到 MUI Dialog/Button。
 
 ## 变更记录
+
+- 2026-09-28 · WP-2 总览页（金额符号下沉 / 错误态收敛 / h1 统一）：**① 金额符号下沉（D-08）**——hero 总资产、账户余额、本月收支、预算进度（含 `aria-valuetext`）四处迁到 `formatSignedMoney`；hero 的 `¥` 需单独染灯色，用 `amountSign()` + `YUAN` + `formatMoney(Math.abs())` 三段拼接。可见文本与 `aria-valuetext` 复用同一格式化结果——两处各写一遍正是上一轮负数符号出错的土壤。hero 负号用 `dim`（灯色只留给 `¥`）。**② h1 统一（D-49，裁定见上条契约收口）**——原 `sr-only` h1 + `aria-hidden` eyebrow 是读屏与视觉两套文本，改为单一可见 `<h1 class="eyebrow">`；加载分支用 `sr-only` 且**不带月份**（该分支会进静态预渲染 HTML，取「今天」会造成构建日 ≠ 访问日的 hydration 不一致）。**③ 不可点的行不加 hover（D-07）**——账户余额行删除 `hover:bg-veil` 与冗余 `transition-colors`。**④ 错误态收敛为整页面板（D-06）**——一次 `/api/overview` 失败渲染 6 个一模一样的分区错误面板（用户分不出网络/鉴权/服务端，且整个错误态没有 h1），现为 1 个整页面板 + 接 `useApiData` 的 `reload` 的「重试」；`.btn-ghost` 是重试按钮的合适载体（灯色焦点环、44px 触控），无需新增类。**⑤ `<main id="main">`（D-26）**——总览的 `<main>` 写在 client 组件里，skip link 此前在总览页落空。lint、tsc 通过；禁忌清单自检 0 命中。
+
+- 2026-09-28 · WP-3 数据页（静态壳有内容 / 骨架同源 / 计数排版 / 参数校验两端共用）：**① 静态壳必须有内容（D-05）**——`/data` 的 `<Suspense fallback={null}>` 改为 `fallback={<DataShell />}`：`useSearchParams` 让静态预渲染时该子树整体转为客户端渲染，fallback 为 `null` 时产物 HTML 里这棵子树**完全是空的**，用户打开 `/data` 只看到导航。`data-shell.tsx` 一份，`page.tsx` fallback / `loading.tsx` / `data-client.tsx` 三处引用（拆 `DataShell` 含 `<main>` 与 `DataShellBody` 不含两个导出，避免嵌套 `<main>`）。**② 日期来自访问日（D-05）**——预设 chips 的日期改为纯函数入参 `buildPresets(today)` 而非函数内 `new Date()`，让「构建日」在类型层面不可表达；判据是产物 HTML 搜 `20\d\d-\d\d-\d\d` 零命中。日期算术改用 UTC 字段（`Date.UTC` / `getUTC*`），月末用 `new Date(Date.UTC(y, m, 0)).getUTCDate()` 而不手写分支。**③ 播报契约（D-17 / D-06）**——骨架统一走 `SkeletonStatus`（`role=status` + `aria-busy` + sr-only「掌灯中…」+ 区块名），错误走 `SectionError({onRetry, label})`；`/data` 只有一次请求，故四个区块的 loading/error 是同一个布尔值渲染四遍，按请求粒度收敛为一张面板。**④ 计数不是金额（D-44）**——笔数改用 `tabular-nums`（语义正确，即刻可用；`globals.css` 非本包所有权，`.num` 落地后换类，见上条契约收口）。**⑤ 锚点偏移单一来源（D-43）**——删掉数据页自写的 `scroll-mt-20`（80px 不足以避开 iPhone 上约 99px 的顶栏）；⚠️ **待接线**：`settings-client.tsx:92`（`#accounts`）与 `:414`（`#import`）仍有两处 `scroll-mt-20`，它们覆盖了 `:root` 的 `--nav-scroll-offset`，改了变量也不生效（配置成了谎言），需一并删除。**⑥ 参数校验两端共用（D-11 / D-35）**——`query-params.ts` 纯函数被 `api/data/route.ts` 与 `data-client.tsx` 同时 import；校验失败即丢弃条件而非报错（用户改错地址栏不该被拒绝服务），参数序列化顺序固定。进 `.or()` / LIKE 的值两层转义且顺序固定（先 `escapeLikePattern` 转 `\ % _`，再 `escapeOrValue` 给 `.or()` 参数加引号）——`?acc=1,or(id.not.is.null)` 与 `?q=%` 是真实的注入面，UUID 校验不是洁癖。
+
+- 2026-09-28 · WP-4 记账页（确认组件收敛 / 单选组键盘契约 / 日期口径）：**① `<ConfirmSubmitButton>`（D-04）**——六份逐字复制的「拦截 submit → 弹 Dialog → `requestSubmit()` → `armedRef` 复位」（约 300 行）收敛为一处；P1 bug 正是在这种复制里被复制了六次。三个不显然点：派生状态而非命令式旗标（「这一跳是不是用户点了确认」是事件的客观属性，组件无中间状态可错位，且不存在绕过确认的提交路径——回车隐式提交的 `submitter` 是 `null`，照样被拦）；触发按钮改 `type="button"` 后自行 `reportValidity()`，把校验时机补回与改造前逐字一致；确认按钮用 `form={formId}` 原生关联而非 `requestSubmit()` 命令式旁路（Dialog 经 Portal 渲染到 body，不在表单 DOM 后代内）。props 只暴露「决策」不暴露「机制」；`confirmColor?: "primary" | "error"` 让「可逆操作不能选 error」从口头规范变成编译期约束。**② `<TypePicker>`**——旧实现宣告 `role="radiogroup"` 却只实现语义未实现键盘契约（三个 chip 各自 `tabIndex=0`、方向键全无响应），选**补齐 APG 契约**而非撤掉语义（radiogroup 正是表达单选的语义，降级会丢失「三选一」）。roving tabindex + 方向键移动并选中（APG 对单选组的规定）+ Home/End；焦点环未触碰任何 outline 样式，`:focus-visible` 对程序化 `.focus()` 同样命中，故方向键移动焦点时灯环照常出现。视觉零变化。**③ `<main id="main">`**——`/ledger` 的 client 组件与 `loading.tsx` 两处补齐（骨架屏先于数据到达被看到）。**④ 空态文案指向存在的门（D-21）**——原文案「先去「账户」页建一个账户」指向已并入设置页的 `/accounts`（一个通向 404 的邀请不是邀请），改为可点的 `/settings#accounts`。**⑤ 日期（D-45）**——`useEffect` 里写 `el.defaultValue` 改为 `defaultValue` + `suppressHydrationWarning`（DOM 归 React）；时区由浏览器本地归全站 `shanghaiDate()`（Asia/Shanghai，访问日求值而非模块级常量，否则静态预渲染会冻成构建日）——日期是账本主键，跨端不一致等于记错账。**⑥ 渠道默认值（D-46）**——默认「支付宝」等于系统替用户断言这笔钱走支付宝，污染统计口径；改为 `direct`（现金/线下，四种渠道里最中性的一种），与 `actions.ts` 的服务端兜底三处统一。**⑦ 类型逃逸（D-15）**——`as unknown as` 从类型上讲本就不必要（`Array.isArray` 的真分支已收窄），收进 `relationName()` 后三种嵌入关系在一处判别，断言归零且未引入 `any` / `@ts-ignore`。
+
+- 2026-09-28 · WP-5 设置页与导入（只读标签 / 长列表渲染 / 触控目标与视觉密度解耦）：**① 只读标签（D-42）**——设置页「归类规则（关键词 → 分类）」是只读展示却套了 `.chip`（其 `:hover` 转纸墨是明确的假 affordance），先以等价静态工具类顶替，`.tag` 落地后换类（见上条契约收口）。**② 计数排版（D-44）**——三处笔数先与数据页对齐视觉（`.money` + 千分位），`.num` 落地后换类。**③ 金额调用点迁移（D-08）**——`settings-client.tsx` ×4 · `adjust-balance-button.tsx` ×5 · `import-client.tsx` ×1 迁到 `formatSignedMoney`。**④ 长列表渲染（D-24）**——2000 行的导入预览此前每次改任一行分类都全量 `JSON.stringify` 并写进 hidden input（移动端明显的主线程长任务来源）：预览行加 `content-visibility: auto` + `contain-intrinsic-size`（成对，否则滚动条抖），全量数据改由 `useRef` 持有、提交那一刻 `formData.set()` 注入，预览只渲染前 200 笔。**⑤ 触控目标与视觉尺寸解耦（D-41）**——`delete-category-button` 的 32px 提到 44px 后 chip 内的 `×` 会视觉撑高 chip，用 `margin: "-6px -14px"` 负边距把多出的 12px 收回来，触控高度与 chip 视觉高度与改前完全一致。**⑥ 登录页播报强度（D-20）**——「注册成功」此前走 error state（ember + `role=alert` assertive），但 ember 在本项目只表示支出与危险；拆为 notice（jade + `role=status` polite）与 error（ember + `role=alert`）两个独立 state，让颜色与播报强度跟着语义走。**⑦ 补登 §八 例外**——导入表格 `bg-gradient-to-l` 横滑遮罩（见上条契约收口）。
+
+- 2026-09-28 · 契约收口（横跨 WP-2/3/4/5 的文档合并 + 四项裁定）：**① 删除根级 `src/app/loading.tsx`（§七.2 硬规则 1）**——实测 `.next/server/app/*.html` 的 `<main>` 逐字节比对，删除前 `/`、`/data`、`/settings` 三者 SHA-256 **完全相同**（`340ad480728c`）：根级 `loading.tsx` 比路由级更外层，在预渲染产物里占据可见槽位，于是 `/data` 与 `/settings` 的首屏显示的是**总览页**的骨架（两页都写着「各账户余额 / 本月预算进度」，而它们没有这两个区块），`/data` 另带 `BAILOUT_TO_CLIENT_SIDE_RENDERING` 标记。删除后复测：五条路由 `<main>` 哈希**两两不同**，各自带真实 h1（「总览」/「曲线与查询」/「记账」/「雾夜账」），四页仍全为静态 `○`。WP-1 审核通过的是「根级骨架镜像总览」这个局部判断，遗漏的是它对**其它路由**的溢出——四页形状各异，根级那份必然是某一页的复制品，而复制品在别的路由上就是错的。**② §九 饼图色板第 8 槽 `#94A3B8` → `var(--color-dim)`（PM 标记的「契约内部矛盾」裁定）**——`#94A3B8` 是 Tailwind `slate-400` 的字面值，与 §十一 #6「禁 slate 灰阶」字面冲突。裁定**改色板、不加例外**：一份契约不能一边禁灰阶一边在自己的色板里写死灰阶色值；受控例外会把一条可机器执行的禁忌变成一句需要人来判断的散文。选 `var(--color-dim)` 而非另找一个「新灰」，因为令牌额外带来两件事——受 `prefers-contrast: more` 覆盖（`#b6bed1`，对 mist 9.54:1，写死 hex 不受）、且随主题走。对比度实测对 mist 5.78:1 / night 6.29:1 / veil 5.05:1（图形对象下限 3:1，原值 6.93/7.54/6.20），且与相邻槽的 RGB 距离（121 / 138 / 71）**大于**原值（25 / 31 / 42），相邻切片更易分辨。§十一 #6 同步补「这条对色值同样生效，不只对类名」——写死 `slate-400` 的字面值与写 `slate-400` 类名是同一件事，只是绕过了 eslint 守卫的字符串匹配。**③ [D-49] 裁定：总览 hero 沿用线框图，不加 serif 标题（§六）**——线框图比「区块头部统一 eyebrow + serif 标题」更具体，冲突时以线框图为准。理由：总览 hero 回答的是「本月账是多少」，页名「总览」对它没有信息量（其余三页的 serif 标题是导航锚点，回答「我在哪」）；且 hero 上方再压一行会把灯下大数字挤到首屏折线以下。保留的唯一硬要求是 eyebrow 同时作 `<h1>`（不是 `sr-only` + `aria-hidden` 两份文本）、四分支都有 h1、加载分支不含月份（避免构建日 ≠ 访问日）。WP-2 按线框图执行是**正确**的，此处把隐含判断写成明文。**④ 新增 `.num` 与 `.tag` 两个组件类（§八）**——`.num` = `tabular-nums` 但不改字体（计数要的是数字等宽，不是字族等宽：把中文量词「笔」和数字一起塞进 mono 是浪费），`.tag` = `.chip` 的静态版且零反馈（只读元素套 `.chip` 是假 affordance）。**⑤ 补登 §八 第三条已批准例外**——设置页导入表格的 `bg-gradient-to-l` 横滑遮罩此前未登记（[D-11 审计禁忌 #4] 标记至今）。它是 `pointer-events-none` + `aria-hidden` 的方向提示层，不是渐变按钮也不是渐变进度条；例外写明了边界（不得用于可点元素、不得改双向、不得承载文案），并给「例外清单」本身加了纪律：新增例外必须写明为什么必要 / 边界在哪 / 为什么不违反被引的那条禁忌。**⑥ WP-2/3/4/5 正文同步**：§三 金额铁律补调用约定（不手写 `¥`、符号下沉到 `formatSignedMoney`、可见文本与 `aria-valuetext` 复用同一结果）与「计数不是金额」；§七.3 把「不可点的行不加 hover」从「不要做」升级为「怎么做」（可交互 → `.chip`/`.btn-*`/`.link-subtle`；只读 → `.tag`，二选一）；§七 新增 2.8「长列表与大数据的渲染」；§十 补「错误粒度 = 请求粒度」与 `label` 必传；§十二 补「每页 `<main>` 必须有 `id="main"`」「锚点偏移单一来源」「构建产物抽查」；§十三 补「紧凑容器内 MUI Button 的 44px 触控目标配负边距」。§七.2 重写为三条硬规则（不设根级 loading / 一个区块的骨架只能有一份 / 骨架里不得含随访问变化的值），并附上产物哈希作为可复现的判据。**未在本包落地、留给接线方的**（见 `.hermes/audits/integration-report.md` 待接线清单）：`.num` / `.tag` 的调用点（`data-client.tsx` / `settings-client.tsx` / `import-client.tsx` 属并行审核中的包）、`dashboard-charts.tsx` 色板第 8 槽的代码值。本包未新增任何令牌值、未新增动效、灯线白名单未越位；`tsc --noEmit` 0 错、`eslint` 0 error 0 warning、`next build` 通过且四页仍全为静态 `○`、`contrast-check` 11/11、`format-check` 13/13 全绿。
 
 - 2026-09-28 · WP-1 design-system（契约地基：可访问性边界、安全响应头、只动合成层的转场、金额铁律符号下沉）：**① 交互控件边界拆出 `--color-fogline-strong`（D-27）**——`.input` / `.chip` 边框与 MUI `notchedOutline` 改用它（`#5E6F8C`，对 veil 3.05:1 · 对 mist 3.49:1，达 SC 1.4.11 的 3:1），`--color-fogline` 保持 `#28324A` 继续供 `.panel` 等纯装饰边框：只提亮「看得见控件在哪」的边，大面积表面不动，「雾」的层次得以保留。**② 字体字重按实际使用收敛（D-02）**——`Noto Serif SC` 600/700/900 → 仅 600，`Noto Sans SC` 400/500/700 → 400/500/600。关键事实澄清：next/font 的 `subsets` 只决定哪些 `@font-face` 加 preload，css2 请求本身不含 subset 过滤，汉字分片（U+4E00…）本就下载并自托管（构建产物实测 304 条 `@font-face`），「中文回落系统字体」不成立；真正的问题是**字重**——`font-semibold` = 600 而原声明缺 600，全站该类中文正文在 fake bold。`global-error.tsx` 重声明同一组字重（与 `layout.tsx` 逐字相同，next/font 按内容哈希去重，参数不同会重新自托管第二套字体；产物实测两处引用同一批 101 个 woff2）修 [D-50] 的字体变量丢失。**③ 四个安全响应头 + `/api/*` noindex（D-13）**——`next.config.ts` 加 `async headers()`：`X-Frame-Options: DENY` · `Referrer-Policy: strict-origin-when-cross-origin` · `X-Content-Type-Options: nosniff` · `Permissions-Policy: geolocation=(), camera=(), microphone=()`，全站 `/:path*`（实测覆盖根路径）+ `/api/:path*` 叠加 `X-Robots-Tag: noindex`（实测 9 条路由全部返回四个头，页面路由不误带 noindex）。**有意不引入 CSP**：MUI emotion 运行时注入 `<style>`，一条 `style-src` 配错即全站白屏，收益远小于风险；`X-Frame-Options: DENY` 作为点击劫持兜底。**④ 雾散转场只动合成层（D-22）**——`mist-in` 移除 `filter: blur(8px)`，基准路径只留 `opacity` + `translateY`；模糊质感改为可选增强层 `mist-in-blur`（4px），仅在 `min-resolution: 2dppx` 且 `prefers-reduced-motion: no-preference` 时叠加。**⑤ 通配过渡移入 `@layer base`（D-23）**——`*, ::before, ::after` 的 150ms 颜色过渡原为无层级声明，优先级高于一切 `@layer` 内规则，任何人写 `transition-transform` 都会被抢占；移入 base 层后工具类与组件类可按需覆盖。**⑥ reduced-motion 改 `animation: none !important`（D-30）**——原写法 `iteration-count: 1` 不是让雾静止，而是让 `alternate` 的 `fog-drift` 跳到 `to` 态后停住（平移 48px/32px 后定住）。**⑦ 跳到主内容 skip link + 导航滚动监听按视口过滤（D-26）**——`layout.tsx` body 首位加 skip link（WCAG SC 2.4.1），平时 `sr-only`，focus 时显形并带灯环（§十一 #9）；`.scroll-edge` 的唯一消费者是移动端 sticky 顶栏，故滚动监听改用 `useSyncExternalStore` 订阅 `(max-width: 639px)` 断点作为渲染期可见状态，桌面端完全不注册监听、视口跨断点时自动挂载/卸载（`getServerSnapshot` 返回 `false` 保证 hydration 首帧一致）。**⑧ MUI 只在用它的路由发货（D-10）**——新增 `mui-gate.tsx` 按 pathname 条件挂载 provider，产物实测 `/` 与 `/data` 的 13 个 client chunk 中含 0 个 MUI/emotion chunk，三个 MUI 路由各含 3–4 个且首帧已带 emotion 样式（无 FOUC）。**⑨ 金额符号下沉（D-08）**——`format.ts` 新增 `formatSignedMoney(n, kind)` 与 `amountSign(n, kind)`：符号逻辑下沉，负数一律 U+2212 前置且**吞掉 kind 前缀**（不出 `−−¥`），`¥` 紧跟其后；调用点不再手写 `¥{formatMoney(v)}`。**⑩ 分区错误面板可重试（D-06）**——`section-error.tsx` 重写：删 `catchSection`/`SECTION_FAILED` 死代码、加 `role="alert"`（SC 4.1.3）、加可选 `onRetry`（有值才渲染按钮——没有可执行补救动作时按钮是装饰不是控件）与 `label`（区分是哪一栏坏了），文案说清「发生了什么 + 怎么办」。**⑪ 区块骨架收敛为组合件（D-17）**——`page-skeleton.tsx` 新增 `SectionSkeleton`（区块头组合件，`title` 进 sr-only 供读屏区分正在等哪一栏）与 `SkeletonStatus`（`role="status" aria-busy` + sr-only「掌灯中…」外壳），`SkeletonPanel` 改为转发不保留第二份实现。**⑫ 渠道词汇表去重（D-29）**——`CHANNELS` 原有两个语义重叠项（`direct: 其他方式` 与 `other: 其他`）按「是否经由第三方支付」重新划分为 `alipay 支付宝` / `wechat 微信支付` / `direct 现金` / `other 其他渠道`，**`value` 不变**（数据库无需迁移），只改展示文案。**⑬ 其余**——锚点滚动偏移统一为 `--nav-scroll-offset`（`:target` + `section[id]` 单一入口，删掉 `.input` 上无意义的 `scroll-margin: 96px`，D-43）；`manifest` `orientation` 由 `portrait` 改 `any`（D-40）；`layout.tsx` 补 `metadataBase` + `openGraph` 与 `<noscript>` 中文兜底（四页都是 client-fetch 壳，禁用 JS 时原本是四个空白页）；删除 `formatBudget` 死代码（D-25）。第二、三、七、八、十三节表格与正文已按上述变更同步。无令牌基准值删除、无新配色、无渐变按钮、灯线白名单未越位。lint、tsc、`npm test`(57)、`test:taboo-guard`(12)、`test:api-cache`(15)、`contrast-check`(11)、`format-check`(13) 全绿；`next build` 通过且四页路由仍全为静态 `○`；`next start` 后 `curl -I` 实测四个安全头。审核报告见 `.hermes/audits/reviewer-wp1.md`。
 
