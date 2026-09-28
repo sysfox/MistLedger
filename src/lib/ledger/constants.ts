@@ -7,15 +7,13 @@ export const ACCOUNT_TYPES = [
   { value: "other", label: "其他" },
 ] as const;
 
-// 渠道是受控词汇表：四个选项必须互不重叠。
-// 旧值 direct="其他方式" 与 other="其他" 语义重叠，下拉里并排出现两个几乎一样的
-// 选项等于没得选（DESIGN.md 第十节「禁止同义漂移」）。
+// 渠道是受控词汇表：四个选项必须互不重叠（DESIGN.md 第十节「禁止同义漂移」）。
 // 现按「是否经由第三方支付」这一条轴线划分，两两不重叠：
 //   alipay  支付宝   —— 走支付宝
 //   wechat  微信支付 —— 走微信
 //   direct  现金     —— 现金 / 银行柜台 / 银行转账等不经第三方的直接支付
 //   other   其他渠道 —— 以上都不是
-// 注意：value 保持 direct / other 不变（数据库已有数据无需迁移），只改展示文案。
+// value 保持 direct / other 不变（数据库已有数据无需迁移），只改展示文案。
 export const CHANNELS = [
   { value: "alipay", label: "支付宝" },
   { value: "wechat", label: "微信支付" },

@@ -1,25 +1,18 @@
 /**
- * Path-keyed client data cache behind `useApiData`.
+ * Path-keyed client data cache behind `useApiData`. Dependency-free (no React,
+ * no `window`, no relative imports) so `node --test` can drive it directly.
  *
- * Design constraints this module exists to satisfy:
- *
- * - **No owner bleed across accounts**. Every entry carries the Supabase
- *   user id it was fetched for. `setOwner()` drops entries that belong to a
- *   different id, and `reset()` wipes everything (wired to sign-out + 401).
- * - **No self-sustaining 401 storm**. `reset({ silent: true })` wipes
- *   and notifies WITHOUT re-driving the pump; that distinction is the whole
- *   reason the option exists.
- * - **No out-of-order commits**. Each fetch takes a monotonic `seq`;
- *   `commit()` is a no-op unless the caller still holds the newest one, and the
- *   superseded request is `AbortController`-cancelled so it stops burning
- *   bandwidth instead of merely being ignored.
- * - **No writes during render**. `peek()` never mutates; entries are
- *   only created by `subscribe()` (commit time) or by an explicit `reload()`.
- * - **Bounded memory**. LRU by `lastAccess` plus a TTL, with both limits
- *   exported as constants so a script can assert them without importing React.
- *
- * This module is intentionally dependency-free (no React, no `window`, no
- * relative imports) so `node --test` can drive it directly.
+ * 五条不变量，各自对应一段代码机制：
+ * - **不跨账号串号** —— 每个 entry 带 Supabase user id，`setOwner()` 丢弃异主 entry，
+ *   `reset()` 全清（接在登出与 401 上）。
+ * - **不自激 401** —— `reset({ silent: true })` 只清只通知、不重驱动 pump，这个
+ *   silent 标志是该选项存在的全部理由。
+ * - **不乱序提交** —— 每次取数拿单调 `seq`，`commit()` 在调用方已非最新时是 no-op，
+ *   被取代的请求用 `AbortController` 真取消，而不是仅仅忽略。
+ * - **渲染期不写** —— `peek()` 从不改状态，entry 只由 `subscribe()`（提交时）或显式
+ *   `reload()` 创建。
+ * - **内存有界** —— `lastAccess` LRU + TTL，两个上限导出为常量，便于脚本在不引入
+ *   React 的前提下断言。
  */
 
 export type Snapshot<T> = {
@@ -78,7 +71,7 @@ export type ApiCache = {
   /**
    * Wipe every cached payload. Live subscribers are re-driven so they refetch,
    * UNLESS `silent` is set — a session-lost reset must not immediately re-issue
-   * the requests that just returned 401 (see).
+   * the requests that just returned 401.
    */
   reset(opts?: { silent?: boolean }): void;
   /** Exposed for `scripts/api-cache-check.mjs`. */
@@ -187,7 +180,7 @@ export function createApiCache(options: ApiCacheOptions): ApiCache {
       } catch (e) {
         if (controller.signal.aborted) return; // superseded / evicted
         // Silent refreshes keep the previous payload visible so the panel does
-        // not flash a skeleton (see notifyDataChanged).
+        // not flash a skeleton.
         if (!silent || entry.snap.data === null) {
           commit(path, entry, seq, {
             error: e instanceof Error ? e : new Error("数据加载失败，请稍后重试"),
@@ -220,7 +213,7 @@ export function createApiCache(options: ApiCacheOptions): ApiCache {
 
   /**
    * Notify every live subscriber without touching the pump. Used by
-   * `reset({ silent: true })` — see.
+   * `reset({ silent: true })`.
    */
   function notifyAll() {
     for (const path of [...subs.keys()]) notify(path);
@@ -295,7 +288,7 @@ export function createApiCache(options: ApiCacheOptions): ApiCache {
       notifyAll();
       // On session loss, only NOTIFY. Calling pump() here would
       // re-issue the very requests that just returned 401, and each one would
-      // reset the cache again — a self-sustaining storm with no upper bound.
+      // reset the cache again — an unbounded self-sustaining storm.
       // The page is navigating to /login, so nothing needs to repaint.
       if (opts?.silent) return;
       // Sign-out path: the page stays put, so live subscribers must refetch.

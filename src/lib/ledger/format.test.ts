@@ -1,17 +1,13 @@
 /**
  * 金额书写铁律（DESIGN.md 第三节）的回归测试。
  *
- * 铁律原文：支出前缀 `−`（U+2212）、收入前缀 `+`、转账前缀 `⇄`，`¥` 紧跟其后。
+ * 铁律：支出前缀 `−`（U+2212）、收入前缀 `+`、转账前缀 `⇄`，`¥` 紧跟其后。
  * 关键点是**符号在前、¥ 在后**：负数写 `−¥12.50`，不写 `¥-12.50`。
  *
- * 为什么是 src 下的 .test.ts 而不是 .hermes/audits 里的 format-check.mjs：
- * 旧脚本把 format.ts 的实现**原样抄了一份**在文件头部再断言那份抄本，
- * 于是「format.ts 改了、脚本没同步」时脚本照样全绿 —— 验证的是抄本与抄本一致，
- * 而不是被测实现。真正能防回归的形式是直接 import 真实实现。
- * 迁移后 .hermes/audits/format-check.mjs 保留为薄壳，转发到本文件。
+ * 必须直接 import 真实实现：抄一份在文件头部再断言那份抄本的话，
+ * 「format.ts 改了、断言没同步」时测试照样全绿。
  *
  * 运行：npm test（Node 内置 node:test，见 package.json）
- * 无新增依赖 —— 的立意就是让套件在 CI 里可跑。
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";

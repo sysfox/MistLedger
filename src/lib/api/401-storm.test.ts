@@ -1,37 +1,19 @@
 /**
  * End-to-end regression for the 401 self-sustaining request storm.
  *
- * The defect: `apiGet` calls `onSessionLost()` *before* throwing on a 401, and
- * that handler ran `cache.reset()`, which wiped the payloads and then called
- * `repumpAll()`. So each 401 re-armed the mounted panels, whose fresh requests
- * came back 401, which reset again — forever. The reviewer measured 84
- * requests / 80 `location.replace` from 4 panels before their probe's own cap;
- * the loop has no natural bound.
- *
- * The fix: `cache.reset({ silent: true })` — wipe + notify, no pump.
+ * `apiGet` calls `onSessionLost()` *before* throwing on a 401, and that
+ * handler runs `cache.reset()`. A non-silent reset wipes the payloads and then
+ * calls `repumpAll()`, so each 401 re-arms the mounted panels, whose fresh
+ * requests come back 401, which reset again — a loop with no natural bound.
+ * The fix is `cache.reset({ silent: true })`: wipe + notify, no pump.
  *
  * This file drives the REAL modules (`client.ts` and `api-cache.ts`) and only
  * stubs the two globals they touch: `fetch` (always answers 401) and
  * `window.location.replace` (counted). `client.test.ts` covers the same seam
- * with a single panel and with a stubbed `fetchJson`; what this file adds is
- * the two things a fix has to be judged on:
- *
- *   1. the **control group** — the pre-fix wiring (`reset()` with no flag) is
- *      re-run on every `npm test` and asserted to still blow past its cap, so
- *      the `silent` flag is proven load-bearing rather than assumed to be. If
- *      this ever stops diverging, the fix needs re-examining instead of
- *      quietly carrying an option that does nothing.
- *   2. the **magnitude** of the fix — one request per panel, against a
- *      measured baseline of thousands.
- *
- * Previously this lived as a standalone script at
- * `.hermes/audits/wp6-401-storm-repro.mjs`. It is a regression guard, not a
- * debugging aid, so it belongs where CI already runs.
- *
- * Origin: `.hermes/audits/wp6-401-storm-repro.mjs` (moved here verbatim in
- * spirit; the control group's cap is lowered from 2000 to 200 so the suite
- * stays fast — the pre-fix loop overruns any finite cap anyway, which is the
- * entire point being asserted).
+ * with a single panel and a stubbed `fetchJson`; what this adds is the CONTROL
+ * arm — the pre-fix wiring (`reset()` with no flag) is re-run on every
+ * `npm test` and asserted to still blow past its cap, so the `silent` flag is
+ * proven load-bearing rather than assumed to be.
  */
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
@@ -90,7 +72,7 @@ async function run({ silent, cap }: { silent: boolean; cap: number }) {
 
 describe("401 自激请求风暴", () => {
   it("对照组：修复前的接线不收敛（撞到探针上限而非自行停止）", async () => {
-    // NOT a claim about the current code — it calls `reset()` without the flag
+    // NOT a claim about the app's wiring — it calls `reset()` without the flag
     // purely to show the flag is load-bearing.
     const before = await run({ silent: false, cap: CONTROL_CAP });
     assert.ok(

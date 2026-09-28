@@ -1,29 +1,17 @@
 /*
  * `ConfirmSubmitButton` 的可执行验收 —— 真实挂载 + 真实事件派发。
  *
- * ## 这个文件为什么存在
+ * 存在理由：JSX 里只给 `form={formId}` 而不写 `type` 时，MUI ButtonBase 会把
+ * undefined 的 type 补成 `"button"`（`useButtonBase.js:96`）。按 HTML 规范，
+ * `form` 只负责「关联到哪个表单」，**提交行为由 `type` 决定** —— 于是一个
+ * `type="button"` 的确认按钮永远不会提交它关联的表单，调用点 100% 失效。
+ * 这类缺陷 `tsc` 与 `eslint` 都抓不到：它们不检查 DOM 属性组合的运行时语义。
+ * 所以本文件用 jsdom + `react-dom/client` 真实挂载、真实派发事件来断言。
  *
- * 上一版把「二次确认」收敛到组件后，**「确认」按钮根本没配 `type`**。JSX 里
- * 只给了 `form={formId}`，MUI ButtonBase 把 undefined 的 type 补成 `"button"`
- * （`@mui/material/ButtonBase/useButtonBase.js:96`）。按 HTML 规范，`form`
- * 属性只负责「关联到哪个表单」，**提交行为由 `type` 决定** —— 于是
- * `type="button"` 的按钮永远不会提交它关联的表单。
- *
- * 后果不是「可以绕过二次确认」，而是更糟的「**什么都做不成**」：
- * 记账页的「删除」与「保存修改」两个调用点 100% 失效。
- *
- * 这类缺陷 `tsc` 和 `eslint` 都抓不到 —— 它们不检查 DOM 属性组合的运行时语义。
- * 所以本文件用 jsdom + `react-dom/client` 真实挂载、真实派发鼠标与提交事件来断言。
- *
- * ## 断言分两组
- *
- * · **A 组 · 能完成操作**：确认按钮真的提交，action 被调用恰好 1 次。
- *   这是 P0 的正面证据。
- * · **B 组 · 拦得住**：四条绕过尝试全部被拦下并弹框。
- *   这是「二次确认」这一半的契约，改组件时不能回归。
- *
- * 两条路径是同一个不变量的两面：**只有带 `data-confirm-submit` 标记的
- * submitter 能通过 onSubmit，其余一律先弹框。**
+ * 断言分两组：**A 组**证明能完成操作（确认按钮真的提交，action 恰好被调 1 次），
+ * **B 组**证明拦得住（四条绕过尝试全部被拦下并弹框）。两条路径是同一个不变量的
+ * 两面：**只有带 `data-confirm-submit` 标记的 submitter 能通过 onSubmit，
+ * 其余一律先弹框。**
  */
 
 import assert from "node:assert/strict";
@@ -67,10 +55,9 @@ interface Mounted {
 // action 打桩：记录每一次真实提交带进来的 FormData
 
 /**
- * 一次提交的快照：`FormData.entries()` 是 `[string, FormDataEntryValue][]`，
- * 而 `FormDataEntryValue = string | File`。这里**不做**「一律当 string」的窄化
- * —— 上一版把 `Call` 声明成 `Map<string, string>`，`File` 分支就永远打不进类型
- * 系统里，TS 报 TS2345。用元组数组原样保留联合类型，断言里再按实际值比较。
+ * 一次提交的快照。`FormDataEntryValue = string | File`，这里**不做**「一律当
+ * string」的窄化 —— 那样 `File` 分支就永远打不进类型系统里，TS 报 TS2345。
+ * 用元组数组原样保留联合类型，断言里再按实际值比较。
  */
 type Call = Array<[string, FormDataEntryValue]>;
 
@@ -88,9 +75,8 @@ function makeCallSite() {
  * 本文件挂过的所有实例，`afterEach` 统一收走。
  *
  * 没有它，**一条失败的断言会污染后面所有用例**：`assert` 一抛错，用例末尾的
- * `cleanup()` 就被跳过，于是打开的确认框连同它的 root 活到下一个用例里。
- * 上一版就是这么从 1 条失败放大成 10 条的，而且残留的挂载 root 还会让
- * `npm test` 永不退出。清理必须由框架兜底，不能指望每个用例都跑到最后一行。
+ * `cleanup()` 就被跳过，打开的确认框连同它的 root 活到下一个用例里，残留的
+ * 挂载 root 还会让 `npm test` 永不退出。清理必须由框架兜底。
  */
 const mountedHandles: Array<{ cleanup(): void }> = [];
 
@@ -108,9 +94,8 @@ function renderComponent(element: ReactElement) {
 describe("ConfirmSubmitButton · 二次确认与真实提交", () => {
   // 用组件真实的 props 类型，而不是 `(props: unknown) => ReactElement`：
   // 后者会让 `React.createElement` 落到「props 必须是 Attributes」的分支上，
-  // 于是每个 `action` / `label` 都报 TS2769（上一版 13 条 TS 错误的来源）。
-  // 类型只从源码 import（`import type` 会被完全擦除），运行时仍走 harness 的
-  // require 管线 —— 两条路径互不干扰。
+  // 于是每个 `action` / `label` 都报 TS2769。类型只从源码 import（`import type`
+  // 会被完全擦除），运行时仍走 harness 的 require 管线 —— 两条路径互不干扰。
   let ConfirmSubmitButton: ComponentType<ConfirmSubmitButtonProps>;
 
   before(() => {
@@ -131,7 +116,7 @@ describe("ConfirmSubmitButton · 二次确认与真实提交", () => {
     harness.restore();
   });
 
-  // A 组 · 修好之后，操作必须真的发生
+  // A 组 · 能完成操作
 
   describe("A 组 · 能完成操作（P0 的正面证据）", () => {
     it("A1 确认按钮是 type=submit 且显式关联到表单 —— 缺任一条都不会提交", async () => {
@@ -303,11 +288,9 @@ describe("ConfirmSubmitButton · 二次确认与真实提交", () => {
      *
      * 每个用例都带一个 `validate` 计数器：**被拦下的提交一定会走到
      * `requestConfirm()` → `validate()`**。这是判定「拦下 vs 放行」唯一可靠的
-     * 信号 —— 不能用 `event.defaultPrevented`：实测 React 19 的 `<form action>`
-     * 自己就会把原生 submit 事件标成 `defaultPrevented === true`（它接管了提交，
+     * 信号 —— 不能用 `event.defaultPrevented`：React 19 的 `<form action>`
+     * 自己就把原生 submit 事件标成 `defaultPrevented === true`（它接管了提交，
      * 阻止真正的导航），所以「被拦下」和「放行」两条路径上它**都是 true**。
-     * 上一版 B5 断言 `defaultPrevented === false` 是一条永远不可能成立的断言，
-     * 它失败后跳过了 cleanup，把打开的确认框泄漏给后面的用例，连锁打挂 C3/C4/D1/D3。
      */
     function fresh(id: string) {
       const site = makeCallSite();

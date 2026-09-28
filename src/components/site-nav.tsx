@@ -56,9 +56,9 @@ export default function SiteNav() {
   const isMobileViewport = useIsMobileViewport();
 
   useEffect(() => {
-    // .scroll-edge 只给移动端 sticky 顶栏用（桌面 body 顶部已预留栏高，内容不进入栏下）。
-    // 原实现在所有视口注册滚动监听，桌面端每次滚动都跑一次 rAF + 读 scrollY，
-    // 而 setScrolled 的唯一消费者 data-scrolled 只存在于 < sm 的元素上 —— 零收益。
+    // .scroll-edge 只给移动端 sticky 顶栏用（桌面 body 顶部已预留栏高，内容不进入
+    // 栏下）。桌面端注册滚动监听是零收益：data-scrolled 的唯一消费者是 sm:hidden
+    // 的元素，桌面端根本渲染不出来。
     if (!isMobileViewport) return;
     let raf = 0;
     const read = () => {
@@ -86,18 +86,10 @@ export default function SiteNav() {
   if (pathname === "/login") return null;
 
   // 登出必须清空 /api/* 客户端缓存，这是跨账号数据泄露的最后一块拼图。
-  //
-  // 为什么必须在这里、且必须在 await 之前：
-  // - 登出走的是客户端路由跳转（router.push），不整页刷新，模块级 entries Map 存活。
-  // - 登出**不发 401**，所以 client.ts 的 401 → cache.reset() 这条防线在
-  //   「用户主动点退出」这条路径上根本不触发。
-  // - 后果：A 登出 → B 登入 → 四个页面挂载时命中 A 的 /api/overview 旧 entry，
-  //   snap.data !== null，于是一次网络请求都不发，直接把 A 的账渲染给 B。
-  //
-  // 放在 await supabase.auth.signOut() 之前（而非之后）：signOut() 抛错走 catch
-  // 直接 return 时，用户其实仍处于登录态，此时清缓存只是让下次挂载重取一次，
-  // 无副作用；而反过来（先 await 成功、再清）一旦 await 抛错就漏清。
-  // cache.reset() 幂等，且会 repump 活着的订阅者重新取数，不会留下永久空面板。
+  // 放在 await supabase.auth.signOut() 之前：登出走客户端路由跳转，不整页刷新，
+  // 模块级 entries Map 存活；且登出**不发 401**，client.ts 的 401 → reset 防线
+  // 在这条路径上根本不触发。signOut() 抛错直接 return 时用户其实仍登录着，
+  // 此时清缓存只是让下次挂载重取一次；反过来先 await 成功再清就会漏清。
   function signOut() {
     resetApiCache();
     startTransition(async () => {

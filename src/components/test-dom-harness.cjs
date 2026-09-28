@@ -1,20 +1,17 @@
 /*
  * jsdom + TSX 的真实挂载环境，供 `src/` 下的 `*.test.ts` 使用。
  *
- * 为什么需要它：`npm test` 跑的是 `node --experimental-strip-types --test`，
- * 它只剥类型、不转译 JSX，也不认识 tsconfig 的 `@/*` 路径别名，更没有 DOM。
- * 于是「组件在真实浏览器里到底做了什么」这类问题（本轮 P0 的根因正是
- * 「DOM 属性组合的运行时语义」）无法被现有测试体系覆盖 —— 静态类型检查
+ * `npm test` 跑的是 `node --experimental-strip-types --test`，它只剥类型、
+ * 不转译 JSX，也不认识 tsconfig 的 `@/*` 路径别名，更没有 DOM。于是「组件在
+ * 真实浏览器里到底做了什么」这类问题无法被现有测试体系覆盖 —— 静态类型检查
  * 看不见 `form` 与 `type` 的区别。
  *
- * 本文件只做**管道**（DOM 注入、TSX 转译、别名解析、依赖打桩），
- * 一条断言都不写：断言全部在 `.test.ts` 里，那边是类型检查 + ESLint 覆盖的。
- * 同理它是 `.cjs` 而非 `.ts`：Node 内置的 `Module._extensions` / `Module._load`
- * 这些加载器内部接口没有官方类型，写成 TS 只能靠断言绕过，那等于把类型系统
- * 关掉再声称通过。
+ * 本文件只做**管道**（DOM 注入、TSX 转译、别名解析、依赖打桩），一条断言
+ * 都不写：断言全部在 `.test.ts` 里。它是 `.cjs` 而非 `.ts`：`Module._extensions`
+ * / `Module._load` 这些加载器内部接口没有官方类型，写成 TS 只能靠断言绕过。
  *
- * 顺带说明：Node 的 `--test` 对每个测试文件开独立子进程，所以这里往 global
- * 上挂 `window` / `document` 不会污染同批次的其他测试文件。
+ * Node 的 `--test` 对每个测试文件开独立子进程，所以这里往 global 上挂
+ * `window` / `document` 不会污染同批次的其他测试文件。
  */
 
 /* eslint-disable @typescript-eslint/no-require-imports --
@@ -26,9 +23,8 @@
  * 就完成解析，那时打桩还没装上，组件会以「模块解析失败」的形式挂掉，
  * 而不是以「行为断言失败」的形式暴露问题。
  *
- * `@typescript-eslint/no-require-imports` 存在的意义是拦住**源码**里的
- * CommonJS 残留（TS 走 `verbatimModuleSyntax` 时这会是真 bug）。本文件不在
- * 该规则的适用范围内：它就是加载器本身，每个 `require` 都必需。
+ * 该规则拦住的是**源码**里的 CommonJS 残留（TS 走 `verbatimModuleSyntax`
+ * 时这会是真 bug）。本文件就是加载器本身，每个 `require` 都必需。
  */
 
 "use strict";
@@ -149,10 +145,10 @@ Module._resolveFilename = function resolveFilename(request, ...rest) {
 
 /**
  * 调用点组件会 import server action 与浏览器 API 模块：前者要 Supabase
- * 与 `next/cache`，后者要 `window` 上的自定义事件。两者都不是本轮要验证的
- * 对象，而它们在 Node 里直接 import 会失败（`"use server"` 目录无法解析、
- * `next/*` 依赖构建产物）。所以按 **specifier** 打桩 —— 与调用方源码里写的
- * 字符串完全一致，任何拼写漂移都会让桩失效并立刻抛错，而不是静默走到真模块。
+ * 与 `next/cache`，后者要 `window` 上的自定义事件。它们在 Node 里直接 import
+ * 会失败（`"use server"` 目录无法解析、`next/*` 依赖构建产物）。所以按
+ * **specifier** 打桩 —— 与调用方源码里写的字符串完全一致，任何拼写漂移都会
+ * 让桩失效并立刻抛错，而不是静默走到真模块。
  */
 const stubs = new Map();
 const previousLoad = Module._load;
@@ -174,15 +170,11 @@ const { act } = React;
 const ReactDOMClient = require("react-dom/client");
 
 /**
- * 尚未卸载的 root。
- *
- * **它存在的唯一理由是让进程能退出。** 实测：只要还有一个挂载中、且确认框
- * 打开的 root 留在文档里，事件循环上就有一个 ref 住的句柄，`--test` 永远不会
- * 结束（`npm test` 直接挂到超时）；逐个 `unmount()` 掉立刻就退出了。
- *
- * 靠测试文件自己记得清理是不可靠的：断言一抛错，后面的 `cleanup()` 就被跳过，
- * 于是**第一条失败的断言会污染后面所有用例**，并让整个 run 挂死。
- * 所以由 harness 统一记账，`restore()` 兜底。
+ * 尚未卸载的 root。**存在的唯一理由是让进程能退出**：只要还有一个挂载中、
+ * 且确认框打开的 root 留在文档里，事件循环上就有一个 ref 住的句柄，
+ * `--test` 永远不会结束（`npm test` 直接挂到超时）。
+ * 靠测试文件自己清理不可靠：断言一抛错后面的 `cleanup()` 就被跳过，于是
+ * **第一条失败的断言会污染后面所有用例**并让整个 run 挂死。故由 harness 记账。
  */
 const liveRoots = new Set();
 
@@ -284,11 +276,9 @@ function dialog(doc = dom.window.document) {
  * **判据必须是容器的不透明度，不能是「节点还在不在」。** MUI v9 的 Dialog
  * 关闭时走 `Fade`：root 节点会**继续留在 DOM 里直到过渡动画播完**，实测点
  * 确认后 200ms 内 `.MuiDialog-root` 依然存在；`data-state` 属性则根本不存在
- * （MUI v5 的 `data-state="exited"` 已被移除）。所以「节点存在」在关闭期间
- * 为真，会把「已关闭」误判成「仍打开」—— 上一版 10 条断言集体变红正是这个原因。
- *
- * `.MuiDialog-container` 上的内联 `opacity` 才是可靠的开关信号：
- * 打开时 `opacity: 1`，关闭动画一开始就是 `opacity: 0`。
+ * （MUI v5 的 `data-state="exited"` 已被移除）。「节点存在」在关闭期间为真，
+ * 会把「已关闭」误判成「仍打开」。`.MuiDialog-container` 上的内联 `opacity`
+ * 才是可靠的开关信号：打开时 `1`，关闭动画一开始就是 `0`。
  */
 function dialogOpen(doc = dom.window.document) {
   const root = dialog(doc);

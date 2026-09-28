@@ -84,10 +84,9 @@ describe("登出 / 401 清空", () => {
   });
 
   it("the non-silent reset is the one that loops (the regression's cause)", async () => {
-    // Same shape as above but WITHOUT `silent` — i.e. the pre-fix behaviour.
-    // It exists to pin down *why* the option is needed: if this ever stops
-    // looping, the silent flag is no longer load-bearing and someone should
-    // re-examine the fix rather than keep carrying it.
+    // Same shape as above but WITHOUT `silent`. It exists to pin down *why*
+    // the option is needed: if this ever stops looping, the silent flag is no
+    // longer load-bearing and someone should re-examine the fix.
     let calls = 0;
     const cache = createApiCache({
       fetchJson: async () => {

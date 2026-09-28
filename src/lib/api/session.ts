@@ -33,13 +33,12 @@ function createSupabaseForRequest(request: NextRequest, refreshed: CookieToSet[]
  * Supabase client scoped by RLS.
  * Returns a 401 NextResponse when unauthenticated.
  *
- * The 401-vs-503 decision is delegated to
- * `classifyAuthOutcome` rather than re-derived here, because the trap is that
- * `getClaims()` does *not* throw on an upstream fault — auth-js catches it and
- * returns `{ data: null, error: AuthRetryableFetchError }`, which a plain
- * `if (error) → 401` reads as a logout. A Supabase blip must not sign the user
- * out of the form they are filling in, so the classification lives in the
- * dependency-free module and gets its own tests.
+ * The 401-vs-503 decision is delegated to `classifyAuthOutcome` rather than
+ * re-derived here, because `getClaims()` does *not* throw on an upstream
+ * fault — auth-js catches it and returns `{ data: null, error:
+ * AuthRetryableFetchError }`, which a plain `if (error) → 401` reads as a
+ * logout. A Supabase blip must not sign the user out of the form they are
+ * filling in.
  */
 export async function requireApiSession(
   request: NextRequest,

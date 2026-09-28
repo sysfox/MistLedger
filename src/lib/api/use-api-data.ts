@@ -18,8 +18,7 @@ const cache: ApiCache = createApiCache({ fetchJson: apiGet });
 // `silent: true` is mandatory here, not an optimisation. Without it
 // `reset()` re-drives the pump, which re-issues the very requests that just
 // returned 401; each of those 401s resets again, and the loop has no upper
-// bound (measured: 84 requests / 80 redirects from 4 panels before the probe's
-// own cap). The page is being navigated to /login, so nothing needs a repaint.
+// bound. The page is being navigated to /login, so nothing needs a repaint.
 setSessionLostHandler(() => cache.reset({ silent: true }));
 
 /**
@@ -45,24 +44,16 @@ export function resetApiCache(opts?: { silent?: boolean }): void {
 /**
  * Deliberately NOT exported.
  *
- * An earlier revision shipped `setApiCacheOwner(userId)` as an optional second
- * line of defence. It was never called, and wiring it would have been wrong:
+ * `site-nav.tsx` learns the signed-in id only *after* `resetApiCache()` has
+ * already run on sign-out, so by the time an id is available the cache is
+ * empty — an owner tag here would guard nothing. The case it would cover
+ * (account switch without a sign-out) already arrives through one of the two
+ * reset paths, because Supabase reuses the same cookie jar: an explicit
+ * sign-out, or a 401 on the next fetch. Both wipe unconditionally.
  *
- * - `site-nav.tsx` learns the signed-in id only *after* `resetApiCache()` has
- *   already run on sign-out, so by the time an id is available the cache is
- *   empty — the tag would guard nothing.
- * - The case it was designed for (account switch without a sign-out) is
- *   already covered: Supabase reuses the same cookie jar, so a different
- *   account always arrives through one of the two reset paths (explicit
- *   sign-out, or a 401 on the next fetch). Both wipe unconditionally.
- * - An unused export is a maintenance liability, and its whole point is
- *   that "the docs claim it works" must be machine-checkable rather than
- *   aspirational. Shipping a documented-but-dead security hook is the exact
- *   failure mode that audit is about.
- *
- * `cache.setOwner()` remains on the `ApiCache` interface because the
- * executable D-01 proof (`scripts/api-cache-check.mjs`) exercises it directly
- * as the owner-tagging invariant. The app simply never wires it.
+ * `cache.setOwner()` stays on the `ApiCache` interface because
+ * `scripts/api-cache-check.mjs` exercises it directly as the owner-tagging
+ * invariant. The app simply never wires it.
  */
 
 export { API_CACHE_MAX_ENTRIES, API_CACHE_TTL_MS } from "./api-cache";

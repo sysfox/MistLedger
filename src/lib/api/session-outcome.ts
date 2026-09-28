@@ -1,22 +1,17 @@
 /**
  * The 401-vs-503 decision, isolated as a pure function.
  *
- * Why this is its own module instead of a branch inside `session.ts`:
- * `session.ts` imports `next/server`, which Node's ESM resolver cannot load
- * outside a Next build, so a `node --test` suite could never reach the branch
- * that actually matters. This file is dependency-free (bar the auth-js error
- * classes) and the decision is the whole point, so it is worth
- * naming and testing on its own.
+ * Dependency-free (bar the auth-js error classes) so `node --test` can drive
+ * it: `session.ts` imports `next/server`, which Node's ESM resolver cannot
+ * load outside a Next build, and this branch is the one that matters.
  *
- * The bug this exists to prevent: `@supabase/auth-js` does NOT throw
- * on an upstream fault. `GoTrueClient.getClaims` — and `_refreshAccessToken`
- * beneath it — catch their own errors and return them as `{ data: null, error }`
- * (`GoTrueClient.js:4041-4044` and `:5569-5575`), because `AuthRetryableFetchError`
- * is a subclass of `AuthError` and `isAuthError(error)` is therefore true.
- * So the `try/catch` in `session.ts` almost never fires, and a plain
- * `if (error || !claims) return 401` misclassifies the single most common
- * real-world failure — expired token *plus* a Supabase blip — as a logout,
- * kicking the user out of the form they were filling in.
+ * `@supabase/auth-js` does NOT throw on an upstream fault. `getClaims` and
+ * `_refreshAccessToken` catch their own errors and return them as
+ * `{ data: null, error }` (`GoTrueClient.js:4041-4044`, `:5569-5575`), because
+ * `AuthRetryableFetchError` extends `AuthError`, so `isAuthError(error)` is
+ * true. A plain `if (error || !claims) return 401` therefore misclassifies
+ * expired-token-plus-Supabase-blip — the most common real failure — as a
+ * logout.
  */
 
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";

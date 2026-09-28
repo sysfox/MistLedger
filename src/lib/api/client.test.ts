@@ -3,9 +3,9 @@
  *
  * `client.ts` is `"use client"` but has no React or DOM *import*, so Node can
  * drive it directly: `fetch` and `window` are the only globals it touches, and
- * both are stubbed below. That matters — the defect this suite exists for lived
- * in the seam between `apiGet`'s 401 branch and the cache's session-lost
- * handler, which no cache-only test can reach.
+ * both are stubbed below. That matters — the seam this suite exists for lives
+ * between `apiGet`'s 401 branch and the cache's session-lost handler, which no
+ * cache-only test can reach.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -73,14 +73,12 @@ describe("401 vs 503 分流", () => {
     assert.equal(lost, 0, "an outage is not a session loss");
   });
 
-  // [R2-03] The copy assertion, and the reason the sibling assertions above
-  // were not enough. They check status 503 + retryable — but the generic
-  // `!res.ok` branch produces *exactly* those for a 503, so deleting the whole
-  // dedicated 503 branch kept the suite green (mutation M4 survived). The two
-  // branches differ in one observable way only: this one ignores the server
-  // body and shows fixed outage copy. `respondWith(503, …)` above supplies a
-  // machine-readable body precisely so this test can prove it is discarded
-  // rather than passed through — the same rule enforces elsewhere.
+  // The copy assertion is load-bearing: the assertions above check status 503
+  // + retryable — but the generic `!res.ok` branch produces *exactly* those
+  // for a 503, so deleting the dedicated branch would keep this suite green.
+  // The two differ in one observable way only: this one ignores the server
+  // body and shows fixed outage copy. `respondWith(503, …)` supplies a
+  // machine-readable body precisely so this test can prove it is discarded.
   it("503 shows the outage copy and never the server's machine code", async () => {
     respondWith(503, { error: "service-unavailable" });
 

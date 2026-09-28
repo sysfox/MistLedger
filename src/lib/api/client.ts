@@ -6,9 +6,8 @@
  * The 401/503 split is the whole point of this module. A 401 means the
  * session is really gone and the user must land on /login; a 503 (or any other
  * 5xx, or a dead network) is an *upstream* fault and must leave the user where
- * they are, filling in the form they were filling in. Collapsing the two — which
- * is what the pre-fix shape did — logs people out because Supabase had a bad
- * minute.
+ * they are, filling in the form they were filling in. Collapsing the two logs
+ * people out because Supabase had a bad minute.
  *
  * Server copy is passed through, but only when it is *human* copy. A
  * machine-readable code (`unauthenticated`, `service-unavailable`) reaching the
@@ -106,10 +105,9 @@ export async function apiGet<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) {
-    // [R2-03] 503 gets its own branch purely so the outage copy is *not* the
-    // server's body. The generic branch produces the same status + retryable
-    // pair, so deleting this branch would change nothing observable — which is
-    // exactly the mutation that previously survived the suite.
+    // 503 单独一支：唯一可观察差别是文案不吃服务端 body，只用固定的中文
+    // 故障提示。通用 `!res.ok` 分支给出完全相同的 status + retryable 组合，
+    // 所以删掉这一支不会有任何可观察变化 —— 这正是它必须被断言守住的地方。
     if (res.status === 503) {
       throw new ApiError(OUTAGE_MESSAGE, 503, true);
     }

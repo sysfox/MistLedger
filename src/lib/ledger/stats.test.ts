@@ -1,10 +1,7 @@
 /**
  * Test coverage for the pure modules that carry real logic.
  *
- * Runner: Node's built-in `node:test` (see `npm test`). No extra dependency —
- * the point of was to make the suite runnable in CI, and a 100 MB test
- * framework to assert two pure functions would defeat it.
- *
+ * Runner: Node's built-in `node:test` (see `npm test`). No extra dependency.
  * Type stripping is enabled explicitly so this runs on Node 22.18+ as well as
  * 23+, where it is the default.
  */

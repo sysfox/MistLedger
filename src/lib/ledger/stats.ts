@@ -1,32 +1,11 @@
-// 死代码核查（WP-3）：本文件早前被列为「164 行零调用点的死代码」。
-// 下面每个导出都有**真实调用点或真实测试**兜底，故一行不删。
-// 以下清单由 `grep -rn '\b<fn>\b' src/` 于 WP-3 返工时逐个核对，
-// 路径均已 `ls` 验证存在：
-//
-//   ① 日期口径（生产调用点，共 3 个文件）
-//      shiftDays / monthEnd / prevMonthKey
-//                              → src/app/data/presets.ts
-//      lastDayKeys / shanghaiDate
-//                              → src/app/data/data-client.tsx
-//      shanghaiDate            → src/app/ledger/transaction-form.tsx
-//      （以上日期函数另由 src/app/data/query-params.test.ts 覆盖）
-//
-//   ② 仅由 src/lib/ledger/stats.test.ts 直接覆盖（无生产调用点，
-//      保留是因为它们是服务端聚合口径的可执行规格，删掉就没有回归网）
-//      filterTxs / TxFilter / monthKey / lastMonths / monthlyTrend /
-//      categoryShare / assetCurve / summarizeTxs / accountBalances
-//
-// `num()` 是上面两组的公共收敛点。删任何一行都会同时打断调用点或 `npm test`。
-
 /**
  * 全站唯一的「上海今天」口径。
  *
  * 记账的日期边界必须按 `Asia/Shanghai` 算，而不是浏览器本地时区：UTC 以西的
  * 用户在两端会看到不同的「今天」，于是记进错的一天。用 `en-CA` 是因为它输出
- * `YYYY-MM-DD`，省掉一次手工拼接（也省掉 padStart 写错的机会）。
+ * `YYYY-MM-DD`，省掉一次手工拼接。
  *
- * 函数式求值（不是模块加载时），所以每次访问取的都是访问日，不会被静态预渲染
- * 冻成构建日 —— 这正是 预设链接事故的根因。
+ * 每次访问现取，不在模块加载时求值 —— 否则会被静态预渲染冻成构建日。
  */
 const SHANGHAI_DATE = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Shanghai",
@@ -47,8 +26,8 @@ function pad2(n: number): string {
 /**
  * 把 `YYYY-MM-DD` 平移 delta 天，返回同格式。
  *
- * 全程走 **UTC** 字段，不是本地字段：旧实现 `new Date(y, m-1, d+delta)` 配
- * 本地 getter，跨夏令时切换会掉一天，而答案还随服务器时区变化。UTC 口径下
+ * 全程走 **UTC** 字段，不是本地字段：本地构造的 `new Date(y, m-1, d+delta)`
+ * 配本地 getter，跨夏令时切换会掉一天，而答案还随服务器时区变化。UTC 口径下
  * 这段纯算术在任何 TZ 下都得同一结果（`query-params.test.ts` 有断言）。
  *
  * 月份溢出交给 `Date.UTC` 归一化：`2026-01-31 + 1` 直接得到 2026-02-01，
