@@ -32,14 +32,11 @@ const ACCOUNT_PLACEHOLDER: Record<string, string> = {
 };
 
 /**
- * 默认日期 = **上海时区的今天**。
+ * 默认日期 = **上海时区的今天**（`src/lib/ledger/stats.ts` 的 shanghaiDate，全站唯一口径）。
+ * 不可用浏览器本地时区：UTC 以西的用户会与 `/data` presets、资产曲线、`/api/*` 月界
+ * 在两端看到不同的「今天」，于是记进错的一天。
  *
- * 原来的 `localToday()` 读的是浏览器本地时区，而 `/data` 的 presets、总览的资产曲线、
- * `/api/*` 的月界全部按 `Asia/Shanghai`（见 `src/lib/ledger/stats.ts` 的 shanghaiDate）。
- * 时区在 UTC 以西的用户在两端会看到不同的「今天」，于是记进错的一天。
- * 现在直接复用全站唯一的那份口径，不再各算各的。
- *
- * 该函数是**调用时**求值（不是模块加载时），所以每次访问取的都是访问日，
+ * 该函数是**调用时**求值而非模块加载时，所以每次访问取的都是访问日，
  * 不会被静态预渲染冻成构建日。
  */
 function today() {
@@ -146,8 +143,8 @@ export default function TransactionForm({
             name="channel"
             label={isIncome ? "来源渠道" : "渠道"}
             labelId="tx-channel-label"
-            // 默认值取最中性的「现金 / 银行柜台等不经第三方的直接支付」，
-            // 不再默认支付宝：原默认值会把银行转账、现金支出记成支付宝渠道，污染统计。
+            // 默认值取最中性的「现金 / 银行柜台等不经第三方的直接支付」：
+            // 默认支付宝会把银行转账、现金支出记成支付宝渠道，污染统计。
             // 与 `actions.ts` 里 `formData.get("channel") ?? "direct"` 的兜底一致。
             defaultValue="direct"
           >

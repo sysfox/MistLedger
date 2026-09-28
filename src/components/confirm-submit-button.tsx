@@ -2,39 +2,21 @@
 
 // 二次确认提交按钮 —— 全站唯一实现。
 //
-// 审查前，delete/edit/adjust 六处各自复制了同一套「拦截 submit → 弹 Dialog →
-// requestSubmit() → armedRef 复位」逻辑（约 300 行逐字重复），且那个
-// 「成功后永久锁死」的 bug 就是在这份复制里被复制了六次。本组件把流程收敛到一处。
+// 与代码行为直接相关的四条约束：
 //
-// 三条设计约束：
+// 1. 确认按钮经 `form={formId}` 关联表单：Dialog 走 Portal 渲染到 body，不在表单
+//    DOM 后代内。
+// 2. 确认按钮必须同时写 `type="submit"`。`form` 只决定「提交哪个表单」，提交行为由
+//    `type` 决定；MUI ButtonBase 把 undefined 的 type 补成 "button"
+//    (useButtonBase.js:96)，漏写则对话框收起而 action 从不被调用。
+// 3. 触发按钮是 `type="button"`，有意为之：点它走 onClick，不触发隐式提交。代价是
+//    没有浏览器代劳的校验时机，故 requestConfirm 自行调 form.reportValidity()。
+// 4. 不用 armedRef。放行与否由事件本身派生：仅当 submitter 带
+//    data-confirm-submit="1" 才直通，否则先弹框。回车隐式提交的 submitter 为 null，
+//    同样被拦下，不存在绕过确认的路径。
 //
-// 1. **不用 armedRef。** 过去的做法是 `armedRef.current = true; requestSubmit()`，
-//    命令式旗标在并发渲染下是脆的，且每次提交都要记得复位。本组件改为从**事件本身**
-//    派生：Dialog 里的「确认」按钮带 `data-confirm-submit="1"`，表单的 onSubmit
-//    只放行由它发起的提交，其余一律先弹确认框。回车隐式提交的 `submitter` 为 null，
-//    同样会被拦下确认 —— 不存在「绕过确认的提交路径」。
-//
-// 2. **确认按钮经 `form` 属性关联表单，且必须是 `type="submit"`。** Dialog 经 Portal
-//    渲染到 body，不在表单 DOM 后代内，所以要显式 `form={formId}`（与
-//    settings/import-client.tsx 同一手法）。
-//    ⚠️ `form` 属性**只负责「关联」**（决定点它提交哪个表单），**提交行为由 `type` 决定**。
-//    只写 `form` 不写 `type` 时，MUI ButtonBase 会把 undefined 的 type 补成 `"button"`
-//    （`@mui/material/ButtonBase/useButtonBase.js:96`），于是「确认删除」点了等于没点 ——
-//    对话框收起、action 从不被调用。**这一行 `type="submit"` 是不可删的。**
-//
-// 3. **触发按钮是 `type="button"`，这是有意的，不是漏写。** 点它走 onClick 开框，
-//    既不提交也不触发浏览器的隐式提交。若改成 `type="submit"`，一次点击会同时跑
-//    onClick（开框）和 onSubmit（拦下后开框）两条路径，`validate()` 会被调用两次，
-//    副作用与「弹两次框」的时序都变得不确定。代价是要自己调 `form.reportValidity()`，
-//    因为 `type="button"` 没有浏览器代劳的原生校验时机 —— 见 `requestConfirm`。
-//    「回车隐式提交」不依赖默认按钮：表单内没有 submit 按钮时，规范规定由表单自身
-//    提交，`submitter` 为 `null`，同样被 onSubmit 拦下开框。
-//
-// 行为契约（六个调用点一致，且与改造前逐条对齐）：
-//   · Esc 关闭、点遮罩关闭 —— 由 MUI Dialog 的 onClose 提供
-//   · 确认后提交 —— 真实的 <form action> 提交，useActionState 正常收到 FormData
-//   · pending 期间禁用 —— 触发按钮与确认框两个按钮都 disabled
-//   · 二次确认 —— 任何提交（含回车）都必须先过确认框
+// 契约：Esc / 点遮罩关闭（走 Dialog onClose）；确认后是真实的 <form action> 提交，
+// useActionState 正常收到 FormData；pending 期间两个按钮都 disabled。
 
 import {
   useId,

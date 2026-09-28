@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 /**
- * Proves the DESIGN.md §十一 lint guards actually fail.
- *
- * A lint rule that never fires is indistinguishable from no rule at all, and
- * these are the rules standing between the taboo list and a `text-zinc-500`.
- * So: write a throwaway file that violates each guard, run ESLint against it,
- * assert the expected message came back, then delete the file.
+ * Proves the DESIGN.md §十一 lint guards actually fail. A rule that never fires is
+ * indistinguishable from no rule at all, so: write a throwaway file that violates each guard,
+ * run ESLint against it, assert the expected message came back, then delete the file.
  *
  * Usage: node scripts/check-taboo-guard.mjs
  * Exit code 0 = every guard fired as designed.
@@ -20,15 +17,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PROBE_REL = "src/__taboo_guard_probe__.tsx";
 const VIOLATION_FILE = join(ROOT, "src", "__taboo_guard_probe__.tsx");
 
-/** Each case: a label, the probe source, and either `expect` (must fire) or
- *  `expectNot` (must stay silent — a false-positive guard).
+/**
+ * Each case: a label, the probe source, and either `expect` (must fire) or `expectNot` (must
+ * stay silent — a false-positive guard).
  *
- * The `CONSTRUCTION_ROUTES` block below is the load-bearing part.
- *  Every way of assembling a class name at runtime is a separate escape unless
- *  the rule covers it: two earlier review rounds were rejected for exactly this
- *  — the rule scanned `TemplateLiteral` quasis, then someone reached the same
- *  result through `+` concatenation. A new route is a new bypass, so a new
- *  probe belongs here before the route is called supported.
+ * The `CONSTRUCTION_ROUTES` block below is load-bearing: every way of assembling a class name
+ * at runtime is a separate escape unless the rule covers it. A new route needs a probe here
+ * before the route is called supported.
  */
 const CASES = [
   {
@@ -82,8 +77,8 @@ const CASES = [
     expect: "window.confirm",
   },
 
-  // ---- construction routes: every one of these is an escape hatch
-  // unless the rule can fold it or flag the hole. Keep one probe per route.
+  // ---- construction routes: every one of these is an escape hatch unless the rule can
+  // fold it or flag the hole. Keep one probe per route.
   {
     label: "构造·纯字面量（基线）",
     source: `export const R1 = () => <p className="text-zinc-500" />;\n`,
@@ -304,8 +299,8 @@ const CASES = [
     expect: "DESIGN.md §十一#6",
   },
 
-  // ---- unresolvable holes: a hole the resolver cannot fold must be
-  // reported when it sits exactly where a banned ramp or shade would go.
+  // ---- unresolvable holes: must be reported only when they sit where a banned
+  // ramp or shade would go.
   {
     label: "无法静态解析·槽位前缀 text-",
     source: `export const U1 = (t) => <p className={"text-" + t} />;\n`,
@@ -343,10 +338,8 @@ const CASES = [
 ];
 
 /**
- * Invoke the locally installed ESLint through its JS entry point. Going
- * through `npx` fails as a spawned child on Windows (`npx.cmd` needs a shell),
- * and the `.bin/eslint.cmd` shim has the same problem — `node <entry>` works
- * identically on every platform.
+ * Invoke the locally installed ESLint through its JS entry point. `npx` and `.bin/eslint.cmd`
+ * both fail as a spawned child on Windows (they need a shell); `node <entry>` works everywhere.
  */
 const ESLINT_JS = join(ROOT, "node_modules", "eslint", "bin", "eslint.js");
 

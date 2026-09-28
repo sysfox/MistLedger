@@ -33,15 +33,8 @@ type Category = { id: string; name: string; kind: string };
 type Relation = { name: string } | { name: string }[] | null;
 
 /**
- * 去掉 `as unknown as`。
- *
- * 原来的写法是 `Array.isArray(x) ? x[0]?.name : (x as unknown as {name:string}|null)?.name`：
- * `Array.isArray` 已经把数组分支收窄掉，else 分支里剩下的**只有** `{name:string} | null`
- * （`{name:string}[]` 已经被排除了），那个 `as unknown as` 从类型上讲根本不需要。
- *
- * 收进这个函数后，两种形态在一处归一，调用点不再各自复述一遍判别逻辑 ——
- * 这也顺带修掉了一个真 bug：原代码在 else 分支上重新断言，而 `t.category` 声明为
- * 联合类型时，非数组分支的值是可信的；断言只是让编译器闭嘴。
+ * 归一化嵌入关系的两种形态。`Array.isArray` 收窄后 else 分支只剩
+ * `{name} | null`，故这里不需要任何 `as` 断言 —— 旧的 else 分支断言只是让编译器闭嘴。
  */
 function relationName(rel: Relation): string | null {
   if (rel === null) return null;
@@ -201,9 +194,7 @@ export default function LedgerClient() {
             <SkeletonLine className="mt-2 h-3.5 w-64" />
           </div>
         ) : (data?.accounts.length ?? 0) === 0 ? (
-          // 原文案让用户去「账户」页，但该路由早已并入 /settings，
-          // 是一个指向不存在页面的邀请。改为指向设置页的账户分区并给出可点链接
-          // （`.link-subtle` 自带灯色焦点环，globals.css:216-236）。
+          // 指向设置页的账户分区（`.link-subtle` 自带灯色焦点环，globals.css:216-236）。
           <p className="mt-1 text-sm text-dim">
             还没有账户，先在
             <Link href="/settings#accounts" className="link-subtle">

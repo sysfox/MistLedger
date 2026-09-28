@@ -46,19 +46,16 @@ const SOURCE_LABEL: Record<string, string> = {
 
 /**
  * PostgREST 的嵌套关系（`category:categories(name)`）返回「一对多时是数组、
- * 一对一（maybeSingle 语义）时是对象」。此前两处用 `as unknown as` 硬转，
- * 既绕过了类型检查、又让列名改动不报错。这里把两种形态收进一个收窄函数，
- * 调用点不再需要任何断言 —— `as unknown as` / `as` / `any` / `@ts-ignore` 全站清零。
+ * 一对一（maybeSingle 语义）时是对象」。`Array.isArray` 收窄后 else 分支只剩
+ * `{name}`，故这里不需要任何断言 —— 调用点也不得为此加 `as` / `any`。
  */
 function relationName(rel: { name: string }[] | { name: string } | null): string | undefined {
   if (!rel) return undefined;
   return Array.isArray(rel) ? rel[0]?.name : rel.name;
 }
 
-// 「共 N 笔」与数据页统一：数字套 .money 并做千分位。
-// .money 语义上属于「金额」，真正的修法是抽一个只带 tabular-nums 的 .num
-// —— 但那要动 globals.css（WP-1 的文件）与 data-client（WP-3 的文件），
-// 见 .hermes/audits/wp5-design-fragment.md 的「待合并」一节。
+// 「共 N 笔」与数据页统一：数字套 .money 并做千分位。注意 .money 语义上属于
+// 「金额」，此处复用是刻意的，不要顺手改。
 function count(n: number): string {
   return n.toLocaleString("zh-CN");
 }
@@ -378,9 +375,8 @@ export default function SettingsClient() {
           <CategoryFallback />
         </>
       ) : error || !data ? (
-        // 原本这里并排渲染了两个一模一样的 SectionError（账户一个、分类一个），
-        // 用户看到的是「同一个错误出现两次」而不是「哪一栏坏了」。收敛成一个，
-        // 并接上 useApiData 的 reload —— 恢复网络后点一下就出数据，不用手动 F5。
+        // 账户与分类同属一次请求，故只播报一个错误面板（不是每栏一个），
+        // 并接上 useApiData 的 reload —— 恢复网络后点一下就出数据。
         <SectionError onRetry={reload} label="账户与分类" />
       ) : (
         <>

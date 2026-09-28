@@ -1,13 +1,8 @@
 /**
- * 三条契约的可执行验收。
+ * 三条契约的可执行验收。跑 `npm test`（Node 内置 `node:test`，无额外依赖）。
  *
- * 跑 `npm test`（Node 内置 `node:test`，无额外依赖）。
- *
- * 重点是 的第二条验收：「构建后第 2 天访问，chips 仍指向近 7 天」。
- * 这条断言在修复前**写不出来**，因为旧代码里「今天」不是任何函数的入参 ——
- * 它在模块内部直接 `new Date()` 求值，测试无法注入一个「第二天的时钟」。
- * 修法是把日期变成 `buildPresets(today)` 的入参，于是同一个预设可以被两个
- * 不同日期驱动，两次输出必须不同。日期变成入参这件事本身就是修复。
+ * 重点是「构建后第 2 天访问，chips 仍指向近 7 天」：同一个 `buildPresets` 被两个
+ * 不同日期驱动，两次输出必须不同 —— 这要求「今天」必须是入参。
  */
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
@@ -28,15 +23,11 @@ import {
 import { toFilteredTxStats, toSnapshot } from "./payload.js";
 import { monthEnd, prevMonthKey, shiftDays } from "../../lib/ledger/stats.js";
 
-/**
- * `presets.ts` 用 `@/lib/ledger/stats`（与 `src/` 其余部分一致，也是 Turbopack
- * 唯一认的写法），但 Node 的 strip-types 既不解析 `@/` 别名也不做 `.js`→`.ts`
- * 替换。`scripts/ts-resolve-hooks.mjs` 只处理相对路径，且 `package.json` 的 test
- * 脚本归 WP-6 所有 —— 改不动也不该改。
- *
- * 所以别名只在本文件里就地解决：注册一个 6 行的解析钩子，再用**动态** import 载入
- * 被测模块（静态 import 的解析发生在任何代码执行之前，钩子来不及注册）。
- * `registerHooks` 是同步的，钩子在下面的 import 之前就位。
+/*
+ * `presets.ts` 用 `@/lib/ledger/stats`，但 Node 的 strip-types 既不解析 `@/` 别名
+ * 也不做 `.js`→`.ts` 替换，`scripts/ts-resolve-hooks.mjs` 也只处理相对路径。
+ * 故别名在本文件就地解决：注册解析钩子后必须用**动态** import 载入被测模块 ——
+ * 静态 import 的解析发生在任何代码执行之前，钩子来不及注册。
  */
 const SRC = new URL("../../../src/", import.meta.url);
 registerHooks({
@@ -389,10 +380,8 @@ describe("§data RPC 载荷收窄", () => {
     assert.equal(stats.expense, 0);
   });
 
-  // 上一轮盲区：toNum 有两条 NaN 防线，原测试只走了 number 分支（payload.ts:51），
-  // string 分支（payload.ts:54）无任何保护。把 :54 改成 `return Number(v)` 测试仍全绿。
-  // 生产上真正会命中 string 分支的恰恰是主线场景 —— Postgres 的 numeric 列经
-  // PostgREST 回来就是字符串（payload.ts:19-20 自己这么写的），所以这条必须钉死。
+  // string 分支必须有 NaN 防线：生产上真正会命中它的恰恰是主线场景 ——
+  // Postgres 的 numeric 列经 PostgREST 回来就是字符串。
   it("字符串分支的非有限值同样归零（numeric 列回来就是字符串）", () => {
     const stats = toFilteredTxStats({
       count: "abc",

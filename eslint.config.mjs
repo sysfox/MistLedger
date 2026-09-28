@@ -3,35 +3,17 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
 /**
- * `mistledger/no-taboo-classnames` — DESIGN.md §十一 turned into a machine
- * guard.
+ * `mistledger/no-taboo-classnames` — DESIGN.md §十一 turned into a machine guard.
  *
- * DESIGN.md's taboo list is the design's spine: no Tailwind gray ramps, no
- * standard palette colors, no `dark:` variants, no external palette import.
- * A convention nobody can check is a convention that decays, and these are
- * exactly the classes that creep back in during a refactor.
+ * Class names are often assembled at runtime (`` `text-${RAMP}-500` ``, `+` concat,
+ * `cn(...)`); a rule that only regexes string literals passes all of those. So this one
+ * folds the expression — statically evaluating what it can from same-file `const`s — and
+ * scans the *result*. Two load-bearing rules follow:
  *
- * The hard half is that a class name is very often **assembled at runtime**:
- * `` className={`text-${RAMP}-500`} ``, `` "text-" + BASE + "-500" ``,
- * `` cn("text-", RAMP, "-500", x) ``. A rule that only regexes string literals
- * passes all of those. So this one folds the expression instead: it statically
- * evaluates whatever it can from same-file `const`s, joins the fragments, and
- * scans the *result*.
- *
- * Two design rules follow from that, and both are load-bearing:
- *
- * 1. **A hole in a banned slot is a finding, a hole anywhere else is not.**
- *    `{"text-" + t}` cannot be cleared (the ramp could be `zinc`), but
- *    `{"panel " + t}` is idiomatic prop pass-through — reporting it would
- *    turn the guard into noise the team learns to ignore.
- * 2. **Arithmetic is not concatenation.** `500 + "-" + RAMP2` is the number
- *    five hundred, not "500-"; folding it as a string invents taboos that do
- *    not exist in the rendered class.
- *
- * `scripts/check-taboo-guard.mjs` is the rule's own suite (one probe per
- * construction route it claims to fold); `scripts/attack-taboo-guard.mjs`
- * attacks those routes independently. Both are part of `npm test` hygiene —
- * a new construction route needs a probe in each before it counts as covered.
+ * 1. A hole in a banned slot is a finding, a hole anywhere else is not: `{"text-" + t}`
+ *    could be `zinc`, but `{"panel " + t}` is idiomatic prop pass-through.
+ * 2. Arithmetic is not concatenation: `500 + "-" + RAMP2` is the number five hundred,
+ *    not "500-"; folding it as a string invents taboos that do not exist.
  */
 
 // The taboo list itself (§十一 #1 / #5 / #6).
@@ -74,10 +56,9 @@ const STRING_DERIVING_METHODS = new Set([
 ]);
 
 /**
- * Array methods that do not change *which* elements survive, only their order
- * or multiplicity. Peeling them is a deliberate over-approximation: `sort()`
- * could reorder `["500","text-zinc"]` into a real `text-zinc-500`, and
- * pretending otherwise would make the guard trivially bypassable.
+ * Array methods that do not change *which* elements survive, only their order or multiplicity.
+ * Peeling them is a deliberate over-approximation: `sort()` could reorder `["500","text-zinc"]`
+ * into a real `text-zinc-500`, and pretending otherwise would make the guard trivially bypassable.
  */
 const ARRAY_PEELING_METHODS = new Set([
   "map", "flatMap", "filter", "reverse", "sort", "slice", "reduce", "splice",
@@ -102,22 +83,17 @@ const MAX_ALTERNATIVES = 32;
 // The taboo matchers.
 
 /**
- * A color class is `[variants:]utility-ramp-shade[/opacity]`, anchored to a
- * whitespace boundary and requiring a numeric shade.
- *
- * Both halves are load-bearing:
- * - the boundary is what keeps `500-text-zinc` (a malformed class that is not
- *   a violation) from matching;
- * - the shade requirement is what keeps a bare `text-zinc` — not a real
- *   Tailwind class at all — from tripping the guard;
- * - `utility` may not be empty, so `text--zinc-500` (a doubled separator from a
- *   `join("-")` over already-split fragments) is not a class either.
+ * A color class is `[variants:]utility-ramp-shade[/opacity]`, anchored to a whitespace
+ * boundary and requiring a numeric shade. Both halves are load-bearing: the boundary
+ * keeps `500-text-zinc` (malformed, not a violation) out; the shade requirement keeps a
+ * bare `text-zinc` — not a real Tailwind class — from tripping the guard. `utility` may
+ * not be empty, so `text--zinc-500` (doubled separator from a `join("-")` over
+ * already-split fragments) is not a class either.
  */
 function colorMatcher(names) {
   return new RegExp(
-    // Each prefix segment must start alphanumeric, so `text--zinc-500` — a
-    // doubled dash no utility can emit — does not parse as `text-` plus
-    // `-zinc-500`. [B2]
+    // Each prefix segment must start alphanumeric, so `text--zinc-500` does not
+    // parse as `text-` plus `-zinc-500`. [B2]
     `(?:^|\\s)(?:[a-z][a-z0-9-]*:)*[a-z][a-z0-9]*(?:-[a-z0-9]+)*-(?:${names.join("|")})-\\d{2,3}(?:/\\d+)?(?=\\s|$)`,
     "g",
   );
@@ -130,17 +106,10 @@ const STANDARD_MATCHER = colorMatcher(STANDARD_COLORS);
 const DARK_MATCHER = /(?:^|\s)dark:/g;
 
 /**
- * Does an unresolved hole sit exactly where a banned ramp/shade/variant would
- * go? These are the two shapes that cannot be waved through as prop
- * pass-through:
- *
- * - the hole directly follows a utility's trailing dash (`text-` + hole), so it
- *   is in the ramp slot;
- * - the hole is directly followed by a shade (`hole` + `-500`) or by a variant
- *   boundary (`hole` + `:bg-veil`), so it is in the utility or variant slot.
- *
- * A doubled separator (`text--` + hole) is deliberately not one of them: the
- * resulting token is not a class, so nothing taboo can be hiding in it.
+ * Does an unresolved hole sit exactly where a banned ramp/shade/variant would go? Two shapes
+ * qualify: the hole directly follows a utility's trailing dash (`text-` + hole), or is directly
+ * followed by a shade (`-500`) or a variant boundary (`:bg-veil`). A doubled separator
+ * (`text--` + hole) is deliberately excluded — that token is not a class.
  */
 function holeIsInBannedSlot(pattern, index) {
   const before = pattern.slice(0, index);
@@ -272,10 +241,9 @@ function createFolder(context) {
         if (depth >= MAX_INTERPOLATION_HOPS) return hole();
 
         // A template is a *sequence*, not a set of alternatives: the result is
-        // quasi[0] + expr[0] + quasi[1] + expr[1] + ... + quasi[n], with each
-        // expression contributing its own alternatives. crossJoin() would
-        // take the cross product instead and read `text-${X}-500` as either
-        // "text-" or "X" or "500", so the interleaving is done by hand.
+        // quasi[0] + expr[0] + quasi[1] + ... + quasi[n], each expression
+        // contributing its own alternatives. crossJoin() would take the cross
+        // product and read `text-${X}-500` as "text-" or "X" or "500".
         const text = (index) =>
           node.quasis[index].value.cooked ?? node.quasis[index].value.raw ?? "";
 

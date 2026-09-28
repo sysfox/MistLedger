@@ -6,10 +6,8 @@ import { amountSign, formatMoney, formatSignedMoney, YUAN } from "@/lib/ledger/f
 import { SkeletonBar, SkeletonChart, SkeletonLine, SkeletonPanel, SkeletonRow } from "@/components/page-skeleton";
 import { SectionError } from "@/components/section-error";
 import { useApiData } from "@/lib/api/use-api-data";
-// 关系数据（账户 / 分类 / 预算 + 内嵌分类）的形状由 api/overview 声明并导出，
-// 客户端不再手写一份 —— 两边对不上的可能性在编译期就暴露，而不是运行时。
-// snapshot 不在此契约内：dashboard_snapshot RPC 在 database.types.ts 里声明返回 Json，
-// 形状只能由客户端声明（database.types.ts 为只读，不在本包所有权内）。
+// 关系数据（账户 / 分类 / 预算 + 内嵌分类）由 api/overview 声明并导出，客户端不手写第二份。
+// snapshot 不在此契约内：dashboard_snapshot 在 database.types.ts 里返回 Json，形状只能由此处声明。
 import type { OverviewBudget, OverviewRelations } from "./api/overview/route";
 
 const DIGITS = "零一二三四五六七八九";
@@ -26,11 +24,7 @@ type OverviewPayload = OverviewRelations & {
   snapshot: Partial<Snapshot>;
 };
 
-/**
- * `Intl.DateTimeFormat` 的构造要解析 locale 与 options，代价相对昂贵。
- * 本文件在渲染路径上调用它（资产曲线的 30 天窗口、月份兜底），故提到模块作用域，
- * 与 `api/overview/route.ts`、`data-client.tsx` 保持同一写法。
- */
+/** `Intl.DateTimeFormat` 构造要解析 locale 与 options，代价昂贵；本文件在渲染路径上调用，故提到模块作用域。 */
 const SHANGHAI_DATE = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
@@ -39,9 +33,8 @@ const SHANGHAI_DATE = new Intl.DateTimeFormat("en-CA", {
 });
 
 /**
- * PostgREST 对 to-one 内嵌关系按生成类型里的 `isOneToOne` 定型为数组，
- * 但同一字段在运行时可能仍是对象。原先用 `as unknown as` 硬转，现改为一次
- * 真正的类型收窄（`Array.isArray` 是类型守卫，不是断言）—— 无 `any`、无 `@ts-ignore`。
+ * PostgREST 对 to-one 内嵌关系按生成类型的 `isOneToOne` 定型为数组，运行时却可能是对象。
+ * 用 `Array.isArray` 真收窄（类型守卫，非断言），不用 `as unknown as` 掩盖。
  */
 function firstCategory(rel: OverviewBudget["category"]): OverviewRelations["categories"][number] | null {
   if (rel == null) return null;
@@ -163,15 +156,7 @@ function BalanceFallback() {
   );
 }
 
-/**
- * 页面主标题。三个分支（加载 / 错误 / 有数据）都必须有 h1 ——
- * 标题是文档结构，不是数据。
- *
- * 形态统一到「可见的 eyebrow 层级标题」（`h1.eyebrow`）：此前总览页是
- * `sr-only` h1 + `aria-hidden` 的 eyebrow 小标，读屏与视觉两套文本，
- * 且四页里只有总览的标题对视觉不可见。改为单一可见 h1 后，
- * 「总览」这个页名与其余三页的 h1（记账 / 曲线与查询 / 设置）用同一套词汇。
- */
+/** 页面主标题：加载 / 错误 / 有数据三个分支都必须有 h1，标题是文档结构不是数据。 */
 function PageTitle({ month, srOnly = false }: { month?: string; srOnly?: boolean }) {
   return (
     <h1 className={srOnly ? "sr-only" : "eyebrow"}>
@@ -199,8 +184,8 @@ function HeroSection({ payload }: { payload: OverviewPayload }) {
   return (
     <div>
       <PageTitle month={curMonth} />
-      {/* 金额铁律：符号在前、¥ 在后，负数是 U+2212。符号取自
-          amountSign（`−`），¥ 单独染成灯色（§二 用色规则 1），两者之间不留空白。 */}
+      {/* 金额铁律：符号在前、¥ 在后，负数是 U+2212。符号取自 amountSign（`−`），
+          ¥ 单独染成灯色（§二 用色规则 1），两者之间不留空白。 */}
       <p className="money mt-2 text-[clamp(40px,8vw,48px)] font-semibold leading-none tracking-tight text-ink">
         {totalSign ? <span className="text-dim">{totalSign}</span> : null}
         <span className="text-lamp">{YUAN}</span>
@@ -208,9 +193,8 @@ function HeroSection({ payload }: { payload: OverviewPayload }) {
       </p>
       <div className="lamp-line mt-4" aria-hidden="true" />
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        {/* 由 formatSignedMoney 统一出符号，不再手写 `−¥` / `+¥`。
-            传 expense/income 时正数带类型前缀；万一 RPC 给出负值，
-            formatSignedMoney 会吞掉类型前缀只留一个 U+2212，不会出 `−−¥`。 */}
+        {/* 由 formatSignedMoney 统一出符号，不手写 `−¥` / `+¥`。传 expense/income 时正数带
+            类型前缀；万一 RPC 给出负值，它会吞掉前缀只留一个 U+2212，不会出 `−−¥`。 */}
         <span className="text-dim">
           本月支出{" "}
           <span className="money font-semibold text-ember">
@@ -325,14 +309,13 @@ function BudgetSection({ payload }: { payload: OverviewPayload }) {
       </div>
       <ul className="mt-3 flex flex-col gap-3">
         {budgets.map((b) => {
-          // 类型收窄，不用 `as unknown as` 硬转。
+          // 类型收窄，不硬转。
           const cat = firstCategory(b.category);
           const used = cat ? (spent.get(cat.id) ?? 0) : 0;
           const limit = Number(b.limit_amount);
           const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
           const over = used > limit;
-          // 可见文本与 aria-valuetext 用同一个格式化结果，
-          // 两处写法不一致正是上一轮负数符号出错的土壤。
+          // 可见文本与 aria-valuetext 必须用同一格式化结果，两处写法不一致是负数符号出错的土壤。
           const usedText = formatSignedMoney(used);
           const limitText = formatSignedMoney(limit);
           return (
@@ -371,8 +354,7 @@ function BudgetSection({ payload }: { payload: OverviewPayload }) {
 }
 
 export default function OverviewClient() {
-  // reload 是 useApiData 早就返回、却全站零调用点的死 API。
-  // 错误态下唯一的出路不该是让用户手动 F5 —— 接上它，「重试」就是一个真控件。
+  // 错误态唯一的出路不该是让用户手动 F5 —— 接上 reload，「重试」才是一个真控件。
   const { data, error, loading, reload } = useApiData<OverviewPayload>("/api/overview");
 
   return (
@@ -380,9 +362,8 @@ export default function OverviewClient() {
     <main id="main" className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       {loading ? (
         <>
-          {/* 骨架镜像真实布局（DESIGN.md §七.2），所以标题位在视觉上必须仍是
-              一条骨架线；但文档结构不能随数据一起消失，故给一个不含日期的
-              纯静态 h1（不取「今天」，避免构建日 ≠ 访问日的 hydration 不一致）。 */}
+          {/* 骨架镜像真实布局（DESIGN.md §七.2），但文档结构不能随数据消失：
+              给一个不含日期的静态 h1，不取「今天」，避免构建日 ≠ 访问日的 hydration 不一致。 */}
           <PageTitle srOnly />
           <HeroFallback />
           <ChartPanelFallback />
@@ -395,10 +376,7 @@ export default function OverviewClient() {
         </>
       ) : error || !data ? (
         <>
-          {/* 六个一模一样的分区错误面板收敛为一个整页面板：
-              一次 /api/overview 请求失败就是整页失败，六块重复文案既让用户
-              判断不出是网络/鉴权/服务端，也把同一个 role="alert" 播报六遍。
-              标题与 h1 在此分支补齐（原先整个错误态没有 h1）。 */}
+          {/* 一次 /api/overview 请求失败即整页失败，故只播报一个 role="alert"，不为六个分区各报一次。 */}
           <PageTitle />
           <SectionError onRetry={reload} label="本月账" />
         </>

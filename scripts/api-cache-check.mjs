@@ -2,10 +2,10 @@
 /**
  * Executable proof for the client data cache.
  *
- * The cache module is dependency-free, so it can be driven directly under
- * `node --test` (see `src/lib/api/api-cache.test.ts` for the unit suite). This
- * script is the runnable, human-readable counterpart used in review: it prints
- * the actual numbers behind the three claims the audit makes.
+ * The cache module is dependency-free, so it can be driven directly under `node --test` (see
+ * `src/lib/api/api-cache.test.ts` for the unit suite). This script is the runnable, human-readable
+ * counterpart: it prints the actual numbers behind the three claims — sign-out clears the cache,
+ * out-of-order responses lose, LRU + TTL hold.
  *
  * Usage: npm run test:api-cache
  *   (or: node --experimental-strip-types scripts/api-cache-check.mjs)

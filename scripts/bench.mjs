@@ -5,10 +5,9 @@
  * Usage:
  *   node scripts/bench.mjs [--base http://localhost:3000] [--runs 10] [--cookie "sb-...=..."]
  *
- * Each target is fetched `runs` times sequentially; TTFB = time to response
- * headers, total = full body consumed. Reports mean and p95 in ms.
- * Anonymous page requests follow redirects ("manual" fetch) so the auth-gate
- * roundtrip stays part of the measurement.
+ * Each target is fetched `runs` times sequentially; TTFB = time to response headers, total = full
+ * body consumed. Reports mean and p95 in ms. Page requests use `redirect: "manual"` so the
+ * auth-gate roundtrip stays part of the measurement.
  */
 
 const args = process.argv.slice(2);

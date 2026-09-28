@@ -1,26 +1,11 @@
-/*
+/**
  * `TypePicker` 的 APG radiogroup 键盘契约 —— 真实挂载 + 真实 KeyboardEvent。
  *
- * ## 为什么这个文件存在
+ * 每条断言都是「具体值 === 具体值」，不用 `ok()`，也不接受「存在某个 tabindex=0」
+ * 这类弱判据；B1 更是 12 次按键逐次比对选中项与 `document.activeElement` 两维度。
  *
- * 改造前的实现只在 `<Box role="radiogroup">` 里放三个 `role="radio"` 的 Chip，
- * **宣告了 radiogroup 语义却没有履行它**：三个 chip 各自 `tabIndex=0`（键盘用户要
- * Tab 三次才走得完这个组），且没有任何 `onKeyDown`（←/→/↑/↓/Home/End 全部无响应）。
- * 违反 WCAG 2.2 SC 2.1.1 与 WAI-ARIA APG § radiogroup。
- *
- * 上一轮审核在 jsdom 探针里实测通过了 23 条断言，但**那些断言只活在
- * `%TMPDIR%/wp4-probe/dom-probe.cjs` 这个临时探针里，没有落进仓库** ——
- * 于是「通过了」这件事无法被 `npm test` 复现，探针一被清理证据就没了。
- * 本文件把那 14 条（探针里的 B 组 14 条，编号沿用 B0.x/B1/B2.x/B3/B4）补成
- * 仓库内的常驻回归。
- *
- * **断言没有做弱**：每一条都是「具体值 === 具体值」，不是 `ok()`、不是
- * `assert.ok(sel)`、不是「存在某个 tabindex=0」。B1 更是 12 次按键逐次比对
- * 选中项与 `document.activeElement` 两个独立维度，漏一次即红。
- *
- * 焦点环可见性（`:focus-visible`）**无法**在这里验证：jsdom 不实现该伪类，
- * `getComputedStyle` 也无法回答 `:focus-visible` 是否命中。这一条按 CSS 规范与
- * Chrome 行为推断为真，但**不计为已验证**（见 DESIGN.md §十一 #9）。
+ * 焦点环可见性（`:focus-visible`）**无法**在这里验证：jsdom 不实现该伪类。这条
+ * 按 CSS 规范与 Chrome 行为推断为真，但不计为已验证（见 DESIGN.md §十一 #9）。
  */
 
 import assert from "node:assert/strict";
@@ -69,11 +54,9 @@ const TX: TypeOption[] = [
 const mountedHandles: Array<{ unmount(): void }> = [];
 
 /**
- * 组件在 `before()` 里经 harness 的加载管线载入。
- *
- * 声明必须排在 `mountPicker` **之前** —— 它是 `let`（有 TDZ），而 `mountPicker`
- * 在模块求值时就会以它作为参数构造元素。原先声明在 describe 回调里，运行时
- * 直接 `ReferenceError: Picker is not defined`。
+ * 组件在 `before()` 里经 harness 的加载管线载入。声明必须排在 `mountPicker`
+ * **之前** —— 它是 `let`（有 TDZ），而 `mountPicker` 在模块求值时就会以它为参数
+ * 构造元素。
  */
 let Picker!: ComponentType<{ value: string; onChange: (next: string) => void; label?: string }>;
 
@@ -185,13 +168,8 @@ describe("TypePicker · APG radiogroup 键盘契约", () => {
 
   describe("方向键移动并选中", () => {
     /**
-     * B1 —— 12 次连续按键，**逐次**比对「选中项」与「document.activeElement」
-     * 两个独立维度。
-     *
-     * 之所以拆成 12 条 `it` 而不是探针里的一整轮循环：一旦某一次移动算错，
-     * 报错会直接指认是第几次、哪个键、从哪到哪，而不是只给一句「整体不符」。
-     * 断言强度与探针相同（B1 本就是一个覆盖 12 次移动的单条断言），拆细只增加
-     * 可诊断性，不放松任何一条判据。
+     * B1 —— 12 次连续按键，逐次比对「选中项」与「document.activeElement」两个维度。
+     * 拆成 12 条 `it` 只为可诊断性：报错能指认是第几次、哪个键、从哪到哪。
      */
     const NAV: Array<[string, number, string]> = [
       // [键, 起始项下标, 按键后应落到的项文案]
@@ -286,12 +264,10 @@ describe("TypePicker · APG radiogroup 键盘契约", () => {
   // Space / Enter 选中
 
   describe("Space / Enter 选中", () => {
-    // Chip 的根元素是 ButtonBase 渲染的原生 <button>，激活由 ButtonBase 的
-    // 键盘处理（useButtonBase.js:144-156）完成，不是浏览器默认行为 ——
-    // jsdom 既不做默认激活，**也不会**因为派发按键就把元素聚焦。
-    // 所以先显式 .focus()（真实用户是先 Tab / 方向键到这一项的），
-    // 再派发按键与抬起。少了这步 focus()，activeElement 会停在别处，
-    // 断言就变成在测「jsdom 有没有自动聚焦」而不是「按 Space 会不会选中」。
+    // Chip 根元素是 ButtonBase 渲染的原生 <button>，激活由 ButtonBase 的键盘处理
+    // （useButtonBase.js:144-156）完成，不是浏览器默认行为 —— jsdom 既不做默认激活，
+    // 也不会因派发按键就聚焦。故先显式 .focus()（真实用户先 Tab / 方向键到这一项），
+    // 再派发按键与抬起，否则断言就变成在测「jsdom 有没有自动聚焦」。
     for (const [key, code] of [[" ", "Space"], ["Enter", "Enter"]] as const) {
       it(`B3 ${code} 选中当前聚焦项`, () => {
         const p = mountPicker("expense");

@@ -1,23 +1,12 @@
 /**
  * `/api/data` 响应体的类型 + 运行时收窄。
  *
- * §data：`filtered_tx_stats` 与 `dashboard_snapshot` 两个 RPC 在
- * `database.types.ts` 里声明为 `Returns: Json`，所以 `statsRes.data` / `snapshotRes.data`
- * 的静态类型就是 `Json`（`any` 的同义词）。旧代码的处理方式是把它塞进一个手写的
- * `type FilteredTxStats = {...}`，然后在每个使用点写 `Number(stats?.count ?? 0)`
- * —— 那是**没有校验的类型断言**，只是换了个写法：RPC 真返回 `{"count": "128"}`
- * （Postgres 的 `count` 走 `numeric` 时就是这个）时，页面会安静地显示 0，
- * 而不是报任何错。
- *
- * 这里改为真正的收窄：输入 `unknown`，输出要么是校验过的结构、要么是 `null`。
- * 好处有三：
- * 1. 页面里那些 `Number(...)` 兜底可以删掉 —— 值在到达组件前就已经是 number；
- * 2. 形状变了（列改名、RPC 改签名）会在**这里**炸出明确的类型错误或 null，
- *    而不是散落成十几个静默的 0；
- * 3. 不需要 `as unknown as`（任务禁止项）。
- *
- * 数值统一经 `toNum`：Postgres 的 `numeric` 列经 PostgREST 回来可能是
- * `number` 也可能是**字符串**（取决于列类型与 supabase-js 的解析），两种都要收。
+ * `filtered_tx_stats` / `dashboard_snapshot` 在 `database.types.ts` 里声明为
+ * `Returns: Json`（≈ any），故必须在此真正收窄，不能只写类型断言：Postgres 的
+ * `count` 走 `numeric` 时会回来字符串，断言不校验，页面会安静地显示 0。
+ * 数值统一经 `toNum` —— numeric 列经 PostgREST 回来可能是 number 也可能是字符串。
+ * 形状不符时返回 `null` 而非抛错：数据页把 stats 当「可选的汇总区」，
+ * 拿不到就显示 0 笔，其余区块照常出数。
  */
 import type { Json } from "@/lib/supabase/database.types";
 
@@ -64,12 +53,7 @@ function toArr(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
 }
 
-/**
- * 收窄 `filtered_tx_stats` 的返回值。
- *
- * 形状不符时返回 `null` 而非抛错：数据页把 stats 当作「可选的汇总区」，
- * 拿不到就显示 0 笔，其余区块照常出数 —— 一个分区的形状问题不该让整页变错误态。
- */
+/** 收窄 `filtered_tx_stats`；形状不符返回 `null`，让数据页把该汇总区降级为 0 笔。 */
 export function toFilteredTxStats(value: Json | null | undefined): FilteredTxStats | null {
   if (!isRecord(value)) return null;
   return {

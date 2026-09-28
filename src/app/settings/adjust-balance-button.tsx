@@ -40,15 +40,10 @@ export default function AdjustBalanceButton({
   const targetNumber = Number(targetBalance);
   const targetValid = targetBalance !== "" && Number.isFinite(targetNumber);
 
-  // 成功后「再调一次」必须仍然可用。
-  //
-  // 原来的渲染条件是 `open && !(state.ok && state.message)`：useActionState 的
-  // state 成功后永不复位，于是这个面板一个账户一生只渲染一次 —— 按钮仍能 toggle
-  // aria-expanded，但内容永不出现，成为点不动的死控件。
-  //
-  // 现在面板只看 `open`。成功文案不再是「渲染条件」而是面板内的一块反馈
-  // （role=status，玉绿），失败同理。数据刷新后 currentBalance 就是最新值，
-  // 再次展开时目标余额同步回它，用户不必手删上一轮的数字。
+  // 面板的渲染条件只能看 `open`，绝不能写成 `open && !(state.ok && state.message)`：
+  // useActionState 的 state 成功后永不复位，那样的条件让面板一个账户一生只渲染一次，
+  // 按钮仍能 toggle aria-expanded 但内容永不出现。成功/失败文案只是面板内的反馈
+  // （role=status / role=alert），不参与渲染条件；数据刷新后再次展开即同步为最新值。
   const justAdjusted = state.ok && state.message ? state.message : "";
   const adjustError = !state.ok && state.message ? state.message : "";
 

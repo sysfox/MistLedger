@@ -32,7 +32,7 @@ const MAX_ROWS = 2000;
 const PREVIEW_ROWS = 200;
 
 /**
- * 行的固有高度（px-3 py-1.5 + 14px 文字 ≈ 37px）。 的 content-visibility
+ * 行的固有高度（px-3 py-1.5 + 14px 文字 ≈ 37px）。配合 `content-visibility`
  * 让浏览器跳过视口外行的布局与绘制，但必须同时给 contain-intrinsic-size，
  * 否则滚动条长度会随渲染进度来回抖。
  */
@@ -163,11 +163,10 @@ export default function ImportClient({
   const tooMany = rows.length > MAX_ROWS;
   const accountName = accounts.find((a) => a.id === accountId)?.name ?? "";
 
-  // 2000 笔的 JSON 曾经每次改任一行的分类都全量重算并写进 hidden input
-  // （约 500KB–1MB 的 DOM 属性，每 change 一次都在主线程上跑一遍）。现在：rows 的
-  // 最新数组只留一份在 ref 里（effect 里一次 O(1) 赋值），序列化推迟到真正提交
-  // 那一刻做一次。改任一行的成本从 O(n) 序列化 + DOM 写入降为 O(1) 引用赋值，
-  // 且 handleSubmit 保持稳定引用，不必把 rows 挂进它的依赖。
+  // rows 的最新数组只留一份在 ref 里（effect 里一次 O(1) 赋值），序列化推迟到
+  // 提交那一刻做一次：否则每次改任一行的分类都要重算 2000 笔的 JSON 并写进
+  // hidden input（约 500KB–1MB 的 DOM 属性）。副作用是 handleSubmit 保持稳定引用，
+  // 不必把 rows 挂进它的依赖。
   const rowsRef = useRef(rows);
   useEffect(() => {
     rowsRef.current = rows;
@@ -215,8 +214,8 @@ export default function ImportClient({
   // 预览只看前 200 笔，且只在 rows 真正变化时才重切一次数组（useMemo 收敛依赖）。
   const previewRows = useMemo(() => rows.slice(0, PREVIEW_ROWS), [rows]);
 
-  // 提交时把 rows 注入 FormData：表单不再有 name="rows" 的 hidden input，
-  // 也不再有每次 change 都重算的 rowsJson。序列化只在用户点「确认导入」时发生一次。
+  // 提交时才把 rows 序列化注入 FormData：表单没有 name="rows" 的 hidden input，
+  // 序列化只在用户点「确认导入」时发生一次。
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();

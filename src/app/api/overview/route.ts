@@ -4,10 +4,7 @@ import { isApiSession, requireApiSession, sessionResponse } from "@/lib/api/sess
 export const dynamic = "force-dynamic";
 
 /**
- * `Intl.DateTimeFormat` 的构造要解析 locale 与 options，代价相对昂贵；
- * 放在 handler 里等于每个请求都重付一次。提到模块作用域，
- * 与 `data-client.tsx` / `settings-client.tsx` 的正确写法保持一致。
- *
+ * `Intl.DateTimeFormat` 构造要解析 locale 与 options，代价昂贵；放进 handler 等于每个请求重付一次。
  * `en-CA` 输出 `YYYY-MM`，再拼 `-01` 得到 budgets.month 存的首日。
  */
 const SHANGHAI_MONTH = new Intl.DateTimeFormat("en-CA", {
@@ -20,13 +17,9 @@ const SHANGHAI_MONTH = new Intl.DateTimeFormat("en-CA", {
 export type OverviewCategoryRef = { id: string; name: string };
 
 /**
- * 预算行 + 内嵌分类。
- *
- * `category` 刻意声明为并集：PostgREST 对 to-one 内嵌关系在运行时返回**对象**，
- * 而 `database.types.ts` 里 `budgets → categories` 的关系是 `isOneToOne: false`，
- * supabase-js 据此把 select 的返回类型定为**数组**。两者都是事实，
- * 客户端用一个真收窄（`Array.isArray`）处理，不用断言掩盖。
- * 改 `database.types.ts` 会波及全库，不在本包所有权内。
+ * 预算行 + 内嵌分类。`category` 刻意声明为并集：PostgREST 对 to-one 内嵌关系在运行时返回**对象**，
+ * 而 database.types.ts 里 `budgets → categories` 是 `isOneToOne: false`，supabase-js 据此把
+ * select 返回类型定为**数组**。两者都是事实，客户端用一个真收窄（`Array.isArray`）处理，不用断言掩盖。
  */
 export type OverviewBudget = {
   id: string;
@@ -35,12 +28,8 @@ export type OverviewBudget = {
 };
 
 /**
- * 本路由响应里的「关系数据」部分。客户端（`overview-client.tsx`）用
- * `import type` 引入同一份声明，而不是再手写一遍 —— 这正是本文件要的效果
- * 「客户端类型与实际返回形状之间有静态保证」就落在这条 import 上。
- *
- * `snapshot` 不在此契约内：`dashboard_snapshot` 在 database.types.ts 中
- * 声明返回 `Json`，其内部结构只能由客户端声明（该文件为只读，不在本包内）。
+ * 本路由响应里的「关系数据」部分，客户端用 `import type` 引入同一份声明而非再手写一遍。
+ * `snapshot` 不在此契约内：`dashboard_snapshot` 声明返回 `Json`，内部结构只能由客户端声明。
  */
 export type OverviewRelations = {
   accounts: OverviewCategoryRef[];
@@ -66,8 +55,7 @@ export async function GET(request: NextRequest) {
     return sessionResponse(auth, { error: "数据加载失败，请稍后重试" }, { status: 502 });
   }
 
-  // 显式标注为 OverviewRelations：查询结果的列名/类型一旦与客户端期望不符，
-  // 这里就编译不过，而不是等到页面上少一块数据才发现（D-15）。
+  // 显式标注为 OverviewRelations：查询列名/类型一旦与客户端期望不符，这里就编译不过。
   const relations: OverviewRelations = {
     accounts: accountsRes.data ?? [],
     categories: categoriesRes.data ?? [],

@@ -1,26 +1,20 @@
 #!/usr/bin/env node
 /**
- * [R2-05] Independent reverse-attack set for the DESIGN.md §十一 taboo guards.
+ * Independent reverse-attack set for the DESIGN.md §十一 taboo guards.
  *
- * Separate from `check-taboo-guard.mjs` on purpose: that script is the rule's
- * own regression suite (one probe per route the rule claims to fold), while
- * this one *attacks the fixes* — each case targets a branch that a previous
- * round added, or a route the Known-boundaries section claims is covered. A
- * guard that only ever tests the cases it was written for proves nothing about
- * the cases it was not.
- *
- * Two review rounds in a row were rejected for a bypass found this way, so
- * this file is part of the deliverable, not scratch: a new construction route
- * means a new case here before the route is called supported.
+ * Separate from `check-taboo-guard.mjs` on purpose: that script is the rule's own regression
+ * suite (one probe per route the rule claims to fold), while this one *attacks the fixes* — each
+ * case targets a branch that could plausibly be bypassed. A guard that only ever tests the cases
+ * it was written for proves nothing about the cases it was not. A new construction route means a
+ * new case here before the route is called supported.
  *
  * `expect`    = must be reported. Silence is a finding.
- * `expectNot` = must stay silent. A hit is a finding (the guard cries wolf,
- *               and a guard the team learns to ignore is not a guard).
+ * `expectNot` = must stay silent. A hit is a finding (a guard the team learns to ignore is not
+ *               a guard).
  *
- * Every case was checked against the real runtime value of its expression —
- * several early "escapes" here were bugs in the *test*, not the rule, and
- * asserting on a string that was never a violation is how a guard gets
- * "hardened" into uselessness.
+ * Every case was checked against the real runtime value of its expression — several early
+ * "escapes" here were bugs in the *test*, not the rule, and asserting on a string that was never
+ * a violation is how a guard gets "hardened" into uselessness.
  *
  * Usage: node scripts/attack-taboo-guard.mjs
  * Exit 0 = every `expect` case was caught and every `expectNot` stayed quiet.
@@ -60,7 +54,7 @@ function lint(source) {
 const Z = 'const RAMP = "zinc";\n';
 
 const CASES = [
-  // --- A. the number fold (E2) ---------------------------------------------
+  // --- A. the number fold ------------------------------------------------------
   { label: "A1 数字在 + 链最左（运行时 500-zinc，非类名）", expectNot: "DESIGN.md",
     why: "数字折叠不得凭位置造出禁忌",
     src: 'const RAMP2 = "zinc";\nexport const A = () => <p className={500 + "-" + RAMP2} />;\n' },
@@ -76,7 +70,7 @@ const CASES = [
     why: "-500 是 UnaryExpression 而非 Literal",
     src: 'export const A = () => <p className={"text-zinc" + -500} />;\n' },
 
-  // --- B. the concat ordering fix ------------------------------------------
+  // --- B. concat ordering ------------------------------------------------------
   { label: "B1 concat 追加在前（运行时 500-text-zinc，无色号）", expectNot: "DESIGN.md",
     why: "顺序正确后不该凭空造出禁忌",
     src: 'export const A = () => <p className={["500"].concat(["text-zinc"]).join("-")} />;\n' },
@@ -90,7 +84,7 @@ const CASES = [
     why: "与 check-taboo-guard 的 U6 一致：非槽位空洞不报，否则每个 prop 透传都变噪音",
     src: 'export const A = (k) => <p className={["text-"].concat([k]).join("-")} />;\n' },
 
-  // --- C. the method-chain boundary fix ------------------------------------
+  // --- C. the method-chain boundary --------------------------------------------
   { label: "C1 replace 改写成合法色（已知过近似，仍按接收者报）", expect: "DESIGN.md",
     why: "接收者里确实写着 text-zinc-500；这是 Known boundaries 声明的过近似，不是新缺陷",
     src: 'const K = ["text-zinc-500"];\nexport const A = () => <p className={K.join(" ").replace("zinc", "night")} />;\n' },
@@ -101,7 +95,7 @@ const CASES = [
     why: "STRING_DERIVING_METHODS 的其他成员是否同样生效",
     src: 'const K = ["text-zinc-500"];\nexport const A = () => <p className={K.join(" ").padStart(20, " ")} />;\n' },
 
-  // --- D. the split-index fix ----------------------------------------------
+  // --- D. the split-index boundary ---------------------------------------------
   { label: "D1 split 取第二段", expect: "DESIGN.md",
     why: "下标不是 0 时是否仍成立",
     src: 'const K = ["panel", "text-zinc-500"];\nexport const A = () => <p className={K.join(" ").split(" ")[1]} />;\n' },
@@ -126,7 +120,7 @@ const CASES = [
     why: "一跳上限的边界；同样应报洞而非静默放过",
     src: Z + "const A1 = `zinc${RAMP}`;\nexport const A = () => <p className={`text-${A1}-500`} />;\n" },
 
-  // --- F. regressions the fixes must not have caused ------------------------
+  // --- F. regressions these folds must not cause -------------------------------
   { label: "F1 合规 concat/join 不得误报", expectNot: "DESIGN.md",
     why: "concat 修复是否污染正常代码",
     src: 'export const A = () => <p className={["panel", "card"].concat(["border-fogline"]).join(" ")} />;\n' },
@@ -143,7 +137,7 @@ const CASES = [
     why: "不可静态求值的数组应退化为洞而非误报",
     src: 'export const A = (arr) => <p className={arr.map((s) => s).join(" ")} />;\n' },
 
-  // --- G. shapes neither the review nor an earlier round has tried -----------
+  // --- G. shapes not covered by check-taboo-guard.mjs ---------------------------
   { label: "G1 join 的元素本身是数组", expect: "DESIGN.md",
     why: "[[a],[b]].join() 的元素是数组而非字符串",
     src: 'export const A = () => <p className={[["text-zinc-500"], ["panel"]].join(" ")} />;\n' },

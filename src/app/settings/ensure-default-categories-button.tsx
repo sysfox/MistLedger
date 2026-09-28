@@ -17,8 +17,7 @@ export default function EnsureDefaultCategoriesButton() {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            // 原先这里叫 `result`，把外层的 state 同名遮蔽了 —— 合法但
-            // 极易读错（读代码的人分不清 `result.ok` 指哪个）。改名 outcome。
+            // 变量名不得与外层 state 同名，否则读代码时分不清 `result.ok` 指哪个。
             const outcome = await ensureDefaultCategories();
             setResult(outcome);
             if (outcome.ok) notifyDataChanged();

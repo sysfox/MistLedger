@@ -11,20 +11,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  // 成功与失败是两种不同的语义，不能共用一个 state。
-  // 「注册成功，请到邮箱确认后再登录」曾被塞进 error state，于是渲染成余烬红 +
-  // role="alert"（assertive）—— 视觉与语义双重错误：ember 在本项目只表示支出与
-  // 危险（DESIGN.md §二）。拆成 notice（jade + role=status，polite）与
-  // error（ember + role=alert，assertive）两个独立 state 后，颜色与播报强度
-  // 都跟着语义走。
+  // 成功与失败是两种语义，必须是两个独立 state：notice 走 jade + role=status（polite），
+  // error 走 ember + role=alert（assertive）。ember 在本项目只表示支出与危险
+  // （DESIGN.md §二），拿来渲染「注册成功」是视觉与语义双重错误。
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const errorRef = useRef<HTMLParagraphElement>(null);
 
-  // 提交失败后把焦点移到错误文本。焦点留在按钮上时读屏用户可能收不到
-  // 播报（按钮此刻被 disabled，文案又在它上方）。tabIndex={-1} 让 <p> 可编程
-  // 聚焦但不进 Tab 序列；焦点环仍是灯色（§十一 #9）。
+  // 提交失败后把焦点移到错误文本：焦点留在按钮上时读屏用户收不到播报（按钮此刻
+  // 被 disabled，文案又在它上方）。tabIndex={-1} 让 <p> 可编程聚焦但不进 Tab 序列。
   useEffect(() => {
     if (error) errorRef.current?.focus();
   }, [error]);
@@ -47,7 +43,7 @@ export default function LoginPage() {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (!data.session) {
-          // 成功路径：不是错误。玉绿 + role=status。
+          // 成功路径不是错误：玉绿 + role=status。
           setNotice("注册成功，请到邮箱确认后再登录");
           setMode("signin");
           return;

@@ -6,12 +6,8 @@ import { notifyDataChanged } from "@/lib/api/client";
 import { deleteTransaction } from "./actions";
 
 /**
- * 二次确认逻辑已收敛到 `@/components/confirm-submit-button`。
- * 本文件原来复制了 `formRef` + `armedRef` + 拦截 onSubmit + 三层 Dialog 骨架（48 行），
- * 现在只剩「用哪个 action / 说什么话 / 什么配色」三项决策。
- *
- * 删除侧本来就没有面板渲染条件，因此不存在「成功后永久锁死」的入口 ——
- * 根因（`{open && !state?.ok}`）只在 edit 侧。
+ * 二次确认逻辑在 `@/components/confirm-submit-button`，本文件只决定用哪个 action、
+ * 说什么话、什么配色。删除侧没有「成功后永久锁死」的入口（那种渲染条件只存在于 edit 侧）。
  */
 export default function DeleteTransactionButton({ id }: { id: string }) {
   const [state, formAction, pending] = useActionState(deleteTransaction, null);

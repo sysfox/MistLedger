@@ -47,19 +47,13 @@ const ACCOUNT_PLACEHOLDER: Record<string, string> = {
 /**
  * 「改完还能再改」。
  *
- * 原来的渲染条件是 `open && !state?.ok`：useActionState 的 state 成功后永不复位
- * （React 没有提供 reset API），数据刷新后 key 不变、组件实例复用，于是
- * `state.ok === true` 之后面板永不渲染 —— 「修改」按钮仍能 toggle aria-expanded，
- * 却变成点不动的死控件。
+ * 面板的渲染条件只能看 `open`，绝不能写成 `open && !state?.ok`：useActionState 的
+ * state 成功后永不复位（React 没有 reset API），key 不变时实例会被复用，于是成功
+ * 后面板永不渲染，「修改」按钮变成点得动却没反应的控件。改用 `gen` 递增作面板
+ * key，每次展开都是全新子树，受控/非受控初值都回到当前流水。
  *
- * 现在拆成两件事：
- *   · 面板的渲染条件只看 `open`（成功的**文案**不再参与渲染条件）。
- *   · `gen` 在每次展开时递增并作为面板的 `key`，让每次展开都是一棵全新的子树 ——
- *     里面的 `type` 受控值、四个 `defaultValue` 的非受控初值都回到当前流水上。
- *
- * `useActionState` 仍然留在父组件（而不是下放进面板），因为 `pending` 要用来禁用
- * 父组件的「修改」按钮：若面板在提交途中被卸载，`notifyDataChanged()` 的 effect
- * 跟着一起卸载，数据就不会刷新。
+ * `useActionState` 留在父组件而非下放进面板：面板若在提交途中被卸载，`pending` 与
+ * 刷新用的 effect 会一起卸载，数据就不刷新了。
  */
 export default function EditTransactionButton({
   transaction,
@@ -83,8 +77,8 @@ export default function EditTransactionButton({
     setOpen((v) => !v);
   };
 
-  // 成功文案现在是面板内的一块反馈（role=status，玉绿），失败同理（role=alert，余烬）。
-  // 两者都描述「上一次提交的结果」，重新展开时复述它并不失真。
+  // 成功/失败文案是面板内的一块反馈（role=status / role=alert），描述的是
+  // 「上一次提交的结果」，重新展开时复述它并不失真。
   const justSaved = state?.ok ? state.message : "";
   const saveError = state && !state.ok ? state.message : "";
 
@@ -118,13 +112,9 @@ export default function EditTransactionButton({
 }
 
 /**
- * 修改面板。只在展开时挂载，因此内部的 `useState`/`defaultValue` 天然是「本次编辑」的
- * 初值，不需要任何手动 reset。
- *
- * 二次确认交给 `<ConfirmSubmitButton>`（自带 Dialog、Esc/遮罩关闭、
- * pending 禁用、确认后提交）。
- * 收支类型交给 `<TypePicker>`（APG radiogroup 键盘契约：roving tabindex +
- * 方向键 + Home/End）。
+ * 修改面板。只在展开时挂载，因此内部的 `useState`/`defaultValue` 天然是「本次编辑」
+ * 的初值，不需要任何手动 reset。二次确认交给 `<ConfirmSubmitButton>`，收支类型
+ * 交给 `<TypePicker>`。
  */
 function EditPanel({
   transaction,
