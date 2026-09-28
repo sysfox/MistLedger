@@ -4,11 +4,23 @@ import { isApiSession, requireApiSession, sessionResponse } from "@/lib/api/sess
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+// [D-34] `new Intl.DateTimeFormat` 要解析 locale 与 options，是相对昂贵的构造。
+// 放进 handler 等于每个请求都重付一次；提到模块作用域，一次构造全程复用。
+const SHANGHAI_MONTH = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+});
+
+function currentShanghaiMonth(): string {
+  return `${SHANGHAI_MONTH.format(new Date())}-01`;
+}
+
 export async function GET(request: NextRequest) {
   const auth = await requireApiSession(request);
   if (!isApiSession(auth)) return auth;
 
-  const month = `${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit" }).format(new Date())}-01`;
+  const month = currentShanghaiMonth();
 
   const [accountsRes, balancesRes, categoriesRes, budgetsRes, batchesRes, rulesRes] = await Promise.all([
     auth.supabase.from("accounts").select("id, name, type, initial_balance, is_active").order("created_at"),

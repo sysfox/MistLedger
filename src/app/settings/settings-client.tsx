@@ -1,7 +1,7 @@
 "use client";
 
 import { accountTypeLabel } from "@/lib/ledger/constants";
-import { formatMoney } from "@/lib/ledger/format";
+import { formatSignedMoney } from "@/lib/ledger/format";
 import { SkeletonChip, SkeletonLine, SkeletonPanel } from "@/components/page-skeleton";
 import { SectionError } from "@/components/section-error";
 import { useApiData } from "@/lib/api/use-api-data";
@@ -44,6 +44,25 @@ const SOURCE_LABEL: Record<string, string> = {
   bank_import: "银行明细",
 };
 
+/**
+ * [D-15] PostgREST 的嵌套关系（`category:categories(name)`）返回「一对多时是数组、
+ * 一对一（maybeSingle 语义）时是对象」。此前两处用 `as unknown as` 硬转，
+ * 既绕过了类型检查、又让列名改动不报错。这里把两种形态收进一个收窄函数，
+ * 调用点不再需要任何断言 —— `as unknown as` / `as` / `any` / `@ts-ignore` 全站清零。
+ */
+function relationName(rel: { name: string }[] | { name: string } | null): string | undefined {
+  if (!rel) return undefined;
+  return Array.isArray(rel) ? rel[0]?.name : rel.name;
+}
+
+// [D-44] 「共 N 笔」与数据页统一：数字套 .money 并做千分位。
+// .money 语义上属于「金额」，真正的修法是抽一个只带 tabular-nums 的 .num
+// —— 但那要动 globals.css（WP-1 的文件）与 data-client（WP-3 的文件），
+// 见 .hermes/audits/wp5-design-fragment.md 的「待合并」一节。
+function count(n: number): string {
+  return n.toLocaleString("zh-CN");
+}
+
 function CategoryGroup({ title, items }: { title: string; items: Category[] }) {
   return (
     <section className="panel flex flex-col gap-3 p-5">
@@ -75,7 +94,8 @@ function AccountsSection({ payload }: { payload: SettingsPayload }) {
         <p className="eyebrow">账房</p>
         <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">账户</h2>
         <p className="mt-1 text-sm text-dim">
-          总资产 <span className="money">¥{formatMoney(total)}</span>
+          {/* [D-08] 负号前置（U+2212）且 ¥ 紧跟其后：−¥12.50，不再是 ¥-12.50 */}
+          总资产 <span className="money">{formatSignedMoney(total)}</span>
           <span className="text-xs">（含停用账户）</span> · 余额 = 期初 + 流水汇总（含转账），每笔钱从哪个账户出在这里对得上
         </p>
       </div>
@@ -89,11 +109,11 @@ function AccountsSection({ payload }: { payload: SettingsPayload }) {
                 {!a.is_active ? <span className="ml-2 text-xs text-dim">已停用</span> : null}
               </p>
               <p className="text-xs text-dim">
-                {accountTypeLabel(a.type)} · 期初 <span className="money">¥{formatMoney(Number(a.initial_balance))}</span>
+                {accountTypeLabel(a.type)} · 期初 <span className="money">{formatSignedMoney(Number(a.initial_balance))}</span>
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <span className="money font-semibold text-ink">¥{formatMoney(balances.get(a.id) ?? 0)}</span>
+              <span className="money font-semibold text-ink">{formatSignedMoney(balances.get(a.id) ?? 0)}</span>
               <ToggleAccountButton id={a.id} isActive={a.is_active} />
               <DeleteAccountButton id={a.id} />
             </div>
@@ -195,14 +215,12 @@ function BudgetSection({ payload, month }: { payload: SettingsPayload; month: st
     <>
       <ul className="flex flex-col gap-2 text-sm">
         {budgets.map((b) => {
-          const cat = Array.isArray(b.category)
-            ? b.category[0]?.name
-            : (b.category as unknown as { name: string } | null)?.name;
+          const cat = relationName(b.category);
           return (
             <li key={b.id} className="panel flex items-center justify-between px-4 py-2">
               <span className="text-ink">
                 {cat ?? "未知分类"}
-                <span className="money ml-2 text-dim">¥{formatMoney(Number(b.limit_amount))}</span>
+                <span className="money ml-2 text-dim">{formatSignedMoney(Number(b.limit_amount))}</span>
               </span>
               <DeleteBudgetButton id={b.id} label={cat ?? "未知分类"} />
             </li>
@@ -251,16 +269,17 @@ function ImportSection({ payload }: { payload: SettingsPayload }) {
         <h3 className="mt-1 font-display text-[17px] font-semibold text-ink">最近导入</h3>
         <ul className="mt-3 flex flex-col gap-2 text-sm">
           {batches.map((b) => (
-            <li
-              key={b.id}
-              className="flex items-center justify-between gap-3 rounded-md px-2 py-2 transition-colors duration-150 hover:bg-veil"
-            >
+            // [D-07] 这一行不可点（纯展示），去掉 hover:bg-veil 与 transition-colors
+            // —— 不可点的行给 hover 是假 affordance（DESIGN.md §七.3）。
+            <li key={b.id} className="flex items-center justify-between gap-3 py-2">
               <span className="min-w-0 flex-1 truncate text-ink">
                 {b.filename}
                 <span className="ml-2 text-xs text-dim">{SOURCE_LABEL[b.source] ?? b.source}</span>
               </span>
               <span className="shrink-0 text-xs text-dim">
-                共 {b.row_count} 笔 · 新增 {b.success_count} 笔 · 去重 {b.duplicate_count} 笔
+                共 <span className="money">{count(b.row_count)}</span> 笔 · 新增{" "}
+                <span className="money">{count(b.success_count)}</span> 笔 · 去重{" "}
+                <span className="money">{count(b.duplicate_count)}</span> 笔
               </span>
             </li>
           ))}
@@ -275,9 +294,14 @@ function ImportSection({ payload }: { payload: SettingsPayload }) {
         <h3 className="mt-1 font-display text-[17px] font-semibold text-ink">归类规则（关键词 → 分类）</h3>
         <ul className="mt-3 flex flex-wrap gap-2 text-sm">
           {rules.map((r) => {
-            const cat = Array.isArray(r.category) ? r.category[0]?.name : (r.category as unknown as { name: string } | null)?.name;
+            const cat = relationName(r.category);
             return (
-              <li key={`${r.keyword}-${cat ?? "?"}`} className="chip">
+              // [D-42] 规则是只读数据，不是选择器。`.chip` 的 hover 会转纸墨，
+              // 暗示「可点」；改用等价的静态标签样式（无 hover/active 反馈）。
+              <li
+                key={`${r.keyword}-${cat ?? "?"}`}
+                className="rounded-full border border-fogline bg-veil px-3 py-1 text-sm text-dim"
+              >
                 {r.keyword} → {cat ?? "?"}
               </li>
             );
@@ -320,17 +344,26 @@ function ImportFallback() {
   );
 }
 
-export default function SettingsClient() {
-  const { data, error, loading } = useApiData<SettingsPayload>("/api/settings");
+// [D-34] `new Intl.DateTimeFormat` 要解析 locale 与 options，是相对昂贵的构造。
+// 放进组件体等于每次重渲染都重付一次；提到模块作用域，只留一次 format 调用。
+const SHANGHAI_MONTH = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+});
 
-  const currentMonth = `${new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-  }).format(new Date())}-01`;
+function currentShanghaiMonth(): string {
+  return `${SHANGHAI_MONTH.format(new Date())}-01`;
+}
+
+export default function SettingsClient() {
+  const { data, error, loading, reload } = useApiData<SettingsPayload>("/api/settings");
+
+  const currentMonth = currentShanghaiMonth();
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
+    // [D-26] 根 layout 的「跳到主内容」skip link 指向 #main，四页的 <main> 必须带这个 id。
+    <main id="main" className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
         <p className="eyebrow">账房规则</p>
         <h1 className="mt-1 font-display text-[22px] font-semibold text-ink">设置</h1>
@@ -345,10 +378,10 @@ export default function SettingsClient() {
           <CategoryFallback />
         </>
       ) : error || !data ? (
-        <>
-          <SectionError />
-          <SectionError />
-        </>
+        // [D-06] 原本这里并排渲染了两个一模一样的 SectionError（账户一个、分类一个），
+        // 用户看到的是「同一个错误出现两次」而不是「哪一栏坏了」。收敛成一个，
+        // 并接上 useApiData 的 reload —— 恢复网络后点一下就出数据，不用手动 F5。
+        <SectionError onRetry={reload} label="账户与分类" />
       ) : (
         <>
           <AccountsSection payload={data} />
@@ -372,7 +405,7 @@ export default function SettingsClient() {
         {loading ? (
           <BudgetFallback />
         ) : error || !data ? (
-          <SectionError />
+          <SectionError onRetry={reload} label="本月预算" />
         ) : (
           <BudgetSection payload={data} month={currentMonth} />
         )}
@@ -391,7 +424,7 @@ export default function SettingsClient() {
         {loading ? (
           <ImportFallback />
         ) : error || !data ? (
-          <SectionError />
+          <SectionError onRetry={reload} label="导入账单" />
         ) : (
           <ImportSection payload={data} />
         )}

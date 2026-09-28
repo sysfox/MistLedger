@@ -9,7 +9,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
-import { formatMoney } from "@/lib/ledger/format";
+import { formatSignedMoney } from "@/lib/ledger/format";
 import { adjustAccountBalance } from "./account-actions";
 import { notifyDataChanged } from "@/lib/api/client";
 
@@ -40,6 +40,23 @@ export default function AdjustBalanceButton({
   const targetNumber = Number(targetBalance);
   const targetValid = targetBalance !== "" && Number.isFinite(targetNumber);
 
+  // [D-04] 成功后「再调一次」必须仍然可用。
+  //
+  // 原来的渲染条件是 `open && !(state.ok && state.message)`：useActionState 的
+  // state 成功后永不复位，于是这个面板一个账户一生只渲染一次 —— 按钮仍能 toggle
+  // aria-expanded，但内容永不出现，成为点不动的死控件。
+  //
+  // 现在面板只看 `open`。成功文案不再是「渲染条件」而是面板内的一块反馈
+  // （role=status，玉绿），失败同理。数据刷新后 currentBalance 就是最新值，
+  // 再次展开时目标余额同步回它，用户不必手删上一轮的数字。
+  const justAdjusted = state.ok && state.message ? state.message : "";
+  const adjustError = !state.ok && state.message ? state.message : "";
+
+  const handleToggle = () => {
+    if (!open) setTargetBalance(String(currentBalance));
+    setOpen(!open);
+  };
+
   const confirmSubmit = () => {
     armedRef.current = true;
     setConfirmOpen(false);
@@ -54,12 +71,12 @@ export default function AdjustBalanceButton({
         color="primary"
         aria-expanded={open}
         disabled={pending}
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
         sx={{ minHeight: 44, minWidth: 44, fontSize: "0.75rem" }}
       >
         调整余额
       </Button>
-      {open && !(state.ok && state.message) ? (
+      {open ? (
         <form
           ref={formRef}
           action={action}
@@ -76,9 +93,9 @@ export default function AdjustBalanceButton({
           <input type="hidden" name="id" value={id} />
           <p className="eyebrow">调整余额</p>
           <p className="text-xs text-dim">
-            当前余额 <span className="money">¥{formatMoney(currentBalance)}</span>（期初{" "}
-            <span className="money">¥{formatMoney(initialBalance)}</span>，流水净变动{" "}
-            <span className="money">¥{formatMoney(net)}</span>）
+            当前余额 <span className="money">{formatSignedMoney(currentBalance)}</span>（期初{" "}
+            <span className="money">{formatSignedMoney(initialBalance)}</span>，流水净变动{" "}
+            <span className="money">{formatSignedMoney(net)}</span>）
           </p>
           <TextField
             id={`target-balance-${id}`}
@@ -101,9 +118,14 @@ export default function AdjustBalanceButton({
           >
             {pending ? "调整中…" : "调整"}
           </Button>
-          {!state.ok && state.message ? (
+          {justAdjusted ? (
+            <p role="status" className="text-xs text-jade">
+              {justAdjusted}，可以再调一次。
+            </p>
+          ) : null}
+          {adjustError ? (
             <p role="alert" className="text-xs text-ember">
-              {state.message}
+              {adjustError}
             </p>
           ) : null}
         </form>
@@ -112,9 +134,9 @@ export default function AdjustBalanceButton({
         <Dialog open onClose={() => setConfirmOpen(false)}>
           <DialogTitle>确认调整「{accountName}」的余额？</DialogTitle>
           <DialogContent>
-            <Box component="p" sx={{ margin: 0, fontFamily: "var(--font-geist-mono), monospace" }}>
+            <Box component="p" sx={{ margin: 0 }}>
               <span className="money">
-                ¥{formatMoney(currentBalance)} → ¥{formatMoney(targetNumber)}
+                {formatSignedMoney(currentBalance)} → {formatSignedMoney(targetNumber)}
               </span>
             </Box>
             <DialogContentText sx={{ mt: 1 }}>
