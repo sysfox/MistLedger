@@ -18,7 +18,20 @@ export const mistNightTokens = {
   mist: "#111826",
   veil: "#1B2436",
   fogline: "#28324A",
+  // [D-27] 交互控件边界：与 globals.css 的 --color-fogline-strong 同值。
+  // MUI OutlinedInput 的 notchedOutline 是输入框唯一的边界线索，
+  // 原先与 .input 一样用 fogline（对 veil 1.22:1，低于 SC 1.4.11 的 3:1）。
+  foglineStrong: "#5E6F8C",
   dim: "#8B93A7",
+} as const;
+
+// prefers-contrast: more 下 globals.css 会把令牌提亮；MUI 主题是 JS 常量、
+// 读不到 CSS 变量，故在此复刻同一组覆盖值，保证两套控件同步。
+// 实际生效值以 globals.css 为准（CSS 变量优先），此处仅保证 MUI 侧不落回低对比。
+const HIGH_CONTRAST = {
+  fogline: "#46516E",
+  foglineStrong: "#8B98B8",
+  dim: "#B6BED1",
 } as const;
 
 // 与 .input:focus-visible / .btn-ghost:focus-visible 同一灯环（DESIGN.md 第七节）
@@ -120,9 +133,12 @@ const muiTheme = createTheme({
           backgroundColor: mistNightTokens.veil,
           borderRadius: 6,
           color: mistNightTokens.ink,
-          "& .MuiOutlinedInput-notchedOutline": { borderColor: mistNightTokens.fogline },
+          // [D-27] 边界用 fogline-strong（对 veil 3.05:1），不再是装饰级 fogline
+          "& .MuiOutlinedInput-notchedOutline": {
+            borderColor: mistNightTokens.foglineStrong,
+          },
           "&:hover .MuiOutlinedInput-notchedOutline": {
-            borderColor: mistNightTokens.fogline,
+            borderColor: mistNightTokens.foglineStrong,
           },
           "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
             borderColor: "rgba(227, 179, 65, 0.6)",
@@ -131,6 +147,15 @@ const muiTheme = createTheme({
           "& input::placeholder, & textarea::placeholder": {
             color: "rgba(139, 147, 167, 0.7)",
             opacity: 1,
+          },
+          // [D-27] 同步 globals.css 的 prefers-contrast: more 覆盖
+          "@media (prefers-contrast: more)": {
+            "& .MuiOutlinedInput-notchedOutline": {
+              borderColor: HIGH_CONTRAST.foglineStrong,
+            },
+            "&:hover .MuiOutlinedInput-notchedOutline": {
+              borderColor: HIGH_CONTRAST.foglineStrong,
+            },
           },
         },
       },

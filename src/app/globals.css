@@ -12,6 +12,11 @@
   --nav-top-h: var(--nav-top-inner-h);
   --nav-top-h-m: calc(env(safe-area-inset-top) + var(--nav-top-inner-m));
   --nav-bottom-h: calc(var(--nav-tab-inner-h) + env(safe-area-inset-bottom));
+
+  /* 锚点滚动偏移：移动端顶栏实际高度（含刘海安全区）再多 8px 呼吸位。
+     锚点跳转统一由下面 :target / section[id] 一处规则负责，
+     页面不再各自写 scroll-mt-*（原值 80px 不足以避开 iPhone 上约 99px 的顶栏）。*/
+  --nav-scroll-offset: calc(var(--nav-top-h-m) + 8px);
 }
 
 /* ── 滚动条槽位稳定：长页加载滚动条出现/消失时不引发横向宽度抖动 ── */
@@ -32,6 +37,10 @@ html {
   --color-mist: #111826;
   --color-veil: #1b2436;
   --color-fogline: #28324a;
+  /* 交互控件边界：输入框/chip 的唯一边界线索，需对 veil 与 mist 均 >= 3:1
+     （WCAG SC 1.4.11）。fogline 保持原值供 .panel 等纯装饰边框使用，
+     避免大面积提亮破坏「雾」的层次。实测 3.05:1 on veil / 3.49:1 on mist。*/
+  --color-fogline-strong: #5e6f8c;
   --color-dim: #8b93a7;
 
   /* 字体（实际字体族由 layout 挂在 html 的 next/font 变量提供） */
@@ -58,6 +67,14 @@ html {
   h3 {
     letter-spacing: -0.01em;
     line-height: 1.3;
+  }
+
+  /* 锚点滚动偏移统一入口：桌面顶栏不遮挡内容（body 顶部已预留），
+     移动端顶栏 sticky 会压住内容，故偏移取移动端栏高 + 8px。
+     :target 与 section[id] 同时覆盖「点链接跳转」与「浏览器前进后退到带 hash 的地址」。*/
+  :target,
+  section[id] {
+    scroll-margin-top: var(--nav-scroll-offset);
   }
 }
 
@@ -120,11 +137,10 @@ body::after {
 
 .input {
   background-color: var(--color-veil);
-  border: 1px solid var(--color-fogline);
+  border: 1px solid var(--color-fogline-strong);
   border-radius: 0.375rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  scroll-margin: 96px;
   color: var(--color-ink);
   outline: none;
 }
@@ -219,7 +235,7 @@ body::after {
 }
 
 .chip {
-  border: 1px solid var(--color-fogline);
+  border: 1px solid var(--color-fogline-strong);
   background-color: var(--color-veil);
   color: var(--color-dim);
   border-radius: 9999px;
@@ -333,22 +349,42 @@ body::after {
     0 0 24px rgba(227, 179, 65, 0.25);
 }
 
-/* ── 路由转场「雾散显影」（DESIGN.md 第七节）───────────── */
+/* ── 路由转场「雾散显影」（DESIGN.md 第七节）─────────────
+   只动合成层属性（opacity / transform），380ms 内不触发逐帧重绘。
+   原实现把 filter: blur(8px) 写进同一条关键帧：blur 不可合成，
+   每次导航都要重绘整页，低端安卓上 380ms × 全页 Paint 是可感知的掉帧来源。 */
 @keyframes mist-in {
   from {
     opacity: 0;
-    filter: blur(8px);
     transform: translateY(6px);
   }
   to {
     opacity: 1;
-    filter: blur(0);
     transform: translateY(0);
   }
 }
 
 .page-enter {
   animation: mist-in 380ms cubic-bezier(0.22, 0.68, 0.32, 1) both;
+}
+
+/* 「雾散」的模糊质感改为可选增强层：只在高分辨率屏（Retina/2dppx+，GPU 负担得起）
+   且用户未要求减少动态时叠加，基准路径始终是纯合成层的 mist-in。 */
+@media (min-resolution: 2dppx) {
+  @keyframes mist-in-blur {
+    from {
+      filter: blur(4px);
+    }
+    to {
+      filter: blur(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .page-enter {
+      animation-name: mist-in, mist-in-blur;
+    }
+  }
 }
 
 /* ── 加载态「掌灯」（DESIGN.md 第七节）─────────────────── */
@@ -396,23 +432,32 @@ body::after {
 }
 }
 
-/* ── 微交互：仅颜色属性过渡，避免布局属性参与 ──────────── */
-*,
-::before,
-::after {
-  transition-property: background-color, border-color, color;
-  transition-duration: 150ms;
-  transition-timing-function: ease;
-}
-
-/* ── 降级：reduced-motion 下全部静止（DESIGN.md 第七节）── */
+/* ── 降级：reduced-motion 下全部静止（DESIGN.md 第七节）──
+   `animation: none` 一步清掉 animation-name / duration / iteration-count / fill-mode。
+   原先分写 animation-duration: 0s + animation-iteration-count: 1 的问题：
+   iteration-count: 1 不会让雾静止，而是让 alternate 的 fog-drift 跳到 to 态后定住
+   （雾平移 48px/32px 后停住），与「雾静止」的字面承诺不符。 */
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
   ::after {
-    animation-duration: 0s !important;
-    animation-iteration-count: 1 !important;
+    animation: none !important;
     transition-duration: 0s !important;
+  }
+}
+
+/* ── 微交互：仅颜色属性过渡，避免布局属性参与 ────────────
+   放在 @layer base（原为无层级声明）。无层级规则的优先级高于一切 @layer 内的规则，
+   于是任何页面写 transition-transform 都会被这里的 transition-property 抢占 ——
+   一颗隐形的全局样式地雷。移入 base 层后，工具类与组件类都能按需覆盖它，
+   而按钮/chip/链接的 150ms 颜色过渡观感不变。 */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    transition-property: background-color, border-color, color;
+    transition-duration: 150ms;
+    transition-timing-function: ease;
   }
 }
 
@@ -421,6 +466,7 @@ body::after {
 @media (prefers-contrast: more) {
   :root {
     --color-fogline: #46516e;
+    --color-fogline-strong: #8b98b8;
     --color-dim: #b6bed1;
   }
 }

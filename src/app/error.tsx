@@ -14,7 +14,9 @@ export default function Error({
   }, [error]);
 
   return (
-    <main className="flex flex-1 items-center justify-center px-4 py-16">
+    // id="main"：layout.tsx 的 skip link 指向它（WCAG SC 2.4.1 Bypass Blocks）。
+    // role="alert"：整页崩溃是最高优先级的状态变化，必须打断读屏用户的当前播报。
+    <main id="main" role="alert" className="flex flex-1 items-center justify-center px-4 py-16">
       <div className="panel w-full max-w-sm p-6 text-center">
         <p className="eyebrow">雾散了</p>
         <h1 className="mt-2 font-display text-xl font-semibold text-ink">

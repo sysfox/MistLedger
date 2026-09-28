@@ -50,14 +50,15 @@
 |---|---|---|---|
 | `--color-mist` | `#111826` | 雾面 | 卡片/面板表面 |
 | `--color-veil` | `#1B2436` | 纱面 | 输入框、hover 态、表格行悬浮 |
-| `--color-fogline` | `#28324A` | 雾线 | 全部边框/分隔线 |
+| `--color-fogline` | `#28324A` | 雾线 | 纯装饰边框/分隔线（`.panel`、Dialog/Menu 纸面） |
+| `--color-fogline-strong` | `#5E6F8C` | 界雾 | **仅交互控件边界**：`.input` / `.chip` 边框、MUI `notchedOutline`。对 veil 3.05:1 · 对 mist 3.49:1（WCAG SC 1.4.11 的 3:1）。与 `fogline` 分家是为了只提亮「看得见控件在哪」的边，不动大面积装饰边框，「雾」的层次得以保留 |
 | `--color-dim` | `#8B93A7` | 远雾 | 次要文字、占位符 |
 
 ### 用色规则
 
 1. **灯火只做点睛**：每屏常亮灯色不超过 3 处（导航激活灯线、关键数字的 ¥、主按钮）。大面积铺灯色 = 犯规。
 2. 支出/收入一律用 `ember` / `jade`，禁止再引入其他红绿。
-3. 边框一律 `fogline`，禁止纯灰 zinc/neutral。
+3. 边框一律 `fogline`（装饰）或 `fogline-strong`（交互控件边界），禁止纯灰 zinc/neutral。
 4. 转账（中性）用 `ink`/`dim`，不染色。
 5. 超支警示：`ember` + 文字「超支」，不用刺眼纯红。
 6. `:root` 声明 `color-scheme: dark`；删除 prefers-color-scheme 媒体查询（常夜）。
@@ -70,9 +71,15 @@
 
 | 角色 | 字体 | 变量 | 字重 | 用途 |
 |---|---|---|---|---|
-| 展示 | **Noto Serif SC** | `--font-display` | 600 / 700 / 900 | 页面标题、词标「雾夜账」、区块标题。宋体骨相 = 账簿。**克制使用**：正文和按钮不用它 |
-| 正文 | **Noto Sans SC** | `--font-body` | 400 / 500 / 700 | 全部 UI 文字、表单、说明 |
+| 展示 | **Noto Serif SC** | `--font-display` | 600 | 页面标题、词标「雾夜账」、区块标题。宋体骨相 = 账簿。**克制使用**：正文和按钮不用它 |
+| 正文 | **Noto Sans SC** | `--font-body` | 400 / 500 / 600 | 全部 UI 文字、表单、说明 |
 | 数据 | **Geist Mono** | `--font-geist-mono` | 400 / 600 | **所有金额**。必须 `tabular-nums` |
+
+> **字重按实际使用点声明，且必须覆盖所有被用到的字重。** Tailwind 的 `font-semibold` = 600，
+> 若 `Noto Sans SC` 未声明 600，该类会退化成浏览器合成加粗（fake bold），不是设计要的真字重。
+> 收敛原则是「零使用点的字重不下载」（Google 对每个 CJK 字重返回 101 个分片，去掉一个字重即少 101 个 woff2），
+> 但**用到的字重一个都不能少**。`layout.tsx` 与 `global-error.tsx` 两处声明必须逐字相同
+> （next/font 按「字体+字重+子集」内容哈希去重，参数不同会重新下载并自托管第二套字体）。
 
 ### 字阶
 
@@ -177,15 +184,17 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 ```css
 @keyframes mist-in {
-  from { opacity: 0; filter: blur(8px); transform: translateY(6px); }
-  to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .page-enter {
   animation: mist-in 380ms cubic-bezier(0.22, 0.68, 0.32, 1) both;
 }
 ```
 
-- 时长 380ms，宁短勿长；blur 上限 8px。
+- 时长 380ms，宁短勿长。
+- **只用合成层属性**（`opacity` / `transform`）。`filter: blur` 不可合成，一旦写进关键帧，每次导航都要 380ms × 全页重绘，低端安卓上是可感知的掉帧来源。
+- 「雾散」的模糊质感是**可选增强层**，不是基准路径：另有一组 `mist-in-blur`（blur 4px，上限比原先的 8px 更收敛），仅在 `@media (min-resolution: 2dppx)`（Retina/2dppx+，GPU 负担得起）**且** `prefers-reduced-motion: no-preference` 时叠加。
 - 禁止离场动画（App Router 无此必要，加了只会拖慢感）。
 
 ### 2. 路由级结构骨架屏
@@ -218,9 +227,9 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 
 三个**独立**的偏好信号，组件内自带、不靠运行时开关：
 
-- `prefers-reduced-motion: reduce`——所有 animation/transition 时长归零，雾静止，内容直接显影。
+- `prefers-reduced-motion: reduce`——所有 animation/transition 时长归零，雾静止，内容直接显影。实现用 `animation: none !important` 一步到位（`none` 同时清掉 name / duration / iteration-count / fill-mode）；**不要**改写成 `animation-duration: 0s` + `animation-iteration-count: 1`——后者会让 `alternate` 的 `fog-drift` 跳到 `to` 态后停住（雾平移 48px/32px 后定住），不是「雾静止」。
 - `prefers-reduced-transparency: reduce`——`.material-bar` 转实底并关模糊，`.scroll-edge` 渐变改实色，MUI `Backdrop` 转更实的夜空并去模糊；落影分隔保留。
-- `prefers-contrast: more`——`--color-fogline` 提亮到 `#46516e`、`--color-dim` 提亮到 `#b6bed1`，边框与次要文字更实（令牌覆盖写在无层级 `:root`，优先于 `@theme` 的 theme 层）。
+- `prefers-contrast: more`——`--color-fogline` 提亮到 `#46516e`、`--color-fogline-strong` 提亮到 `#8b98b8`、`--color-dim` 提亮到 `#b6bed1`，边框与次要文字更实（令牌覆盖写在无层级 `:root`，优先于 `@theme` 的 theme 层）。MUI 主题是 JS 常量读不到 CSS 变量，`mui-theme.tsx` 须复刻同一组覆盖值。
 
 ---
 
@@ -229,11 +238,11 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 | 类名 | 定义 | 用途 |
 |---|---|---|
 | `.panel` | `bg-mist border border-fogline rounded-xl` + `box-shadow: inset 0 1px 0 rgba(233,228,216,0.03), 0 1px 2px rgba(0,0,0,0.4)` | 所有卡片容器（内边距用 Tailwind 另加） |
-| `.input` | `bg-veil border border-fogline rounded-md px-3 py-2 text-sm text-ink placeholder:text-dim/70 focus:ring-2 focus:ring-lamp/60 focus:border-lamp/60 outline-none` | 所有 input/select/textarea |
+| `.input` | `bg-veil border border-fogline-strong rounded-md px-3 py-2 text-sm text-ink placeholder:text-dim/70 focus:ring-2 focus:ring-lamp/60 focus:border-lamp/60 outline-none` | 所有 input/select/textarea（边框用 `fogline-strong`：输入框的边框是它唯一的边界线索，须满足 SC 1.4.11） |
 | `.btn-primary` | `bg-lamp text-night rounded-md px-4 py-2 text-sm font-medium hover:brightness-110 active:translate-y-px focus:ring-2 focus:ring-lamp/60` | 主操作（保存/创建/确认导入/登录） |
 | `.btn-ghost` | `text-dim hover:text-ink rounded-md px-3 py-2 text-sm` | 次要操作 |
 | `.link-subtle` | `text-dim underline underline-offset-4 hover:text-ink` | 行内链接 |
-| `.chip` | `border border-fogline bg-veil text-dim rounded-full px-3 py-1 text-sm` | 分类标签、单选组未选中态 |
+| `.chip` | `border border-fogline-strong bg-veil text-dim rounded-full px-3 py-1 text-sm` | 分类标签、单选组未选中态（边框用 `fogline-strong`：chip 边框是它识别「可点」的视觉线索） |
 | `.chip-active` | `border-lamp/70 bg-lamp/10 text-lamp` | 单选组选中态（支出/收入/转账、数据来源） |
 | `.eyebrow` | `text-[11px] tracking-[0.2em] text-dim font-medium` | 区块小标 |
 | `.money` | `font-mono tabular-nums tracking-tight` | 一切金额 |
@@ -319,11 +328,19 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
 5. 动画全部钉为 150ms；TouchRipple 默认 550ms 超 §十一 #8 上限，已全局 `disableRipple`，
    按压反馈改用 `active:translateY(1px)`。
 6. 注入顺序（`src/components/mui-provider.tsx`）：`AppRouterCacheProvider`
-  （`@mui/material-nextjs/v16-appRouter`，Next 16 通道）+ `ThemeProvider` + `CssBaseline`，
+   （`@mui/material-nextjs/v16-appRouter`，Next 16 通道）+ `ThemeProvider` + `CssBaseline`，
    包裹 `SiteNav` 与 `children`；`CssBaseline` 的 body 输出与 `globals.css` 完全同值。
    现有页面不渲染 MUI 组件即不产生 MUI 组件样式，故无回归；同一元素不混用
    Tailwind 与 MUI 竞争属性（布局间距走 `sx` 或外层 `div`）。有意不用 `enableCssLayer`，
    隔离靠上述两条保证，而非 layer 顺序。
+   **作用域约束**：provider 由 `src/components/mui-gate.tsx` 按 pathname **条件挂载**，
+   只在 `/ledger` `/settings` `/login` 渲染；`/` 与 `/data` 直接透传 children，
+   emotion 与整份主题不进入这两条路由的 client chunk（构建产物实测：`/` 与 `/data`
+   引用其 13 个 chunk 中含 0 个 MUI/emotion chunk，而三个 MUI 路由各含 3–4 个）。
+   不建 `(ledger)/(settings)/(login)` route group 的理由：建 group 要整体移动三个目录，
+   会改变其它修复包的文件所有权。`pathname === null`（客户端尚未就绪的极短暂窗口）
+   时按「需要 MUI」渲染——宁可多发一次 provider，也绝不让 MUI 三路由首帧丢样式，
+   因为样式丢失是**可见回归**，而 `/` `/data` 多一层 provider 只是无用 DOM。
 7. 依赖仅 `@mui/material` `@emotion/react` `@emotion/styled` `@mui/material-nextjs`
   （不装 `x-date-pickers`，保持最小）。
 8. `/settings` 的导入预览表格内紧凑 `select`、来源单选 chip、文件拖放虚线 `label`
@@ -331,6 +348,8 @@ body 上两层**缓慢漂移**的径向渐变雾（`body::before` / `body::after
    仅区块级触发按钮（确认导入）与各二次确认迁移到 MUI Dialog/Button。
 
 ## 变更记录
+
+- 2026-09-28 · WP-1 design-system（契约地基：可访问性边界、安全响应头、只动合成层的转场、金额铁律符号下沉）：**① 交互控件边界拆出 `--color-fogline-strong`（D-27）**——`.input` / `.chip` 边框与 MUI `notchedOutline` 改用它（`#5E6F8C`，对 veil 3.05:1 · 对 mist 3.49:1，达 SC 1.4.11 的 3:1），`--color-fogline` 保持 `#28324A` 继续供 `.panel` 等纯装饰边框：只提亮「看得见控件在哪」的边，大面积表面不动，「雾」的层次得以保留。**② 字体字重按实际使用收敛（D-02）**——`Noto Serif SC` 600/700/900 → 仅 600，`Noto Sans SC` 400/500/700 → 400/500/600。关键事实澄清：next/font 的 `subsets` 只决定哪些 `@font-face` 加 preload，css2 请求本身不含 subset 过滤，汉字分片（U+4E00…）本就下载并自托管（构建产物实测 304 条 `@font-face`），「中文回落系统字体」不成立；真正的问题是**字重**——`font-semibold` = 600 而原声明缺 600，全站该类中文正文在 fake bold。`global-error.tsx` 重声明同一组字重（与 `layout.tsx` 逐字相同，next/font 按内容哈希去重，参数不同会重新自托管第二套字体；产物实测两处引用同一批 101 个 woff2）修 [D-50] 的字体变量丢失。**③ 四个安全响应头 + `/api/*` noindex（D-13）**——`next.config.ts` 加 `async headers()`：`X-Frame-Options: DENY` · `Referrer-Policy: strict-origin-when-cross-origin` · `X-Content-Type-Options: nosniff` · `Permissions-Policy: geolocation=(), camera=(), microphone=()`，全站 `/:path*`（实测覆盖根路径）+ `/api/:path*` 叠加 `X-Robots-Tag: noindex`（实测 9 条路由全部返回四个头，页面路由不误带 noindex）。**有意不引入 CSP**：MUI emotion 运行时注入 `<style>`，一条 `style-src` 配错即全站白屏，收益远小于风险；`X-Frame-Options: DENY` 作为点击劫持兜底。**④ 雾散转场只动合成层（D-22）**——`mist-in` 移除 `filter: blur(8px)`，基准路径只留 `opacity` + `translateY`；模糊质感改为可选增强层 `mist-in-blur`（4px），仅在 `min-resolution: 2dppx` 且 `prefers-reduced-motion: no-preference` 时叠加。**⑤ 通配过渡移入 `@layer base`（D-23）**——`*, ::before, ::after` 的 150ms 颜色过渡原为无层级声明，优先级高于一切 `@layer` 内规则，任何人写 `transition-transform` 都会被抢占；移入 base 层后工具类与组件类可按需覆盖。**⑥ reduced-motion 改 `animation: none !important`（D-30）**——原写法 `iteration-count: 1` 不是让雾静止，而是让 `alternate` 的 `fog-drift` 跳到 `to` 态后停住（平移 48px/32px 后定住）。**⑦ 跳到主内容 skip link + 导航滚动监听按视口过滤（D-26）**——`layout.tsx` body 首位加 skip link（WCAG SC 2.4.1），平时 `sr-only`，focus 时显形并带灯环（§十一 #9）；`.scroll-edge` 的唯一消费者是移动端 sticky 顶栏，故滚动监听改用 `useSyncExternalStore` 订阅 `(max-width: 639px)` 断点作为渲染期可见状态，桌面端完全不注册监听、视口跨断点时自动挂载/卸载（`getServerSnapshot` 返回 `false` 保证 hydration 首帧一致）。**⑧ MUI 只在用它的路由发货（D-10）**——新增 `mui-gate.tsx` 按 pathname 条件挂载 provider，产物实测 `/` 与 `/data` 的 13 个 client chunk 中含 0 个 MUI/emotion chunk，三个 MUI 路由各含 3–4 个且首帧已带 emotion 样式（无 FOUC）。**⑨ 金额符号下沉（D-08）**——`format.ts` 新增 `formatSignedMoney(n, kind)` 与 `amountSign(n, kind)`：符号逻辑下沉，负数一律 U+2212 前置且**吞掉 kind 前缀**（不出 `−−¥`），`¥` 紧跟其后；调用点不再手写 `¥{formatMoney(v)}`。**⑩ 分区错误面板可重试（D-06）**——`section-error.tsx` 重写：删 `catchSection`/`SECTION_FAILED` 死代码、加 `role="alert"`（SC 4.1.3）、加可选 `onRetry`（有值才渲染按钮——没有可执行补救动作时按钮是装饰不是控件）与 `label`（区分是哪一栏坏了），文案说清「发生了什么 + 怎么办」。**⑪ 区块骨架收敛为组合件（D-17）**——`page-skeleton.tsx` 新增 `SectionSkeleton`（区块头组合件，`title` 进 sr-only 供读屏区分正在等哪一栏）与 `SkeletonStatus`（`role="status" aria-busy` + sr-only「掌灯中…」外壳），`SkeletonPanel` 改为转发不保留第二份实现。**⑫ 渠道词汇表去重（D-29）**——`CHANNELS` 原有两个语义重叠项（`direct: 其他方式` 与 `other: 其他`）按「是否经由第三方支付」重新划分为 `alipay 支付宝` / `wechat 微信支付` / `direct 现金` / `other 其他渠道`，**`value` 不变**（数据库无需迁移），只改展示文案。**⑬ 其余**——锚点滚动偏移统一为 `--nav-scroll-offset`（`:target` + `section[id]` 单一入口，删掉 `.input` 上无意义的 `scroll-margin: 96px`，D-43）；`manifest` `orientation` 由 `portrait` 改 `any`（D-40）；`layout.tsx` 补 `metadataBase` + `openGraph` 与 `<noscript>` 中文兜底（四页都是 client-fetch 壳，禁用 JS 时原本是四个空白页）；删除 `formatBudget` 死代码（D-25）。第二、三、七、八、十三节表格与正文已按上述变更同步。无令牌基准值删除、无新配色、无渐变按钮、灯线白名单未越位。lint、tsc、`npm test`(57)、`test:taboo-guard`(12)、`test:api-cache`(15)、`contrast-check`(11)、`format-check`(13) 全绿；`next build` 通过且四页路由仍全为静态 `○`；`next start` 后 `curl -I` 实测四个安全头。审核报告见 `.hermes/audits/reviewer-wp1.md`。
 
 - 2026-09-18 · 首屏静态壳 + API 取数（性能架构）：四页（总览/记账/数据/设置）由「服务端 Suspense 流式」改为「静态预渲染骨架壳 + 前端从 `/api/*` Route Handler 取数渲染」——构建期产出静态骨架 HTML（build 路由表四页全 ○），首字节不再被 proxy 的 Supabase getUser 往返（实测 auth RTT ≈ 209ms avg / 518ms p95）与页内 `getClaims` 门禁串行阻塞；数据由 client 组件经 `useApiData`（`useSyncExternalStore` 外部 store，同源 cookie 会话，401 由客户端跳 `/login`）取数填充，骨架兜底与分区错误面板与原流式版完全一致（视觉零变化）。`proxy.ts` 门禁收窄到仅 `/login`（登录用户弹回）；`/api/*`（overview/ledger/data/settings）为新的鉴权边界（`requireApiSession` + getClaims + RLS，令牌刷新经 `sessionResponse` 回写）；增删改成功经 `notifyDataChanged()` 触发静默重取（不闪骨架）。文案、配色、动效、aria 均无变化。lint 与 build 通过；基准见 `scripts/bench.mjs`。
 - 2026-09-15 · 偏好降级补全（透明/对比）：第七节 4 降级由「仅 reduced-motion」扩为三个独立信号。MUI `Backdrop` 由纯夜空 70% 改为夜空 70% + `blur(6px)`——确认框背后的世界「起雾」后退，焦点交给雾面纸（原有 `prefers-reduced-transparency` 降级：去模糊、压暗加至 85%）。新增 `@media (prefers-contrast: more)`：`--color-fogline` 提亮到 `#46516e`、`--color-dim` 提亮到 `#b6bed1`，边框与次要文字更实；令牌覆盖写在无层级 `:root`（已核验排在 `@layer theme` 之后，优先生效）。§六补确认框起雾说明。无令牌基准值变更（仅偏好覆盖）。lint 与 build 通过。
