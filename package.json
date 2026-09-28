@@ -8,9 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --import ./scripts/register-ts-resolve.mjs --test \"src/**/*.test.ts\"",
-    "test:taboo-guard": "node scripts/check-taboo-guard.mjs",
-    "test:api-cache": "node --experimental-strip-types --import ./scripts/register-ts-resolve.mjs scripts/api-cache-check.mjs"
+    "test": "node --experimental-strip-types --import ./scripts/register-ts-resolve.mjs --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
