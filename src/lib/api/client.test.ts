@@ -1,5 +1,5 @@
 /**
- * [WP6-01] / [D-12] / [D-33] tests for the client fetcher.
+ * Tests for the client fetcher.
  *
  * `client.ts` is `"use client"` but has no React or DOM *import*, so Node can
  * drive it directly: `fetch` and `window` are the only globals it touches, and
@@ -42,7 +42,7 @@ function respondWith(status: number, body?: unknown) {
     })) as typeof fetch;
 }
 
-describe("[D-12] 401 vs 503 分流", () => {
+describe("401 vs 503 分流", () => {
   it("401 notifies the session-lost handler, redirects, and throws", async () => {
     let lost = 0;
     setSessionLostHandler(() => {
@@ -80,7 +80,7 @@ describe("[D-12] 401 vs 503 分流", () => {
   // branches differ in one observable way only: this one ignores the server
   // body and shows fixed outage copy. `respondWith(503, …)` above supplies a
   // machine-readable body precisely so this test can prove it is discarded
-  // rather than passed through — the same rule [D-33] enforces elsewhere.
+  // rather than passed through — the same rule enforces elsewhere.
   it("503 shows the outage copy and never the server's machine code", async () => {
     respondWith(503, { error: "service-unavailable" });
 
@@ -108,7 +108,7 @@ describe("[D-12] 401 vs 503 分流", () => {
   });
 });
 
-describe("[D-33] 服务端文案透传", () => {
+describe("服务端文案透传", () => {
   it("passes through a Chinese server message", async () => {
     respondWith(502, { error: "账目读取失败，请稍后重试" });
     await assert.rejects(
@@ -146,7 +146,7 @@ describe("[D-33] 服务端文案透传", () => {
   });
 });
 
-describe("[WP6-01] 401 storm through the real client", () => {
+describe("401 storm through the real client", () => {
   it("four mounted panels + a permanent 401 issues a bounded number of requests", async () => {
     let requests = 0;
     globalThis.fetch = (async () => {

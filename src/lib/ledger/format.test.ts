@@ -1,5 +1,5 @@
 /**
- * [D-08] 金额书写铁律（DESIGN.md 第三节）的回归测试。
+ * 金额书写铁律（DESIGN.md 第三节）的回归测试。
  *
  * 铁律原文：支出前缀 `−`（U+2212）、收入前缀 `+`、转账前缀 `⇄`，`¥` 紧跟其后。
  * 关键点是**符号在前、¥ 在后**：负数写 `−¥12.50`，不写 `¥-12.50`。
@@ -11,7 +11,7 @@
  * 迁移后 .hermes/audits/format-check.mjs 保留为薄壳，转发到本文件。
  *
  * 运行：npm test（Node 内置 node:test，见 package.json）
- * 无新增依赖 —— [D-25] 的立意就是让套件在 CI 里可跑。
+ * 无新增依赖 —— 的立意就是让套件在 CI 里可跑。
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -28,7 +28,7 @@ import {
 const Y = YUAN;
 const ARROW = "⇄";
 
-describe("[D-08] formatMoney —— 符号下沉后的纯数字", () => {
+describe("formatMoney —— 符号下沉后的纯数字", () => {
   it("正数无符号、千分位、两位小数", () => {
     assert.equal(formatMoney(12.5), "12.50");
     assert.equal(formatMoney(1234.56), "1,234.56");
@@ -48,7 +48,7 @@ describe("[D-08] formatMoney —— 符号下沉后的纯数字", () => {
   });
 });
 
-describe("[D-08] formatSignedMoney —— 符号在前、¥ 紧跟其后", () => {
+describe("formatSignedMoney —— 符号在前、¥ 紧跟其后", () => {
   it("负数输出 `−¥`，符号在 ¥ 之前", () => {
     assert.equal(formatSignedMoney(-12.5), `${MINUS}${Y}12.50`);
     assert.equal(formatSignedMoney(-1234), `${MINUS}${Y}1,234.00`);
@@ -69,7 +69,7 @@ describe("[D-08] formatSignedMoney —— 符号在前、¥ 紧跟其后", () =>
     assert.equal(formatSignedMoney(12.5, "transfer"), `${ARROW}${Y}12.50`);
   });
 
-  it("负数吞掉 kind 的前缀 —— 不出 `−−¥`（[D-08] 明确要求的组合）", () => {
+  it("负数吞掉 kind 的前缀 —— 不出 `−−¥`（DESIGN.md 明确要求的组合）", () => {
     // expense 的前缀本身就是 −，负数若不吞掉就会叠成 −−¥12.50
     assert.equal(formatSignedMoney(-12.5, "expense"), `${MINUS}${Y}12.50`);
     assert.equal(formatSignedMoney(-12.5, "income"), `${MINUS}${Y}12.50`);
@@ -91,7 +91,7 @@ describe("[D-08] formatSignedMoney —— 符号在前、¥ 紧跟其后", () =>
   });
 });
 
-describe("[D-08] 迁移前后的行为一致性", () => {
+describe("迁移前后的行为一致性", () => {
   it("旧调用点 `{PREFIX}¥{formatMoney(正数)}` 与新 API 输出逐字相同", () => {
     for (const type of ["expense", "income", "transfer"] as const) {
       const legacy = `${AMOUNT_PREFIX[type]}${Y}${formatMoney(12.5)}`;

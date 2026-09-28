@@ -33,7 +33,7 @@ type Category = { id: string; name: string; kind: string };
 type Relation = { name: string } | { name: string }[] | null;
 
 /**
- * [D-15] 去掉 `as unknown as`。
+ * 去掉 `as unknown as`。
  *
  * 原来的写法是 `Array.isArray(x) ? x[0]?.name : (x as unknown as {name:string}|null)?.name`：
  * `Array.isArray` 已经把数组分支收窄掉，else 分支里剩下的**只有** `{name:string} | null`
@@ -201,7 +201,7 @@ export default function LedgerClient() {
             <SkeletonLine className="mt-2 h-3.5 w-64" />
           </div>
         ) : (data?.accounts.length ?? 0) === 0 ? (
-          // [D-21] 原文案让用户去「账户」页，但该路由早已并入 /settings，
+          // 原文案让用户去「账户」页，但该路由早已并入 /settings，
           // 是一个指向不存在页面的邀请。改为指向设置页的账户分区并给出可点链接
           // （`.link-subtle` 自带灯色焦点环，globals.css:216-236）。
           <p className="mt-1 text-sm text-dim">

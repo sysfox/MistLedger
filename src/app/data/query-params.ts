@@ -1,12 +1,12 @@
 /**
  * `/data` 的查询参数契约 —— 客户端与 `/api/data` **共用**的一份实现。
  *
- * 为什么放在 `src/app/data/` 而不是 `src/lib/`：[D-11] 要求过滤校验「与服务端
+ * 为什么放在 `src/app/data/` 而不是 `src/lib/`： 要求过滤校验「与服务端
  * 同一份规则」，而 `/api/data/route.ts` 与 `data-client.tsx` 分属两棵目录树。
  * 放在数据页目录里，两边都从 `@/app/data/query-params` 引同一份代码，规则只写
  * 一次；`src/lib/ledger/` 归 WP-1/WP-4 所有，不在本包的文件所有权内。
  *
- * 契约要点（[D-11] / [D-35] / [D-47]）：
+ * 契约要点：
  *
  * 1. **`acc` 必须是 UUID，`cat` 必须是 UUID 或字面量 `"none"`。**
  *    `acc` 会被原样拼进 PostgREST 的 `.or()` 过滤器字符串
@@ -16,11 +16,11 @@
  * 2. **不匹配即丢弃该条件，不报错。** 与客户端行为对齐：用户在地址栏手敲一个坏
  *    参数，得到的是「少一个过滤条件」的结果，而不是一个 400 错误页。URL 里的参数
  *    本来就可能被手工编辑，报错是最差的选择。
- * 3. **`q` 的 LIKE 元字符必须转义**（[D-35]）。`escapeLikePattern` 把 `\` `%` `_`
+ * 3. **`q` 的 LIKE 元字符必须转义**。`escapeLikePattern` 把 `\` `%` `_`
  *    转成反斜杠形式，于是 `?q=%` 匹配的是「备注里真的有个 % 字符」而不是全表。
  * 4. **qs 只有一份构造逻辑。** 天数 chip、常用查询 chip、预设 chip 与 `/api/data`
  *    的请求串全部走 `buildQueryString`，因此同一份条件下「链接上的 qs」与
- *    「发给 API 的 qs」逐字符相同（[D-47] 验收断言）。
+ *    「发给 API 的 qs」逐字符相同（验收断言）。
  *
  * 本模块是纯函数，无 React / 无 DOM 依赖，可被 `node --test` 直接驱动。
  */
@@ -91,7 +91,7 @@ export function normalizeCategory(raw: string | null | undefined): string | unde
 /**
  * 归一化账户筛选值：只接受 UUID。
  *
- * 这是 [D-11] 的核心。该值会被拼进
+ * 这是 的核心。该值会被拼进
  * `listQuery.or("account_id.eq.<v>,to_account_id.eq.<v>")` —— 未校验的输入能
  * 注入额外的 or 分支、构造出与 UI 不一致的查询形状。
  */
@@ -153,7 +153,7 @@ export function hasAnyFilter(f: QueryFilter): boolean {
 }
 
 /**
- * 转义 LIKE 模式里的元字符（[D-35]）。
+ * 转义 LIKE 模式里的元字符。
  *
  * `\` 必须第一个转，否则它自己转义产生的 `\` 会被二次转义。
  * 转义后 `\q` 之类仍按普通字符处理：Postgres `ILIKE` 的默认转义符就是反斜杠。

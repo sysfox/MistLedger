@@ -1,9 +1,9 @@
 /**
- * [D-05] / [D-11] / [D-35] / [D-47] 的可执行验收。
+ * 三条契约的可执行验收。
  *
  * 跑 `npm test`（Node 内置 `node:test`，无额外依赖）。
  *
- * 重点是 [D-05] 的第二条验收：「构建后第 2 天访问，chips 仍指向近 7 天」。
+ * 重点是 的第二条验收：「构建后第 2 天访问，chips 仍指向近 7 天」。
  * 这条断言在修复前**写不出来**，因为旧代码里「今天」不是任何函数的入参 ——
  * 它在模块内部直接 `new Date()` 求值，测试无法注入一个「第二天的时钟」。
  * 修法是把日期变成 `buildPresets(today)` 的入参，于是同一个预设可以被两个
@@ -67,7 +67,7 @@ function defined(f: QueryFilter): Record<string, unknown> {
   return Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined));
 }
 
-describe("[D-11] acc / cat 的 UUID 校验", () => {
+describe("acc / cat 的 UUID 校验", () => {
   it("acc 只接受 UUID", () => {
     assert.equal(normalizeAccount(UUID_A), UUID_A);
     // 过滤注入的载荷：逗号能拆出额外的 or 分支
@@ -123,7 +123,7 @@ describe("[D-11] acc / cat 的 UUID 校验", () => {
   });
 });
 
-describe("[D-35] LIKE 元字符转义", () => {
+describe("LIKE 元字符转义", () => {
   it("% 被转义，不再是通配符", () => {
     // 未转义时这里是 "%%%" → 匹配全部行
     assert.equal(escapeLikePattern("%"), "\\%");
@@ -204,7 +204,7 @@ describe("parseQueryFilter 的其余规则", () => {
   });
 });
 
-describe("[D-47] qs 只有一份构造逻辑", () => {
+describe("qs 只有一份构造逻辑", () => {
   const filter: QueryFilter = {
     from: "2026-09-01",
     to: "2026-09-28",
@@ -248,7 +248,7 @@ describe("[D-47] qs 只有一份构造逻辑", () => {
   });
 });
 
-describe("[D-05] 预设的日期来自访问日，不是构建日", () => {
+describe("预设的日期来自访问日，不是构建日", () => {
   const buildDay = "2026-09-28"; // 假装构建发生在这一天
   const visitDay = "2026-09-29"; // 构建后第 2 天访问
 
@@ -353,7 +353,7 @@ describe("日期算术（Asia/Shanghai 口径，纯日历运算）", () => {
   });
 });
 
-describe("[D-15]§data RPC 载荷收窄", () => {
+describe("§data RPC 载荷收窄", () => {
   it("数字字符串被转成 number（Postgres numeric 经 PostgREST 可能是字符串）", () => {
     const stats = toFilteredTxStats({
       count: "128",
@@ -389,11 +389,11 @@ describe("[D-15]§data RPC 载荷收窄", () => {
     assert.equal(stats.expense, 0);
   });
 
-  // [D-2] 上一轮盲区：toNum 有两条 NaN 防线，原测试只走了 number 分支（payload.ts:51），
+  // 上一轮盲区：toNum 有两条 NaN 防线，原测试只走了 number 分支（payload.ts:51），
   // string 分支（payload.ts:54）无任何保护。把 :54 改成 `return Number(v)` 测试仍全绿。
   // 生产上真正会命中 string 分支的恰恰是主线场景 —— Postgres 的 numeric 列经
   // PostgREST 回来就是字符串（payload.ts:19-20 自己这么写的），所以这条必须钉死。
-  it("[D-2] 字符串分支的非有限值同样归零（numeric 列回来就是字符串）", () => {
+  it("字符串分支的非有限值同样归零（numeric 列回来就是字符串）", () => {
     const stats = toFilteredTxStats({
       count: "abc",
       expense: "NaN",
@@ -410,7 +410,7 @@ describe("[D-15]§data RPC 载荷收窄", () => {
     }
   });
 
-  it("[D-2] 字符串分支：'1e400' 溢出、空白串、超大整数串都不得产出非有限值", () => {
+  it("字符串分支：'1e400' 溢出、空白串、超大整数串都不得产出非有限值", () => {
     const stats = toFilteredTxStats({
       count: "1e400", // Number() → Infinity
       expense: "9".repeat(24), // 超大整数串，Number() 仍是有限值
@@ -423,14 +423,14 @@ describe("[D-15]§data RPC 载荷收窄", () => {
     assert.equal(stats.transfer, 0, "空串应得 0");
   });
 
-  it("[D-2] 字符串分支：合法数字串必须**保留**（不能一律归零）", () => {
+  it("字符串分支：合法数字串必须**保留**（不能一律归零）", () => {
     const stats = toFilteredTxStats({ count: "128", expense: "3210.00", income: "-3" })!;
     assert.equal(stats.count, 128);
     assert.equal(stats.expense, 3210);
     assert.equal(stats.income, -3);
   });
 
-  it("[D-2] null / undefined / 布尔 / 数组 / 对象：既非 number 也非 string，一律 0", () => {
+  it("null / undefined / 布尔 / 数组 / 对象：既非 number 也非 string，一律 0", () => {
     const stats = toFilteredTxStats({
       count: null,
       expense: undefined,
@@ -446,7 +446,7 @@ describe("[D-15]§data RPC 载荷收窄", () => {
     assert.deepEqual(arr.by_category, [], "非 record 元素应被 filter 掉");
   });
 
-  it("[D-2] by_category / snapshot 的嵌套字符串同样受 string 分支保护", () => {
+  it("by_category / snapshot 的嵌套字符串同样受 string 分支保护", () => {
     const stats = toFilteredTxStats({
       count: 1,
       by_category: [

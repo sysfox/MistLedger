@@ -101,9 +101,7 @@ dom.window.HTMLElement.prototype.scrollIntoView = function scrollIntoView() {};
 /** 供测试文件使用的 document / window（类型在 .test.ts 侧收窄）。 */
 const harnessDom = dom;
 
-/* ------------------------------------------------------------------ *
- * TSX 转译 + `@/` 别名
- * ------------------------------------------------------------------ */
+// TSX 转译 + `@/` 别名
 
 const TSX_OPTIONS = {
   module: ts.ModuleKind.CommonJS,
@@ -147,9 +145,7 @@ Module._resolveFilename = function resolveFilename(request, ...rest) {
   return previousResolve.call(this, request, ...rest);
 };
 
-/* ------------------------------------------------------------------ *
- * 依赖打桩
- * ------------------------------------------------------------------ */
+// 依赖打桩
 
 /**
  * 调用点组件会 import server action 与浏览器 API 模块：前者要 Supabase
@@ -171,9 +167,7 @@ Module._load = function load(request, ...rest) {
   return previousLoad.call(this, request, ...rest);
 };
 
-/* ------------------------------------------------------------------ *
- * 组件加载与挂载
- * ------------------------------------------------------------------ */
+// 组件加载与挂载
 
 const React = require("react");
 const { act } = React;

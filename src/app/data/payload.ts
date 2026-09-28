@@ -1,7 +1,7 @@
 /**
  * `/api/data` 响应体的类型 + 运行时收窄。
  *
- * [D-15]§data：`filtered_tx_stats` 与 `dashboard_snapshot` 两个 RPC 在
+ * §data：`filtered_tx_stats` 与 `dashboard_snapshot` 两个 RPC 在
  * `database.types.ts` 里声明为 `Returns: Json`，所以 `statsRes.data` / `snapshotRes.data`
  * 的静态类型就是 `Json`（`any` 的同义词）。旧代码的处理方式是把它塞进一个手写的
  * `type FilteredTxStats = {...}`，然后在每个使用点写 `Number(stats?.count ?? 0)`

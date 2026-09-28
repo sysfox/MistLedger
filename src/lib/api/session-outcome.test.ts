@@ -1,5 +1,5 @@
 /**
- * [WP6-02] / [D-12] tests for the 401-vs-503 classification.
+ * Tests for the 401-vs-503 classification.
  *
  * The case that matters is the one that was broken: auth-js does not *throw* on
  * an upstream fault, it returns `{ data: null, error: AuthRetryableFetchError }`.
@@ -26,7 +26,7 @@ function statusOf(error: unknown, claims?: { sub?: unknown } | null): number | n
   return outcome.ok ? null : outcome.status;
 }
 
-describe("[WP6-02] 上游抖动不得被当成登出", () => {
+describe("上游抖动不得被当成登出", () => {
   it("a retryable fetch error is 503, not 401", () => {
     // Exactly what GoTrueClient.getClaims hands back when Supabase is
     // unreachable: no claims, and an error that IS an AuthError.

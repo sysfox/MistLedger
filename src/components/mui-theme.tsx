@@ -18,7 +18,7 @@ export const mistNightTokens = {
   mist: "#111826",
   veil: "#1B2436",
   fogline: "#28324A",
-  // [D-27] 交互控件边界：与 globals.css 的 --color-fogline-strong 同值。
+  // 交互控件边界：与 globals.css 的 --color-fogline-strong 同值。
   // MUI OutlinedInput 的 notchedOutline 是输入框唯一的边界线索，
   // 原先与 .input 一样用 fogline（对 veil 1.22:1，低于 SC 1.4.11 的 3:1）。
   foglineStrong: "#5E6F8C",
@@ -133,7 +133,7 @@ const muiTheme = createTheme({
           backgroundColor: mistNightTokens.veil,
           borderRadius: 6,
           color: mistNightTokens.ink,
-          // [D-27] 边界用 fogline-strong（对 veil 3.05:1），不再是装饰级 fogline
+          // 边界用 fogline-strong（对 veil 3.05:1），不再是装饰级 fogline
           "& .MuiOutlinedInput-notchedOutline": {
             borderColor: mistNightTokens.foglineStrong,
           },
@@ -148,7 +148,7 @@ const muiTheme = createTheme({
             color: "rgba(139, 147, 167, 0.7)",
             opacity: 1,
           },
-          // [D-27] 同步 globals.css 的 prefers-contrast: more 覆盖
+          // 同步 globals.css 的 prefers-contrast: more 覆盖
           "@media (prefers-contrast: more)": {
             "& .MuiOutlinedInput-notchedOutline": {
               borderColor: HIGH_CONTRAST.foglineStrong,

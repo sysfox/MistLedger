@@ -17,7 +17,7 @@ export default function EnsureDefaultCategoriesButton() {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            // [D-48] 原先这里叫 `result`，把外层的 state 同名遮蔽了 —— 合法但
+            // 原先这里叫 `result`，把外层的 state 同名遮蔽了 —— 合法但
             // 极易读错（读代码的人分不清 `result.ok` 指哪个）。改名 outcome。
             const outcome = await ensureDefaultCategories();
             setResult(outcome);
@@ -29,7 +29,7 @@ export default function EnsureDefaultCategoriesButton() {
         一键补齐默认分类
       </Button>
       {/*
-        [D-48] 失败提示原先只有 aria-live="polite"：不打断当前朗读，用户多半
+ 失败提示原先只有 aria-live="polite"：不打断当前朗读，用户多半
         直接错过。失败是 assertive（role="alert"），成功保持 polite
         （role="status"）—— 与「有 0 进度时不该被打断，有失败时必须立刻知道」
         一致。role 已隐含 aria-live，不再叠加。

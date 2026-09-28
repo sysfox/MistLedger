@@ -4,7 +4,7 @@ import { isApiSession, requireApiSession, sessionResponse } from "@/lib/api/sess
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// [D-34] `new Intl.DateTimeFormat` 要解析 locale 与 options，是相对昂贵的构造。
+// `new Intl.DateTimeFormat` 要解析 locale 与 options，是相对昂贵的构造。
 // 放进 handler 等于每个请求都重付一次；提到模块作用域，一次构造全程复用。
 const SHANGHAI_MONTH = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Shanghai",

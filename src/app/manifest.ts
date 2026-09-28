@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    // [D-40] 原为 "portrait"。这是个数据密度不低的工具（趋势图 + 长流水列表），
+    // 原为 "portrait"。这是个数据密度不低的工具（趋势图 + 长流水列表），
     // 桌面端安装后被强制竖屏不合理。any 让窗口按内容与用户偏好自适应。
     orientation: "any",
     lang: "zh-CN",

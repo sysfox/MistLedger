@@ -1,14 +1,14 @@
 /**
- * The [D-12] 401-vs-503 decision, isolated as a pure function.
+ * The 401-vs-503 decision, isolated as a pure function.
  *
  * Why this is its own module instead of a branch inside `session.ts`:
  * `session.ts` imports `next/server`, which Node's ESM resolver cannot load
  * outside a Next build, so a `node --test` suite could never reach the branch
  * that actually matters. This file is dependency-free (bar the auth-js error
- * classes) and the decision is the whole point of [D-12], so it is worth
+ * classes) and the decision is the whole point, so it is worth
  * naming and testing on its own.
  *
- * The bug this exists to prevent ([WP6-02]): `@supabase/auth-js` does NOT throw
+ * The bug this exists to prevent: `@supabase/auth-js` does NOT throw
  * on an upstream fault. `GoTrueClient.getClaims` — and `_refreshAccessToken`
  * beneath it — catch their own errors and return them as `{ data: null, error }`
  * (`GoTrueClient.js:4041-4044` and `:5569-5575`), because `AuthRetryableFetchError`
@@ -21,7 +21,7 @@
 
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 
-/** The two failure shapes the status contract allows ([D-12]). */
+/** The two failure shapes the status contract allows two shapes. */
 export type ApiAuthFailure = {
   ok: false;
   status: 401 | 503;
@@ -53,7 +53,7 @@ export function classifyAuthOutcome(
   error: unknown,
   claims: { sub?: unknown } | null | undefined,
 ): ApiAuthOutcome {
-  // [WP6-02] Must come FIRST: a retryable fetch error also satisfies the
+  // Must come FIRST: a retryable fetch error also satisfies the
   // generic `if (error)` test below, and it is exactly the case that must
   // NOT be reported as a logout.
   if (isAuthRetryableFetchError(error)) {

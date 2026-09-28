@@ -4,7 +4,7 @@ import nextTs from "eslint-config-next/typescript";
 
 /**
  * `mistledger/no-taboo-classnames` — DESIGN.md §十一 turned into a machine
- * guard. [D-25]
+ * guard.
  *
  * DESIGN.md's taboo list is the design's spine: no Tailwind gray ramps, no
  * standard palette colors, no `dark:` variants, no external palette import.
@@ -34,9 +34,7 @@ import nextTs from "eslint-config-next/typescript";
  * a new construction route needs a probe in each before it counts as covered.
  */
 
-// ---------------------------------------------------------------------------
 // The taboo list itself (§十一 #1 / #5 / #6).
-// ---------------------------------------------------------------------------
 
 /** §十一#6 — Tailwind gray ramps. The banned ones, per DESIGN.md. */
 const GRAY_RAMPS = ["zinc", "slate", "neutral", "stone", "gray"];
@@ -101,9 +99,7 @@ const HOLE = "\u0000";
 /** Belt and braces against a pathological expression exploding the folder. */
 const MAX_ALTERNATIVES = 32;
 
-// ---------------------------------------------------------------------------
 // The taboo matchers.
-// ---------------------------------------------------------------------------
 
 /**
  * A color class is `[variants:]utility-ramp-shade[/opacity]`, anchored to a
@@ -153,9 +149,7 @@ function holeIsInBannedSlot(pattern, index) {
   return /^-\d/.test(after) || /^:/.test(after);
 }
 
-// ---------------------------------------------------------------------------
 // Folding: turn an expression into the string(s) it evaluates to.
-// ---------------------------------------------------------------------------
 
 const hole = () => ({ kind: "hole" });
 const str = (pats) => ({ kind: "str", pats: Array.isArray(pats) ? pats : [pats] });
@@ -534,9 +528,7 @@ function createFolder(context) {
   };
 }
 
-// ---------------------------------------------------------------------------
 // The rule.
-// ---------------------------------------------------------------------------
 
 const noTabooClassnames = {
   meta: {

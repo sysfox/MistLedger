@@ -17,7 +17,7 @@ import { createTransaction } from "./actions";
 type Account = { id: string; name: string };
 type Category = { id: string; name: string; kind: string };
 
-// 收支类型的选项与键盘契约已收敛到 `./type-picker`（[D-18]），
+// 收支类型的选项与键盘契约已收敛到 `./type-picker`，
 // 这里不再重复维护一份 TYPES 词汇表。
 const ACCOUNT_LABEL: Record<string, string> = {
   expense: "账户",
@@ -32,7 +32,7 @@ const ACCOUNT_PLACEHOLDER: Record<string, string> = {
 };
 
 /**
- * [D-45] 默认日期 = **上海时区的今天**。
+ * 默认日期 = **上海时区的今天**。
  *
  * 原来的 `localToday()` 读的是浏览器本地时区，而 `/data` 的 presets、总览的资产曲线、
  * `/api/*` 的月界全部按 `Asia/Shanghai`（见 `src/lib/ledger/stats.ts` 的 shanghaiDate）。
@@ -72,7 +72,7 @@ export default function TransactionForm({
       <input type="hidden" name="type" value={type} />
       <TypePicker value={type} onChange={setType} />
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-        {/* [D-45] 默认值由 React 通过 defaultValue 拥有，删掉了 useEffect 里
+        {/* 默认值由 React 通过 defaultValue 拥有，删掉了 useEffect 里
             `el.defaultValue = …; el.value = …` 的直写。那段直写破坏了 React 的
             非受控不变量：改完 DOM 后 React 若重渲染并不会把它同步回去。
 
@@ -146,7 +146,7 @@ export default function TransactionForm({
             name="channel"
             label={isIncome ? "来源渠道" : "渠道"}
             labelId="tx-channel-label"
-            // [D-46] 默认值取最中性的「现金 / 银行柜台等不经第三方的直接支付」，
+            // 默认值取最中性的「现金 / 银行柜台等不经第三方的直接支付」，
             // 不再默认支付宝：原默认值会把银行转账、现金支出记成支付宝渠道，污染统计。
             // 与 `actions.ts` 里 `formData.get("channel") ?? "direct"` 的兜底一致。
             defaultValue="direct"

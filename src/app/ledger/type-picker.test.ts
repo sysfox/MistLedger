@@ -1,5 +1,5 @@
 /*
- * [D-18] `TypePicker` 的 APG radiogroup 键盘契约 —— 真实挂载 + 真实 KeyboardEvent。
+ * `TypePicker` 的 APG radiogroup 键盘契约 —— 真实挂载 + 真实 KeyboardEvent。
  *
  * ## 为什么这个文件存在
  *
@@ -118,7 +118,7 @@ function selected(scope: ParentNode): HTMLElement {
   return found;
 }
 
-describe("[D-18] TypePicker · APG radiogroup 键盘契约", () => {
+describe("TypePicker · APG radiogroup 键盘契约", () => {
   before(() => {
     Picker = harness.loadModule("src/app/ledger/type-picker.tsx")
       .default as ComponentType<{ value: string; onChange: (next: string) => void }>;
@@ -134,9 +134,7 @@ describe("[D-18] TypePicker · APG radiogroup 键盘契约", () => {
     harness.restore();
   });
 
-  /* ---------------------------------------------------------------- *
-   * 初始 DOM：roving tabindex 与可访问名
-   * ---------------------------------------------------------------- */
+  // 初始 DOM：roving tabindex 与可访问名
 
   describe("初始 DOM", () => {
     it("B0.1 radiogroup 有可访问名", () => {
@@ -183,9 +181,7 @@ describe("[D-18] TypePicker · APG radiogroup 键盘契约", () => {
     });
   });
 
-  /* ---------------------------------------------------------------- *
-   * 方向键：APG § radiogroup Keyboard Interaction
-   * ---------------------------------------------------------------- */
+  // 方向键：APG § radiogroup Keyboard Interaction
 
   describe("方向键移动并选中", () => {
     /**
@@ -287,9 +283,7 @@ describe("[D-18] TypePicker · APG radiogroup 键盘契约", () => {
     });
   });
 
-  /* ---------------------------------------------------------------- *
-   * Space / Enter 选中
-   * ---------------------------------------------------------------- */
+  // Space / Enter 选中
 
   describe("Space / Enter 选中", () => {
     // Chip 的根元素是 ButtonBase 渲染的原生 <button>，激活由 ButtonBase 的
@@ -331,9 +325,7 @@ describe("[D-18] TypePicker · APG radiogroup 键盘契约", () => {
     }
   });
 
-  /* ---------------------------------------------------------------- *
-   * 点击与自定义可访问名
-   * ---------------------------------------------------------------- */
+  // 点击与自定义可访问名
 
   describe("指针与可访问名", () => {
     it("B5 点击任一项即选中该项并移入 tab 序列", () => {

@@ -1,5 +1,5 @@
 /**
- * [WP6-01] End-to-end regression for the 401 self-sustaining request storm.
+ * End-to-end regression for the 401 self-sustaining request storm.
  *
  * The defect: `apiGet` calls `onSessionLost()` *before* throwing on a 401, and
  * that handler ran `cache.reset()`, which wiped the payloads and then called
@@ -88,7 +88,7 @@ async function run({ silent, cap }: { silent: boolean; cap: number }) {
   return { ...counters, size: cache.stats().size };
 }
 
-describe("[WP6-01] 401 自激请求风暴", () => {
+describe("401 自激请求风暴", () => {
   it("对照组：修复前的接线不收敛（撞到探针上限而非自行停止）", async () => {
     // NOT a claim about the current code — it calls `reset()` without the flag
     // purely to show the flag is load-bearing.

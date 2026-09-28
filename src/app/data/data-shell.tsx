@@ -1,13 +1,13 @@
 /**
  * `/data` 的结构骨架 —— 静态壳、`loading.tsx`、client loading 分支**共用同一份**。
  *
- * [D-05] + [D-17]§data 一起解决：
+ * 与 §data 一起解决：
  *
  * 1. 原来 `page.tsx` 是 `<Suspense fallback={null}>`。`DataClient` 里用了
  *    `useSearchParams`，静态预渲染时该边界直接 bail out，产出的 HTML 里这棵子树
  *    是**空的** —— 用户打开 `/data` 得到一个没有任何内容的页面，直到 JS 拉起；
  *    `loading.tsx` 成了死代码。改成真骨架后，禁用 JS 也能看到结构。
- * 2. [D-17] 的另一半：骨架屏此前在 `loading.tsx` 与 `data-client.tsx` 里各写一遍，
+ * 2. 骨架去重的另一半：骨架屏此前在 `loading.tsx` 与 `data-client.tsx` 里各写一遍，
  *    已经漂移（区块顺序不同、client 侧一个 sr-only 「掌灯中…」都没有）。
  *    合成这一个组件后，两条路径形状永远相同，读屏用户在两条路径上听到同一句话。
  *
@@ -15,7 +15,7 @@
  * 自定义查询 → 查询结果），这是 DESIGN.md §七.2「杜绝加载完成后的布局跳动」
  * 的硬要求。
  *
- * 骨架里**不放任何日期**（[D-05]）：预设 chips 渲染成 `SkeletonChip` 灰块而不是
+ * 骨架里**不放任何日期**：预设 chips 渲染成 `SkeletonChip` 灰块而不是
  * 带 href 的链接。真实链接的日期在访问时算，若把日期烤进静态 HTML 就成了构建日。
  */
 import {

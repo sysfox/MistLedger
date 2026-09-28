@@ -1,9 +1,9 @@
 "use client";
 
-// [D-16] 二次确认提交按钮 —— 全站唯一实现。
+// 二次确认提交按钮 —— 全站唯一实现。
 //
 // 审查前，delete/edit/adjust 六处各自复制了同一套「拦截 submit → 弹 Dialog →
-// requestSubmit() → armedRef 复位」逻辑（~300 行逐字重复），且 [D-04] 那个
+// requestSubmit() → armedRef 复位」逻辑（约 300 行逐字重复），且那个
 // 「成功后永久锁死」的 bug 就是在这份复制里被复制了六次。本组件把流程收敛到一处。
 //
 // 三条设计约束：

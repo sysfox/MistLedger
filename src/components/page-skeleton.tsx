@@ -5,7 +5,7 @@ export function SkeletonLine({ className = "" }: { className?: string }) {
 /**
  * 区块级组合件：eyebrow 小标 + serif 标题 + 可选主体。
  *
- * 存在的理由（[D-17]）：骨架屏此前只有「零件」（Line/Panel/Chart/Row/Bar/Chip），
+ * 存在的理由：骨架屏此前只有「零件」（Line/Panel/Chart/Row/Bar/Chip），
  * 每个 loading.tsx 与每个 client fallback 都自己手搓一遍区块头部，
  * 于是同一种区块在四页之间形状漂移（顺序、间距、行高都对不上），
  * 且 client fallback 里一个 sr-only「掌灯中…」都没有 —— 读屏用户在等数据时
@@ -39,7 +39,7 @@ export function SectionSkeleton({
 /**
  * 区块骨架，无区块名。
  *
- * 这是 SectionSkeleton 的无 title 特例，不是第二份实现 —— [D-17] 抱怨的
+ * 这是 SectionSkeleton 的无 title 特例，不是第二份实现 —— 抱怨的
  * 正是「同一种区块在四页之间形状漂移」，两个组件各写一遍 section 头
  * 只会让漂移换个地方复发。此处转发而非复制，形状永远只有一个来源。
  * 新代码请直接用 SectionSkeleton（带 title），title 对读屏用户是实打实的收益。

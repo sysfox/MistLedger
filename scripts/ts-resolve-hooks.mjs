@@ -1,7 +1,7 @@
 /**
  * Node ESM resolver hook that maps `./foo.js` onto `./foo.ts`.
  *
- * Why this file exists ([D-25]):
+ * Why this file exists:
  *
  * The test files import their subject with the `./x.js` specifier. That is the
  * *correct* specifier for the bundler world this project lives in — Next.js,

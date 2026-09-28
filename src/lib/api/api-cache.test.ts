@@ -1,5 +1,5 @@
 /**
- * [D-01] / [D-14] / [D-31] / [D-32] unit tests for the client data cache.
+ * Unit tests for the client data cache.
  *
  * Runs on Node's built-in runner (`npm test`). The module under test has no
  * React or DOM dependency by design, so no jsdom and no test framework install
@@ -33,7 +33,7 @@ function harness(opts: { owner?: string | null; clock?: () => number } = {}): Ha
   return { cache, calls };
 }
 
-describe("[D-01] 登出 / 401 清空", () => {
+describe("登出 / 401 清空", () => {
   it("reset() empties the cache", async () => {
     const { cache } = harness({ owner: "user-A" });
     // No live subscriber: this is the real sign-out shape — the page is being
@@ -66,7 +66,7 @@ describe("[D-01] 登出 / 401 清空", () => {
     assert.notEqual(cache.peek(path).data, null, "refetched payload must land");
   });
 
-  it("[WP6-01] a 401 storm cannot re-arm the panels that just failed", async () => {
+  it("a 401 storm cannot re-arm the panels that just failed", async () => {
     let calls = 0;
     const cache = createApiCache({
       fetchJson: async () => {
@@ -83,7 +83,7 @@ describe("[D-01] 登出 / 401 清空", () => {
     assert.equal(calls, 4, "exactly one request per panel; no re-arm after 401");
   });
 
-  it("[WP6-01] the non-silent reset is the one that loops (the regression's cause)", async () => {
+  it("the non-silent reset is the one that loops (the regression's cause)", async () => {
     // Same shape as above but WITHOUT `silent` — i.e. the pre-fix behaviour.
     // It exists to pin down *why* the option is needed: if this ever stops
     // looping, the silent flag is no longer load-bearing and someone should
@@ -105,7 +105,7 @@ describe("[D-01] 登出 / 401 清空", () => {
     );
   });
 
-  it("[WP6-01] reset({silent:true}) still wipes and still notifies", async () => {
+  it("reset({silent:true}) still wipes and still notifies", async () => {
     // The silent path must not become "silent about the leak" — D-01 is about
     // wiping the payloads, and only the *pump* is suppressed.
     const { cache } = harness({ owner: "user-A" });
@@ -125,7 +125,7 @@ describe("[D-01] 登出 / 401 清空", () => {
     assert.ok(notifications > before, "a mounted panel must still be told to re-read");
   });
 
-  it("[WP6-01] after a silent reset nothing refetches on its own", async () => {
+  it("after a silent reset nothing refetches on its own", async () => {
     const { cache, calls } = harness({ owner: "user-A" });
     const path = "/api/overview";
     cache.subscribe(path, () => {});
@@ -182,7 +182,7 @@ describe("[D-01] 登出 / 401 清空", () => {
   });
 });
 
-describe("[D-14] out-of-order 请求不得覆盖新数据", () => {
+describe("out-of-order 请求不得覆盖新数据", () => {
   it("5 rapid reloads settle on the last response", async () => {
     const path = "/api/overview";
     let call = 0;
@@ -261,7 +261,7 @@ describe("[D-14] out-of-order 请求不得覆盖新数据", () => {
   });
 });
 
-describe("[D-31] render 期不得写缓存", () => {
+describe("render 期不得写缓存", () => {
   it("peek() on an unknown path creates nothing", () => {
     const { cache, calls } = harness();
     const snap = cache.peek("/api/never-fetched");
@@ -286,7 +286,7 @@ describe("[D-31] render 期不得写缓存", () => {
   });
 });
 
-describe("[D-32] LRU + TTL", () => {
+describe("LRU + TTL", () => {
   it("200 filter combinations stay within the entry cap", async () => {
     const { cache } = harness();
     for (let i = 0; i < 200; i++) {

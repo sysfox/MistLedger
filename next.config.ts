@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-// [D-13] 基础安全响应头。
+// 基础安全响应头。
 //
 // 为什么放在这里而不是每个 Route Handler 里手写：这是一层「与业务无关的底线」，
 // 漏一处不会有测试失败、不会有类型报错，只会在生产里悄悄裸奔。
@@ -12,7 +12,7 @@ import type { NextConfig } from "next";
 // 配错就是全站白屏，收益远小于风险。故保留 X-Frame-Options 作为兜底：
 // 它在所有目标浏览器上都受支持，且本应用没有任何需要被 iframe 嵌入的场景。
 //
-// 关于 Referrer-Policy：审计 [D-13] 原写 same-origin，任务书要求
+// 关于 Referrer-Policy：原审计写的是 same-origin，任务书要求
 // strict-origin-when-cross-origin，取后者 —— 它更宽松地保留跨站来源信息，
 // 而 /data 的查询条件走 URL searchParams、页面本身可分享，收紧到 same-origin
 // 只会让「从雾夜账跳到别处再跳回来」丢掉来源，对本应用没有收益。

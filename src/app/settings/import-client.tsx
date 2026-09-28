@@ -32,13 +32,13 @@ const MAX_ROWS = 2000;
 const PREVIEW_ROWS = 200;
 
 /**
- * 行的固有高度（px-3 py-1.5 + 14px 文字 ≈ 37px）。[D-24] 的 content-visibility
+ * 行的固有高度（px-3 py-1.5 + 14px 文字 ≈ 37px）。 的 content-visibility
  * 让浏览器跳过视口外行的布局与绘制，但必须同时给 contain-intrinsic-size，
  * 否则滚动条长度会随渲染进度来回抖。
  */
 const ROW_INTRINSIC_SIZE = "auto 37px";
 
-/** [D-44] 与数据页「共 N 笔」同一套排版：等宽 + 千分位 */
+/** 与数据页「共 N 笔」同一套排版：等宽 + 千分位 */
 function countLabel(n: number): string {
   return n.toLocaleString("zh-CN");
 }
@@ -87,7 +87,7 @@ const PreviewRow = memo(function PreviewRow({
         {r.counterparty}
         {r.product ? <span className="text-dim"> / {r.product}</span> : null}
       </td>
-      {/* [D-08] 符号逻辑下沉到 formatSignedMoney：−¥12.50 / +¥8,000.00 / ⇄¥500.00 */}
+      {/* 符号逻辑下沉到 formatSignedMoney：−¥12.50 / +¥8,000.00 / ⇄¥500.00 */}
       <td className={`money px-3 py-1.5 ${r.type === "expense" ? "text-ember" : r.type === "income" ? "text-jade" : "text-ink"}`}>
         {formatSignedMoney(Number(r.amount), r.type)}
       </td>
@@ -163,7 +163,7 @@ export default function ImportClient({
   const tooMany = rows.length > MAX_ROWS;
   const accountName = accounts.find((a) => a.id === accountId)?.name ?? "";
 
-  // [D-24] 2000 笔的 JSON 曾经每次改任一行的分类都全量重算并写进 hidden input
+  // 2000 笔的 JSON 曾经每次改任一行的分类都全量重算并写进 hidden input
   // （约 500KB–1MB 的 DOM 属性，每 change 一次都在主线程上跑一遍）。现在：rows 的
   // 最新数组只留一份在 ref 里（effect 里一次 O(1) 赋值），序列化推迟到真正提交
   // 那一刻做一次。改任一行的成本从 O(n) 序列化 + DOM 写入降为 O(1) 引用赋值，
@@ -215,7 +215,7 @@ export default function ImportClient({
   // 预览只看前 200 笔，且只在 rows 真正变化时才重切一次数组（useMemo 收敛依赖）。
   const previewRows = useMemo(() => rows.slice(0, PREVIEW_ROWS), [rows]);
 
-  // [D-24] 提交时把 rows 注入 FormData：表单不再有 name="rows" 的 hidden input，
+  // 提交时把 rows 注入 FormData：表单不再有 name="rows" 的 hidden input，
   // 也不再有每次 change 都重算的 rowsJson。序列化只在用户点「确认导入」时发生一次。
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -313,7 +313,7 @@ export default function ImportClient({
             ) : null}
             <div className="relative">
               {/*
-                [D-19] 表格 min-w-[720px]，375px 视口必然横向溢出。此前溢出容器
+ 表格 min-w-[720px]，375px 视口必然横向溢出。此前溢出容器
                 是普通 div —— 不可聚焦，键盘用户只能靠触摸/鼠标横滚，而第 4 列的
                 「分类 / 转入」是每行都要用的核心控件，纯键盘用户在这里直接卡死
                 （WCAG 2.2 SC 2.1.1）。

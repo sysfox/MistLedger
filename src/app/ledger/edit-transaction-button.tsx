@@ -30,7 +30,7 @@ type Transaction = {
   note: string | null;
 };
 
-// 收支类型的选项与键盘契约已收敛到 `./type-picker`（[D-18]），
+// 收支类型的选项与键盘契约已收敛到 `./type-picker`，
 // 这里不再重复维护一份 TYPES 词汇表。
 const ACCOUNT_LABEL: Record<string, string> = {
   expense: "账户",
@@ -45,7 +45,7 @@ const ACCOUNT_PLACEHOLDER: Record<string, string> = {
 };
 
 /**
- * [D-04] 「改完还能再改」。
+ * 「改完还能再改」。
  *
  * 原来的渲染条件是 `open && !state?.ok`：useActionState 的 state 成功后永不复位
  * （React 没有提供 reset API），数据刷新后 key 不变、组件实例复用，于是
@@ -121,9 +121,9 @@ export default function EditTransactionButton({
  * 修改面板。只在展开时挂载，因此内部的 `useState`/`defaultValue` 天然是「本次编辑」的
  * 初值，不需要任何手动 reset。
  *
- * [D-16] 二次确认交给 `<ConfirmSubmitButton>`（自带 Dialog、Esc/遮罩关闭、
+ * 二次确认交给 `<ConfirmSubmitButton>`（自带 Dialog、Esc/遮罩关闭、
  * pending 禁用、确认后提交）。
- * [D-18] 收支类型交给 `<TypePicker>`（APG radiogroup 键盘契约：roving tabindex +
+ * 收支类型交给 `<TypePicker>`（APG radiogroup 键盘契约：roving tabindex +
  * 方向键 + Home/End）。
  */
 function EditPanel({

@@ -45,7 +45,7 @@ const SOURCE_LABEL: Record<string, string> = {
 };
 
 /**
- * [D-15] PostgREST 的嵌套关系（`category:categories(name)`）返回「一对多时是数组、
+ * PostgREST 的嵌套关系（`category:categories(name)`）返回「一对多时是数组、
  * 一对一（maybeSingle 语义）时是对象」。此前两处用 `as unknown as` 硬转，
  * 既绕过了类型检查、又让列名改动不报错。这里把两种形态收进一个收窄函数，
  * 调用点不再需要任何断言 —— `as unknown as` / `as` / `any` / `@ts-ignore` 全站清零。
@@ -55,7 +55,7 @@ function relationName(rel: { name: string }[] | { name: string } | null): string
   return Array.isArray(rel) ? rel[0]?.name : rel.name;
 }
 
-// [D-44] 「共 N 笔」与数据页统一：数字套 .money 并做千分位。
+// 「共 N 笔」与数据页统一：数字套 .money 并做千分位。
 // .money 语义上属于「金额」，真正的修法是抽一个只带 tabular-nums 的 .num
 // —— 但那要动 globals.css（WP-1 的文件）与 data-client（WP-3 的文件），
 // 见 .hermes/audits/wp5-design-fragment.md 的「待合并」一节。
@@ -94,7 +94,7 @@ function AccountsSection({ payload }: { payload: SettingsPayload }) {
         <p className="eyebrow">账房</p>
         <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">账户</h2>
         <p className="mt-1 text-sm text-dim">
-          {/* [D-08] 负号前置（U+2212）且 ¥ 紧跟其后：−¥12.50，不再是 ¥-12.50 */}
+          {/* 负号前置（U+2212）且 ¥ 紧跟其后：−¥12.50，不再是 ¥-12.50 */}
           总资产 <span className="money">{formatSignedMoney(total)}</span>
           <span className="text-xs">（含停用账户）</span> · 余额 = 期初 + 流水汇总（含转账），每笔钱从哪个账户出在这里对得上
         </p>
@@ -269,7 +269,7 @@ function ImportSection({ payload }: { payload: SettingsPayload }) {
         <h3 className="mt-1 font-display text-[17px] font-semibold text-ink">最近导入</h3>
         <ul className="mt-3 flex flex-col gap-2 text-sm">
           {batches.map((b) => (
-            // [D-07] 这一行不可点（纯展示），去掉 hover:bg-veil 与 transition-colors
+            // 这一行不可点（纯展示），去掉 hover:bg-veil 与 transition-colors
             // —— 不可点的行给 hover 是假 affordance（DESIGN.md §七.3）。
             <li key={b.id} className="flex items-center justify-between gap-3 py-2">
               <span className="min-w-0 flex-1 truncate text-ink">
@@ -296,7 +296,7 @@ function ImportSection({ payload }: { payload: SettingsPayload }) {
           {rules.map((r) => {
             const cat = relationName(r.category);
             return (
-              // [D-42] 规则是只读数据，不是选择器。`.chip` 的 hover 会转纸墨，
+              // 规则是只读数据，不是选择器。`.chip` 的 hover 会转纸墨，
               // 暗示「可点」；改用等价的静态标签样式（无 hover/active 反馈）。
               <li
                 key={`${r.keyword}-${cat ?? "?"}`}
@@ -344,7 +344,7 @@ function ImportFallback() {
   );
 }
 
-// [D-34] `new Intl.DateTimeFormat` 要解析 locale 与 options，是相对昂贵的构造。
+// `new Intl.DateTimeFormat` 要解析 locale 与 options，是相对昂贵的构造。
 // 放进组件体等于每次重渲染都重付一次；提到模块作用域，只留一次 format 调用。
 const SHANGHAI_MONTH = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Shanghai",
@@ -362,7 +362,7 @@ export default function SettingsClient() {
   const currentMonth = currentShanghaiMonth();
 
   return (
-    // [D-26] 根 layout 的「跳到主内容」skip link 指向 #main，四页的 <main> 必须带这个 id。
+    // 根 layout 的「跳到主内容」skip link 指向 #main，四页的 <main> 必须带这个 id。
     <main id="main" className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
         <p className="eyebrow">账房规则</p>
@@ -378,7 +378,7 @@ export default function SettingsClient() {
           <CategoryFallback />
         </>
       ) : error || !data ? (
-        // [D-06] 原本这里并排渲染了两个一模一样的 SectionError（账户一个、分类一个），
+        // 原本这里并排渲染了两个一模一样的 SectionError（账户一个、分类一个），
         // 用户看到的是「同一个错误出现两次」而不是「哪一栏坏了」。收敛成一个，
         // 并接上 useApiData 的 reload —— 恢复网络后点一下就出数据，不用手动 F5。
         <SectionError onRetry={reload} label="账户与分类" />

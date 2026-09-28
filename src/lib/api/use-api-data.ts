@@ -11,11 +11,11 @@ import { createApiCache, type ApiCache } from "./api-cache";
  */
 const cache: ApiCache = createApiCache({ fetchJson: apiGet });
 
-// [D-01] A 401 from any /api/* route means the session is gone for good:
+// A 401 from any /api/* route means the session is gone for good:
 // drop every cached payload before the redirect so the next account signing in
 // on this tab starts from zero.
 //
-// [WP6-01] `silent: true` is mandatory here, not an optimisation. Without it
+// `silent: true` is mandatory here, not an optimisation. Without it
 // `reset()` re-drives the pump, which re-issues the very requests that just
 // returned 401; each of those 401s resets again, and the loop has no upper
 // bound (measured: 84 requests / 80 redirects from 4 panels before the probe's
@@ -23,7 +23,7 @@ const cache: ApiCache = createApiCache({ fetchJson: apiGet });
 setSessionLostHandler(() => cache.reset({ silent: true }));
 
 /**
- * [D-01] Wipe every cached `/api/*` payload.
+ * Wipe every cached `/api/*` payload.
  *
  * **Wiring required** — call this on BOTH of these paths:
  *
@@ -43,7 +43,7 @@ export function resetApiCache(opts?: { silent?: boolean }): void {
 }
 
 /**
- * [D-01] Deliberately NOT exported.
+ * Deliberately NOT exported.
  *
  * An earlier revision shipped `setApiCacheOwner(userId)` as an optional second
  * line of defence. It was never called, and wiring it would have been wrong:
@@ -55,7 +55,7 @@ export function resetApiCache(opts?: { silent?: boolean }): void {
  *   already covered: Supabase reuses the same cookie jar, so a different
  *   account always arrives through one of the two reset paths (explicit
  *   sign-out, or a 401 on the next fetch). Both wipe unconditionally.
- * - An unused export is a maintenance liability, and [D-25]'s whole point is
+ * - An unused export is a maintenance liability, and its whole point is
  *   that "the docs claim it works" must be machine-checkable rather than
  *   aspirational. Shipping a documented-but-dead security hook is the exact
  *   failure mode that audit is about.
@@ -75,13 +75,13 @@ export type ApiDataState<T> = {
 };
 
 export function useApiData<T>(path: string): ApiDataState<T> {
-  // [D-31] Pure during render — `peek` only reads; nothing is allocated or
+  // Pure during render — `peek` only reads; nothing is allocated or
   // mutated, so a discarded (StrictMode/concurrent) render has no effect.
   const getSnapshot = useCallback(() => cache.peek<T>(path), [path]);
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      // [D-31] All entry creation + fetching happens here, i.e. in the commit
+      // All entry creation + fetching happens here, i.e. in the commit
       // phase. The cache re-pumps automatically after every change, so a
       // wiped entry refetches without this callback being re-created.
       const unsubscribe = cache.subscribe(path, onStoreChange);

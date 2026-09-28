@@ -85,7 +85,7 @@ export default function SiteNav() {
 
   if (pathname === "/login") return null;
 
-  // [D-01] 登出必须清空 /api/* 客户端缓存，这是跨账号数据泄露的最后一块拼图。
+  // 登出必须清空 /api/* 客户端缓存，这是跨账号数据泄露的最后一块拼图。
   //
   // 为什么必须在这里、且必须在 await 之前：
   // - 登出走的是客户端路由跳转（router.push），不整页刷新，模块级 entries Map 存活。

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * [D-25] Proves the DESIGN.md §十一 lint guards actually fail.
+ * Proves the DESIGN.md §十一 lint guards actually fail.
  *
  * A lint rule that never fires is indistinguishable from no rule at all, and
  * these are the rules standing between the taboo list and a `text-zinc-500`.
@@ -23,7 +23,7 @@ const VIOLATION_FILE = join(ROOT, "src", "__taboo_guard_probe__.tsx");
 /** Each case: a label, the probe source, and either `expect` (must fire) or
  *  `expectNot` (must stay silent — a false-positive guard).
  *
- *  [WP6-06] The `CONSTRUCTION_ROUTES` block below is the load-bearing part.
+ * The `CONSTRUCTION_ROUTES` block below is the load-bearing part.
  *  Every way of assembling a class name at runtime is a separate escape unless
  *  the rule covers it: two earlier review rounds were rejected for exactly this
  *  — the rule scanned `TemplateLiteral` quasis, then someone reached the same
@@ -82,7 +82,7 @@ const CASES = [
     expect: "window.confirm",
   },
 
-  // ---- [WP6-06] construction routes: every one of these is an escape hatch
+  // ---- construction routes: every one of these is an escape hatch
   // unless the rule can fold it or flag the hole. Keep one probe per route.
   {
     label: "构造·纯字面量（基线）",
@@ -304,7 +304,7 @@ const CASES = [
     expect: "DESIGN.md §十一#6",
   },
 
-  // ---- [WP6-06] unresolvable holes: a hole the resolver cannot fold must be
+  // ---- unresolvable holes: a hole the resolver cannot fold must be
   // reported when it sits exactly where a banned ramp or shade would go.
   {
     label: "无法静态解析·槽位前缀 text-",

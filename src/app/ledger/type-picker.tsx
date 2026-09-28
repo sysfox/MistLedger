@@ -1,6 +1,6 @@
 "use client";
 
-// [D-18] 收支类型单选组（新建流水 / 修改流水两处复用）。
+// 收支类型单选组（新建流水 / 修改流水两处复用）。
 //
 // 审查前的实现在 `<Box role="radiogroup">` 里放三个 `role="radio"` 的 MUI Chip，
 // 但只宣告了 radiogroup 语义，没有实现 APG 的键盘契约：

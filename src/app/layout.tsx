@@ -5,7 +5,7 @@ import ServiceWorkerRegister from "@/components/service-worker-register";
 import MuiGate from "@/components/mui-gate";
 import "./globals.css";
 
-// [D-02] 关于 subsets 的事实澄清（审计报告该条的前提有误，此处记录实测结论）：
+// 关于 subsets 的事实澄清（审计报告该条的前提有误，此处记录实测结论）：
 // next/font 的 `subsets` 只决定「哪些 @font-face 加 <link rel=preload>」，
 // 传给 Google Fonts 的 css2 请求不含 subset 过滤，返回的 CSS 里
 // chinese-simplified 等 CJK 区间（U+4E00…）的 @font-face 一并被下载并自托管。
@@ -42,7 +42,7 @@ const fontMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  // 无 metadataBase 时分享链接无法解析出绝对 URL，OG 预览会缺图（[D-40]）
+  // 无 metadataBase 时分享链接无法解析出绝对 URL，OG 预览会缺图（）
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://mistledger.app",
   ),

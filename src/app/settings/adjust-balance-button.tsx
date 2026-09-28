@@ -40,7 +40,7 @@ export default function AdjustBalanceButton({
   const targetNumber = Number(targetBalance);
   const targetValid = targetBalance !== "" && Number.isFinite(targetNumber);
 
-  // [D-04] 成功后「再调一次」必须仍然可用。
+  // 成功后「再调一次」必须仍然可用。
   //
   // 原来的渲染条件是 `open && !(state.ok && state.message)`：useActionState 的
   // state 成功后永不复位，于是这个面板一个账户一生只渲染一次 —— 按钮仍能 toggle

@@ -33,7 +33,7 @@ function createSupabaseForRequest(request: NextRequest, refreshed: CookieToSet[]
  * Supabase client scoped by RLS.
  * Returns a 401 NextResponse when unauthenticated.
  *
- * [D-12] / [WP6-02] The 401-vs-503 decision is delegated to
+ * The 401-vs-503 decision is delegated to
  * `classifyAuthOutcome` rather than re-derived here, because the trap is that
  * `getClaims()` does *not* throw on an upstream fault — auth-js catches it and
  * returns `{ data: null, error: AuthRetryableFetchError }`, which a plain

@@ -3,14 +3,14 @@
 /**
  * Client fetcher for the /api data layer: same-origin GET with cookie auth.
  *
- * [D-12] The 401/503 split is the whole point of this module. A 401 means the
+ * The 401/503 split is the whole point of this module. A 401 means the
  * session is really gone and the user must land on /login; a 503 (or any other
  * 5xx, or a dead network) is an *upstream* fault and must leave the user where
  * they are, filling in the form they were filling in. Collapsing the two — which
  * is what the pre-fix shape did — logs people out because Supabase had a bad
  * minute.
  *
- * [D-33] Server copy is passed through, but only when it is *human* copy. A
+ * Server copy is passed through, but only when it is *human* copy. A
  * machine-readable code (`unauthenticated`, `service-unavailable`) reaching the
  * UI is a bug in itself, so those fall back to the fixed Chinese messages.
  */
@@ -25,7 +25,7 @@ const UNAUTHENTICATED_MESSAGE = "登录已过期，请重新登录";
 
 /**
  * Only a message that actually contains CJK is treated as human copy. This is
- * the discriminator [D-33] asks for: it lets a Chinese server string through
+ * the discriminator asks for: it lets a Chinese server string through
  * while rejecting `error: "unauthenticated"`, without having to enumerate every
  * machine code the API might invent.
  */
@@ -75,7 +75,7 @@ async function humanMessageFrom(res: Response): Promise<string | null> {
 }
 
 /**
- * [WP6-01] Notified on a 401 *before* the redirect, so the app-wide cache can
+ * Notified on a 401 *before* the redirect, so the app-wide cache can
  * drop every payload the dead session left behind. Module-level mutable state
  * is the point: the handler has to outlive any single component, exactly like
  * the cache it clears. `null` unsets it (the tests' teardown relies on that).

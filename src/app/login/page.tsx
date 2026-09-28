@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  // [D-20] 成功与失败是两种不同的语义，不能共用一个 state。
+  // 成功与失败是两种不同的语义，不能共用一个 state。
   // 「注册成功，请到邮箱确认后再登录」曾被塞进 error state，于是渲染成余烬红 +
   // role="alert"（assertive）—— 视觉与语义双重错误：ember 在本项目只表示支出与
   // 危险（DESIGN.md §二）。拆成 notice（jade + role=status，polite）与
@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const errorRef = useRef<HTMLParagraphElement>(null);
 
-  // [D-20] 提交失败后把焦点移到错误文本。焦点留在按钮上时读屏用户可能收不到
+  // 提交失败后把焦点移到错误文本。焦点留在按钮上时读屏用户可能收不到
   // 播报（按钮此刻被 disabled，文案又在它上方）。tabIndex={-1} 让 <p> 可编程
   // 聚焦但不进 Tab 序列；焦点环仍是灯色（§十一 #9）。
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function LoginPage() {
   }
 
   return (
-    // [D-26] 根 layout 的「跳到主内容」skip link 指向 #main。
+    // 根 layout 的「跳到主内容」skip link 指向 #main。
     <main id="main" className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 px-6 py-8">
       <div className="flex flex-col items-center text-center">
         <h1 className="font-display text-3xl font-semibold text-ink">雾夜账</h1>

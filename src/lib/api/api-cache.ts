@@ -3,19 +3,19 @@
  *
  * Design constraints this module exists to satisfy:
  *
- * - **No owner bleed across accounts** [D-01]. Every entry carries the Supabase
+ * - **No owner bleed across accounts**. Every entry carries the Supabase
  *   user id it was fetched for. `setOwner()` drops entries that belong to a
  *   different id, and `reset()` wipes everything (wired to sign-out + 401).
- * - **No self-sustaining 401 storm** [WP6-01]. `reset({ silent: true })` wipes
+ * - **No self-sustaining 401 storm**. `reset({ silent: true })` wipes
  *   and notifies WITHOUT re-driving the pump; that distinction is the whole
  *   reason the option exists.
- * - **No out-of-order commits** [D-14]. Each fetch takes a monotonic `seq`;
+ * - **No out-of-order commits**. Each fetch takes a monotonic `seq`;
  *   `commit()` is a no-op unless the caller still holds the newest one, and the
  *   superseded request is `AbortController`-cancelled so it stops burning
  *   bandwidth instead of merely being ignored.
- * - **No writes during render** [D-31]. `peek()` never mutates; entries are
+ * - **No writes during render**. `peek()` never mutates; entries are
  *   only created by `subscribe()` (commit time) or by an explicit `reload()`.
- * - **Bounded memory** [D-32]. LRU by `lastAccess` plus a TTL, with both limits
+ * - **Bounded memory**. LRU by `lastAccess` plus a TTL, with both limits
  *   exported as constants so a script can assert them without importing React.
  *
  * This module is intentionally dependency-free (no React, no `window`, no
@@ -78,7 +78,7 @@ export type ApiCache = {
   /**
    * Wipe every cached payload. Live subscribers are re-driven so they refetch,
    * UNLESS `silent` is set — a session-lost reset must not immediately re-issue
-   * the requests that just returned 401 (see [WP6-01]).
+   * the requests that just returned 401 (see).
    */
   reset(opts?: { silent?: boolean }): void;
   /** Exposed for `scripts/api-cache-check.mjs`. */
@@ -126,7 +126,7 @@ export function createApiCache(options: ApiCacheOptions): ApiCache {
       owner,
     };
     entries.set(path, entry);
-    // [D-32] Enforce the cap on insert, not lazily: a burst of new filter
+    // Enforce the cap on insert, not lazily: a burst of new filter
     // combinations (the data page mints one path per condition) must not be
     // able to grow the map past MAX_ENTRIES between sweeps.
     evictIfNeeded();
@@ -140,7 +140,7 @@ export function createApiCache(options: ApiCacheOptions): ApiCache {
   }
 
   function commit(path: string, entry: Entry, seq: number, patch: Partial<Snapshot<unknown>>) {
-    // [D-14] A newer request started while this one was in flight: drop it.
+    // A newer request started while this one was in flight: drop it.
     if (entry.seq !== seq) return;
     if (entries.get(path) !== entry) return;
     entry.snap = { ...entry.snap, ...patch };
@@ -220,7 +220,7 @@ export function createApiCache(options: ApiCacheOptions): ApiCache {
 
   /**
    * Notify every live subscriber without touching the pump. Used by
-   * `reset({ silent: true })` — see [WP6-01].
+   * `reset({ silent: true })` — see.
    */
   function notifyAll() {
     for (const path of [...subs.keys()]) notify(path);
@@ -293,7 +293,7 @@ export function createApiCache(options: ApiCacheOptions): ApiCache {
       // Notify unconditionally: a mounted panel must not keep rendering the
       // previous account's payload for even one frame after the wipe.
       notifyAll();
-      // [WP6-01] On session loss, only NOTIFY. Calling pump() here would
+      // On session loss, only NOTIFY. Calling pump() here would
       // re-issue the very requests that just returned 401, and each one would
       // reset the cache again — a self-sustaining storm with no upper bound.
       // The page is navigating to /login, so nothing needs to repaint.

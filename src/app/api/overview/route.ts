@@ -4,7 +4,7 @@ import { isApiSession, requireApiSession, sessionResponse } from "@/lib/api/sess
 export const dynamic = "force-dynamic";
 
 /**
- * [D-34] `Intl.DateTimeFormat` 的构造要解析 locale 与 options，代价相对昂贵；
+ * `Intl.DateTimeFormat` 的构造要解析 locale 与 options，代价相对昂贵；
  * 放在 handler 里等于每个请求都重付一次。提到模块作用域，
  * 与 `data-client.tsx` / `settings-client.tsx` 的正确写法保持一致。
  *
@@ -36,7 +36,7 @@ export type OverviewBudget = {
 
 /**
  * 本路由响应里的「关系数据」部分。客户端（`overview-client.tsx`）用
- * `import type` 引入同一份声明，而不是再手写一遍 —— [D-15] 要的
+ * `import type` 引入同一份声明，而不是再手写一遍 —— 这正是本文件要的效果
  * 「客户端类型与实际返回形状之间有静态保证」就落在这条 import 上。
  *
  * `snapshot` 不在此契约内：`dashboard_snapshot` 在 database.types.ts 中

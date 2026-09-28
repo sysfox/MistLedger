@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * [D-01] / [D-14] / [D-32] executable proof for the client data cache.
+ * Executable proof for the client data cache.
  *
  * The cache module is dependency-free, so it can be driven directly under
  * `node --test` (see `src/lib/api/api-cache.test.ts` for the unit suite). This
@@ -26,7 +26,7 @@ function check(label, ok, detail) {
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 async function checkLogoutClears() {
-  console.log("\n[D-01] 登出清空：用户 A 登出后，缓存不得残留 A 的账");
+  console.log("\n登出清空：用户 A 登出后，缓存不得残留 A 的账");
   let payload = { owner: "user-A", total: 4200 };
   const cache = createApiCache({ fetchJson: async () => payload });
   cache.setOwner("user-A");
@@ -71,7 +71,7 @@ async function checkLogoutClears() {
 }
 
 async function checkOutOfOrder() {
-  console.log("\n[D-14] out-of-order：连点 5 次重试，最终数据必须来自最后一次响应");
+  console.log("\nout-of-order：连点 5 次重试，最终数据必须来自最后一次响应");
   const path = "/api/overview";
   let call = 0;
   let aborted = 0;
@@ -119,7 +119,7 @@ async function checkOutOfOrder() {
 }
 
 async function checkLruTtl() {
-  console.log("\n[D-32] LRU + TTL：200 个筛选组合后常驻不超过上限，且无过期条目");
+  console.log("\nLRU + TTL：200 个筛选组合后常驻不超过上限，且无过期条目");
   let clock = 1_000_000;
   const cache = createApiCache({
     fetchJson: async (p) => ({ path: p }),

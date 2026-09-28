@@ -1,6 +1,6 @@
 "use client";
 
-// [D-10] MUI 只在真正用它的路由上发货。
+// MUI 只在真正用它的路由上发货。
 //
 // 背景：MuiProvider 原先挂在根 layout，四个页面共享该 chunk。
 // 但 `/`（总览）与 `/data`（数据）渲染 0 个 MUI 组件，却要为 emotion runtime
