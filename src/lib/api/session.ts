@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { classifyAuthOutcome } from "./session-outcome";
 
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> };
 
@@ -30,7 +31,15 @@ function createSupabaseForRequest(request: NextRequest, refreshed: CookieToSet[]
  * Auth guard for Route Handlers: validates the cookie session, collects token
  * refreshes (they ride on the JSON response), and returns the per-request
  * Supabase client scoped by RLS.
- * Returns a 401 NextResponse instead when unauthenticated.
+ * Returns a 401 NextResponse when unauthenticated.
+ *
+ * [D-12] / [WP6-02] The 401-vs-503 decision is delegated to
+ * `classifyAuthOutcome` rather than re-derived here, because the trap is that
+ * `getClaims()` does *not* throw on an upstream fault — auth-js catches it and
+ * returns `{ data: null, error: AuthRetryableFetchError }`, which a plain
+ * `if (error) → 401` reads as a logout. A Supabase blip must not sign the user
+ * out of the form they are filling in, so the classification lives in the
+ * dependency-free module and gets its own tests.
  */
 export async function requireApiSession(
   request: NextRequest,
@@ -39,11 +48,11 @@ export async function requireApiSession(
   try {
     const supabase = createSupabaseForRequest(request, refreshed);
     const { data, error } = await supabase.auth.getClaims();
-    const claims = data?.claims;
-    if (error || !claims || !claims.sub) {
-      return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+    const outcome = classifyAuthOutcome(error, data?.claims);
+    if (!outcome.ok) {
+      return NextResponse.json({ error: outcome.code }, { status: outcome.status });
     }
-    return { userId: claims.sub, supabase, refreshed };
+    return { userId: outcome.userId, supabase, refreshed };
   } catch {
     return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
   }

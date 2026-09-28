@@ -1,63 +1,71 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
-import { apiGet } from "./client";
+import { apiGet, setSessionLostHandler } from "./client";
+import { createApiCache, type ApiCache } from "./api-cache";
 
-type Snapshot<T> = { data: T | null; error: Error | null };
+/**
+ * Single app-wide cache instance. Module scope is intentional (it must outlive
+ * any single component) — that is exactly why the reset/owner hooks below
+ * exist: a stale cache is a data leak between accounts, not a perf win.
+ */
+const cache: ApiCache = createApiCache({ fetchJson: apiGet });
 
-type Entry<T> = {
-  snap: Snapshot<T>;
-  listeners: Set<() => void>;
-  fetching: Promise<void> | null;
-};
+// [D-01] A 401 from any /api/* route means the session is gone for good:
+// drop every cached payload before the redirect so the next account signing in
+// on this tab starts from zero.
+//
+// [WP6-01] `silent: true` is mandatory here, not an optimisation. Without it
+// `reset()` re-drives the pump, which re-issues the very requests that just
+// returned 401; each of those 401s resets again, and the loop has no upper
+// bound (measured: 84 requests / 80 redirects from 4 panels before the probe's
+// own cap). The page is being navigated to /login, so nothing needs a repaint.
+setSessionLostHandler(() => cache.reset({ silent: true }));
 
-const entries = new Map<string, Entry<unknown>>();
-const MAX_ENTRIES = 100;
-
-function getEntry<T>(path: string): Entry<T> {
-  let entry = entries.get(path) as Entry<T> | undefined;
-  if (!entry) {
-    if (entries.size >= MAX_ENTRIES) {
-      for (const key of entries.keys()) {
-        if ((entries.get(key)?.listeners.size ?? 0) === 0) {
-          entries.delete(key);
-          if (entries.size < MAX_ENTRIES) break;
-        }
-      }
-    }
-    entry = {
-      snap: { data: null, error: null },
-      listeners: new Set(),
-      fetching: null,
-    };
-    entries.set(path, entry as Entry<unknown>);
-  }
-  return entry;
+/**
+ * [D-01] Wipe every cached `/api/*` payload.
+ *
+ * **Wiring required** — call this on BOTH of these paths:
+ *
+ * 1. Sign-out, in `src/components/site-nav.tsx` (`signOut`, right next to
+ *    `supabase.auth.signOut()`), so user A's ledger can never be read by user B
+ *    in the same tab. The client-side `router.push("/login")` does not reload
+ *    the page, so without this the SPA keeps A's entries alive.
+ * 2. The 401 branch of `apiGet` (already wired in `client.ts`, silently).
+ *
+ * It is idempotent and safe to call outside the browser.
+ *
+ * `opts.silent` exists for path 2 only; the sign-out path must re-drive live
+ * subscribers so mounted panels refetch instead of freezing on a skeleton.
+ */
+export function resetApiCache(opts?: { silent?: boolean }): void {
+  cache.reset(opts);
 }
 
-function commit<T>(entry: Entry<T>, patch: Partial<Snapshot<T>>) {
-  entry.snap = { ...entry.snap, ...patch };
-  for (const listener of entry.listeners) listener();
-}
+/**
+ * [D-01] Deliberately NOT exported.
+ *
+ * An earlier revision shipped `setApiCacheOwner(userId)` as an optional second
+ * line of defence. It was never called, and wiring it would have been wrong:
+ *
+ * - `site-nav.tsx` learns the signed-in id only *after* `resetApiCache()` has
+ *   already run on sign-out, so by the time an id is available the cache is
+ *   empty — the tag would guard nothing.
+ * - The case it was designed for (account switch without a sign-out) is
+ *   already covered: Supabase reuses the same cookie jar, so a different
+ *   account always arrives through one of the two reset paths (explicit
+ *   sign-out, or a 401 on the next fetch). Both wipe unconditionally.
+ * - An unused export is a maintenance liability, and [D-25]'s whole point is
+ *   that "the docs claim it works" must be machine-checkable rather than
+ *   aspirational. Shipping a documented-but-dead security hook is the exact
+ *   failure mode that audit is about.
+ *
+ * `cache.setOwner()` remains on the `ApiCache` interface because the
+ * executable D-01 proof (`scripts/api-cache-check.mjs`) exercises it directly
+ * as the owner-tagging invariant. The app simply never wires it.
+ */
 
-function fetchEntry(path: string, silent = false) {
-  const entry = getEntry(path);
-  if (entry.fetching) return;
-  entry.fetching = (async () => {
-    try {
-      const data = await apiGet(path);
-      commit(entry, { data, error: null });
-    } catch (e) {
-      if (!silent || entry.snap.data === null) {
-        commit(entry, {
-          error: e instanceof Error ? e : new Error("数据加载失败，请稍后重试"),
-        });
-      }
-    } finally {
-      entry.fetching = null;
-    }
-  })();
-}
+export { API_CACHE_MAX_ENTRIES, API_CACHE_TTL_MS } from "./api-cache";
 
 export type ApiDataState<T> = {
   data: T | null;
@@ -67,33 +75,31 @@ export type ApiDataState<T> = {
 };
 
 export function useApiData<T>(path: string): ApiDataState<T> {
-  const entry = getEntry<T>(path);
+  // [D-31] Pure during render — `peek` only reads; nothing is allocated or
+  // mutated, so a discarded (StrictMode/concurrent) render has no effect.
+  const getSnapshot = useCallback(() => cache.peek<T>(path), [path]);
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
-      entry.listeners.add(onStoreChange);
-      if (entry.snap.data === null && entry.snap.error === null && !entry.fetching) {
-        fetchEntry(path);
-      }
-      const reloadHandler = () => fetchEntry(path, true);
+      // [D-31] All entry creation + fetching happens here, i.e. in the commit
+      // phase. The cache re-pumps automatically after every change, so a
+      // wiped entry refetches without this callback being re-created.
+      const unsubscribe = cache.subscribe(path, onStoreChange);
+      const reloadHandler = () => cache.reload(path, { silent: true });
       window.addEventListener("mistledger:reload", reloadHandler);
       return () => {
-        entry.listeners.delete(onStoreChange);
+        unsubscribe();
         window.removeEventListener("mistledger:reload", reloadHandler);
       };
     },
-    [entry, path],
+    [path],
   );
 
-  const getSnapshot = useCallback(() => entry.snap, [entry]);
+  const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   const reload = useCallback(() => {
-    const current = getEntry(path);
-    current.fetching = null;
-    fetchEntry(path, true);
+    cache.reload(path, { silent: true });
   }, [path]);
-
-  const snap = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   return {
     data: snap.data,

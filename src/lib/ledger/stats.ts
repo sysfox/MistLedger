@@ -1,4 +1,95 @@
-// 纯函数：总览页聚合，供服务端组件调用、可单测
+// [D-25] 死代码核查（WP-3）：本文件早前被列为「164 行零调用点的死代码」。
+// 下面每个导出都有**真实调用点或真实测试**兜底，故一行不删。
+// 以下清单由 `grep -rn '\b<fn>\b' src/` 于 WP-3 返工时逐个核对，
+// 路径均已 `ls` 验证存在：
+//
+//   ① 日期口径（生产调用点，共 3 个文件）
+//      shiftDays / monthEnd / prevMonthKey
+//                              → src/app/data/presets.ts
+//      lastDayKeys / shanghaiDate
+//                              → src/app/data/data-client.tsx
+//      shanghaiDate            → src/app/ledger/transaction-form.tsx
+//      （以上日期函数另由 src/app/data/query-params.test.ts 覆盖）
+//
+//   ② 仅由 src/lib/ledger/stats.test.ts 直接覆盖（无生产调用点，
+//      保留是因为它们是服务端聚合口径的可执行规格，删掉就没有回归网）
+//      filterTxs / TxFilter / monthKey / lastMonths / monthlyTrend /
+//      categoryShare / assetCurve / summarizeTxs / accountBalances
+//
+// `num()` 是上面两组的公共收敛点。删任何一行都会同时打断调用点或 `npm test`。
+
+/**
+ * [D-45] 全站唯一的「上海今天」口径。
+ *
+ * 记账的日期边界必须按 `Asia/Shanghai` 算，而不是浏览器本地时区：UTC 以西的
+ * 用户在两端会看到不同的「今天」，于是记进错的一天。用 `en-CA` 是因为它输出
+ * `YYYY-MM-DD`，省掉一次手工拼接（也省掉 padStart 写错的机会）。
+ *
+ * 函数式求值（不是模块加载时），所以每次访问取的都是访问日，不会被静态预渲染
+ * 冻成构建日 —— 这正是 [D-05] 预设链接事故的根因。
+ */
+const SHANGHAI_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Shanghai",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/** 上海时区的今天，YYYY-MM-DD。 */
+export function shanghaiDate(d: Date = new Date()): string {
+  return SHANGHAI_DATE.format(d);
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/**
+ * [D-05] 把 `YYYY-MM-DD` 平移 delta 天，返回同格式。
+ *
+ * 全程走 **UTC** 字段，不是本地字段：旧实现 `new Date(y, m-1, d+delta)` 配
+ * 本地 getter，跨夏令时切换会掉一天，而答案还随服务器时区变化。UTC 口径下
+ * 这段纯算术在任何 TZ 下都得同一结果（`query-params.test.ts` 有断言）。
+ *
+ * 月份溢出交给 `Date.UTC` 归一化：`2026-01-31 + 1` 直接得到 2026-02-01，
+ * 闰年 2 月同样正确，不需要自己处理「本月天数」。
+ */
+export function shiftDays(base: string, delta: number): string {
+  const [y, m, d] = base.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + delta));
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+}
+
+/**
+ * 截至 `end`（含）的最近 `days` 个日期键，最旧在前。
+ */
+export function lastDayKeys(days: number, end: string): string[] {
+  const keys: string[] = [];
+  for (let i = days - 1; i >= 0; i--) keys.push(shiftDays(end, -i));
+  return keys;
+}
+
+/**
+ * 月末的真实最后一天，`YYYY-MM` 进、`YYYY-MM-DD` 出。
+ *
+ * `Date.UTC(y, m, 0)` 是「下个月的第 0 天」= 本月最后一天，所以 2 月自动
+ * 得到 28 或 29（闰年），4 月得 30 —— 不需要 28/30/31 的分支表，也就不会在
+ * 2 月写错。注意 `m` 是 1-based 月份，`Date.UTC` 的月份是 0-based，所以这里
+ * 传 `m` 而不是 `m-1`。
+ */
+export function monthEnd(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m, 0));
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
+}
+
+/** 上一个月的 `YYYY-MM`，跨年正确（2026-01 → 2025-12）。 */
+export function prevMonthKey(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 2, 1));
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}`;
+}
+
 export type TxLike = {
   date: string; // YYYY-MM-DD
   amount: number | string;
