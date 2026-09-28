@@ -5,21 +5,16 @@ import ServiceWorkerRegister from "@/components/service-worker-register";
 import MuiGate from "@/components/mui-gate";
 import "./globals.css";
 
-// next/font 的 `subsets` 只决定哪些 @font-face 加 <link rel=preload>，不参与 css2 请求的
-// 区间过滤 —— CJK 区间仍会全量下载自托管，所以减字重是唯一有效的瘦身手段。
-
 const fontDisplay = Noto_Serif_SC({
   variable: "--font-noto-serif-sc",
-  // 全站 font-display 标题一律 font-semibold(600)，700/900 零使用点；
-  // Google 对每个字重都返回 101 个 CJK 分片，去掉即少 202 个 woff2。
+// 全站标题一律 font-semibold(600)：Google 对每个字重都返回 101 个 CJK 分片。
   weight: ["600"],
   subsets: ["latin"],
 });
 
 const fontSans = Noto_Sans_SC({
   variable: "--font-noto-sans-sc",
-  // 必须含 600：Tailwind 的 font-semibold = 600，缺它会让全站中文正文走浏览器合成加粗。
-  // 补 600 的意义是「类存在即为真字重」，与出现处数量无关；700 零使用点，去掉。
+// 字重数组必须含 600，否则 font-semibold 退化成浏览器合成加粗（中文尤甚）。
   weight: ["400", "500", "600"],
   subsets: ["latin"],
 });
@@ -30,7 +25,6 @@ const fontMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  // 无 metadataBase 时分享链接无法解析出绝对 URL，OG 预览会缺图（）
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "https://mistledger.app",
   ),
@@ -66,8 +60,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col pb-[var(--nav-bottom-h)] sm:pt-[var(--nav-top-h)] sm:pb-0">
         <ServiceWorkerRegister />
-        {/* 跳到主内容（WCAG SC 2.4.1 Bypass Blocks）：否则键盘用户每次进页面都要 Tab 过
-            词标 + 4 个导航项 + 退出。平时藏起来，focus 时显形并带上灯色焦点环（§十一 #9）。 */}
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-mist focus:px-4 focus:py-2 focus:text-sm focus:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-lamp/60"

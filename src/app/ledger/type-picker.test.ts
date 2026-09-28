@@ -1,12 +1,3 @@
-/**
- * `TypePicker` 的 APG radiogroup 键盘契约 —— 真实挂载 + 真实 KeyboardEvent。
- *
- * 每条断言都是「具体值 === 具体值」，不用 `ok()`，也不接受「存在某个 tabindex=0」
- * 这类弱判据；B1 更是 12 次按键逐次比对选中项与 `document.activeElement` 两维度。
- *
- * 焦点环可见性（`:focus-visible`）**无法**在这里验证：jsdom 不实现该伪类。这条
- * 按 CSS 规范与 Chrome 行为推断为真，但不计为已验证（见 DESIGN.md §十一 #9）。
- */
 
 import assert from "node:assert/strict";
 import { after, afterEach, before, describe, it } from "node:test";
@@ -15,9 +6,6 @@ import { createRequire } from "node:module";
 import type { ComponentType, ReactElement } from "react";
 import type { TypeOption } from "./type-picker";
 
-// 挂载环境必须先于组件 import 生效 —— 理由同 confirm-submit-button.test.ts：
-// 静态 import 会在本文件任何一行执行前完成求值，那时 global 上还没有 document。
-// harness 在 src/components/ 下，本测试在 src/app/ledger/ 下 —— 用仓库相对路径跨目录取。
 const require = createRequire(import.meta.url);
 const harness = require("../../components/test-dom-harness.cjs") as Harness;
 
@@ -39,25 +27,14 @@ interface Mounted {
   unmount(): void;
 }
 
-/**
- * 顺序即键盘左右顺序，与组件的 `TX_TYPES` 同源。
- * 这里独立写一份而不是 import 组件的常量：断言必须能在**常量被改坏**时失败，
- * 若断言复用被测常量，两者一起漂移就再也测不出东西。
- */
 const TX: TypeOption[] = [
   { value: "expense", label: "支出" },
   { value: "income", label: "收入" },
   { value: "transfer", label: "转账" },
 ];
 
-/** 本文件挂过的所有 root，由 afterEach 统一收走（失败断言会跳过用例末尾的清理） */
 const mountedHandles: Array<{ unmount(): void }> = [];
 
-/**
- * 组件在 `before()` 里经 harness 的加载管线载入。声明必须排在 `mountPicker`
- * **之前** —— 它是 `let`（有 TDZ），而 `mountPicker` 在模块求值时就会以它为参数
- * 构造元素。
- */
 let Picker!: ComponentType<{ value: string; onChange: (next: string) => void; label?: string }>;
 
 function renderComponent(element: ReactElement) {
@@ -66,12 +43,6 @@ function renderComponent(element: ReactElement) {
   return mounted;
 }
 
-/**
- * 挂一个受控的 TypePicker。
- *
- * `onChange` 写回局部 `value` 并立即重渲染 —— 这是**受控组件**的正确模拟：
- * 若组件不遵守受控契约，选中态会停在旧值，B1/B2 的断言就会红。
- */
 function mountPicker(initial: string) {
   let value = initial;
   const rerender = (next: string) => {
@@ -90,7 +61,6 @@ function radios(scope: ParentNode): HTMLElement[] {
   return Array.from(scope.querySelectorAll('[role="radio"]'));
 }
 
-/** tab 序列里的项：APG radiogroup 要求组内恒为 0 或 1 个（此处恒为 1） */
 function tabbables(scope: ParentNode): HTMLElement[] {
   return radios(scope).filter((r) => r.getAttribute("tabindex") === "0");
 }
@@ -117,8 +87,6 @@ describe("TypePicker · APG radiogroup 键盘契约", () => {
     harness.restore();
   });
 
-  // 初始 DOM：roving tabindex 与可访问名
-
   describe("初始 DOM", () => {
     it("B0.1 radiogroup 有可访问名", () => {
       const p = mountPicker("expense");
@@ -137,7 +105,6 @@ describe("TypePicker · APG radiogroup 键盘契约", () => {
         1,
         "组内只能有 1 项在 tab 序列里，否则键盘用户要 Tab 三次才走得完",
       );
-      // 不能是「随便哪个」：必须在选中项上。
       assert.equal(tabbables(p.host)[0], selected(p.host), "tabindex=0 的必须是选中项");
     });
 
@@ -164,15 +131,8 @@ describe("TypePicker · APG radiogroup 键盘契约", () => {
     });
   });
 
-  // 方向键：APG § radiogroup Keyboard Interaction
-
   describe("方向键移动并选中", () => {
-    /**
-     * B1 —— 12 次连续按键，逐次比对「选中项」与「document.activeElement」两个维度。
-     * 拆成 12 条 `it` 只为可诊断性：报错能指认是第几次、哪个键、从哪到哪。
-     */
     const NAV: Array<[string, number, string]> = [
-      // [键, 起始项下标, 按键后应落到的项文案]
       ["ArrowRight", 0, "收入"],
       ["ArrowRight", 1, "转账"],
       ["ArrowRight", 2, "支出"], // 末项 → 回环到首项
@@ -261,13 +221,7 @@ describe("TypePicker · APG radiogroup 键盘契约", () => {
     });
   });
 
-  // Space / Enter 选中
-
   describe("Space / Enter 选中", () => {
-    // Chip 根元素是 ButtonBase 渲染的原生 <button>，激活由 ButtonBase 的键盘处理
-    // （useButtonBase.js:144-156）完成，不是浏览器默认行为 —— jsdom 既不做默认激活，
-    // 也不会因派发按键就聚焦。故先显式 .focus()（真实用户先 Tab / 方向键到这一项），
-    // 再派发按键与抬起，否则断言就变成在测「jsdom 有没有自动聚焦」。
     for (const [key, code] of [[" ", "Space"], ["Enter", "Enter"]] as const) {
       it(`B3 ${code} 选中当前聚焦项`, () => {
         const p = mountPicker("expense");
@@ -300,8 +254,6 @@ describe("TypePicker · APG radiogroup 键盘契约", () => {
       });
     }
   });
-
-  // 点击与自定义可访问名
 
   describe("指针与可访问名", () => {
     it("B5 点击任一项即选中该项并移入 tab 序列", () => {

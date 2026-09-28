@@ -53,10 +53,5 @@ export default async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // App pages are static shells with no data; unauthenticated users see the
-  // skeleton once and are bounced to /login by the API layer (401), so the
-  // auth roundtrip no longer blocks the first byte. `$` (not `^$`) matches the
-  // empty remainder so "/" is excluded. /login keeps the gate to bounce
-  // authenticated users back to the app.
   matcher: ["/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|$|(?:ledger|data|settings|api)(?:$|/)|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

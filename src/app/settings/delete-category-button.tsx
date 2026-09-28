@@ -43,9 +43,6 @@ export default function DeleteCategoryButton({ id, name }: { id: string; name: s
         aria-label={`删除分类 ${name}`}
         disabled={pending}
         onClick={() => setConfirmOpen(true)}
-        // 44×44：与其余行内按钮（toggle / delete-account / delete-budget）对齐 ——
-        // 虽过 WCAG 2.2 SC 2.5.8（AA 最小 24×24），但这是 chip 内的高频点击目标。
-        // 负边距把多出的 12px 收回来，chip 的视觉高度不变。
         sx={{ minHeight: 44, minWidth: 44, fontSize: "0.875rem", lineHeight: 1, margin: "-6px -14px" }}
       >
         ×

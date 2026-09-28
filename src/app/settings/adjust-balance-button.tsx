@@ -40,10 +40,6 @@ export default function AdjustBalanceButton({
   const targetNumber = Number(targetBalance);
   const targetValid = targetBalance !== "" && Number.isFinite(targetNumber);
 
-  // 面板的渲染条件只能看 `open`，绝不能写成 `open && !(state.ok && state.message)`：
-  // useActionState 的 state 成功后永不复位，那样的条件让面板一个账户一生只渲染一次，
-  // 按钮仍能 toggle aria-expanded 但内容永不出现。成功/失败文案只是面板内的反馈
-  // （role=status / role=alert），不参与渲染条件；数据刷新后再次展开即同步为最新值。
   const justAdjusted = state.ok && state.message ? state.message : "";
   const adjustError = !state.ok && state.message ? state.message : "";
 

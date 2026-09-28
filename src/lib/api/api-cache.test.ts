@@ -1,10 +1,3 @@
-/**
- * Unit tests for the client data cache.
- *
- * Runs on Node's built-in runner (`npm test`). The module under test has no
- * React or DOM dependency by design, so no jsdom and no test framework install
- * is required.
- */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -15,7 +8,6 @@ import {
   type ApiCache,
 } from "./api-cache.js";
 
-/** Let queued microtasks/promise continuations run. */
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 type Harness = { cache: ApiCache; calls: string[] };
@@ -36,8 +28,6 @@ function harness(opts: { owner?: string | null; clock?: () => number } = {}): Ha
 describe("登出 / 401 清空", () => {
   it("reset() empties the cache", async () => {
     const { cache } = harness({ owner: "user-A" });
-    // No live subscriber: this is the real sign-out shape — the page is being
-    // torn down, so nothing re-pumps and the map must be truly empty.
     for (let i = 0; i < 5; i++) {
       const off = cache.subscribe(`/api/data?days=${i}`, () => {});
       await tick();
@@ -57,10 +47,7 @@ describe("登出 / 401 清空", () => {
     const afterFirst = calls.length;
 
     cache.reset();
-    // Synchronously after reset there is no payload: A's ledger is gone before
-    // anything new can arrive.
     assert.equal(cache.peek(path).data, null, "previous account's payload must be gone");
-    // The still-mounted panel is re-driven rather than stuck on a skeleton.
     await tick();
     assert.ok(calls.length > afterFirst, "a live subscriber must trigger a refetch");
     assert.notEqual(cache.peek(path).data, null, "refetched payload must land");
@@ -71,7 +58,6 @@ describe("登出 / 401 清空", () => {
     const cache = createApiCache({
       fetchJson: async () => {
         calls += 1;
-        // Mirror client.ts: the session-lost handler runs BEFORE the throw.
         cache.reset({ silent: true });
         throw new Error("登录已过期，请重新登录");
       },
@@ -84,9 +70,6 @@ describe("登出 / 401 清空", () => {
   });
 
   it("the non-silent reset is the one that loops (the regression's cause)", async () => {
-    // Same shape as above but WITHOUT `silent`. It exists to pin down *why*
-    // the option is needed: if this ever stops looping, the silent flag is no
-    // longer load-bearing and someone should re-examine the fix.
     let calls = 0;
     const cache = createApiCache({
       fetchJson: async () => {
@@ -105,8 +88,6 @@ describe("登出 / 401 清空", () => {
   });
 
   it("reset({silent:true}) still wipes and still notifies", async () => {
-    // The silent path must not become "silent about the leak" — D-01 is about
-    // wiping the payloads, and only the *pump* is suppressed.
     const { cache } = harness({ owner: "user-A" });
     const path = "/api/overview";
     let notifications = 0;
@@ -189,8 +170,6 @@ describe("out-of-order 请求不得覆盖新数据", () => {
     const cache = createApiCache({
       fetchJson: async () => {
         const n = ++call;
-        // The first request is the slowest, so it resolves *after* all five
-        // reloads. Without a request id its stale payload would win.
         await new Promise((r) => setTimeout(r, n === 1 ? 120 : 5));
         lastResolved = n;
         return { call: n };
@@ -201,9 +180,7 @@ describe("out-of-order 请求不得覆盖新数据", () => {
     for (let i = 0; i < 5; i++) cache.reload(path);
     await new Promise((r) => setTimeout(r, 300));
 
-    // The slowest request really did resolve last...
     assert.equal(lastResolved, 1, "request #1 was supposed to resolve last");
-    // ...and its commit was discarded, leaving the newest payload on screen.
     assert.equal(
       (cache.peek(path).data as { call: number }).call,
       6,
@@ -216,8 +193,6 @@ describe("out-of-order 请求不得覆盖新数据", () => {
     let completed = 0;
     const cache = createApiCache({
       fetchJson: async (_p, init) => {
-        // Behave like a real `fetch`: aborting settles the promise immediately
-        // and stops the request from occupying the connection.
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(resolve, 60);
           init?.signal?.addEventListener("abort", () => {
@@ -232,7 +207,6 @@ describe("out-of-order 请求不得覆盖新数据", () => {
     const off = cache.subscribe("/api/overview", () => {});
     await tick();
     for (let i = 0; i < 4; i++) cache.reload("/api/overview");
-    // Let every abort/reject settle.
     await new Promise((r) => setTimeout(r, 200));
     off();
     assert.equal(completed, 1, "only the newest request may survive; 4 were superseded");

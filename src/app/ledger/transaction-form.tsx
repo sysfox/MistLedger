@@ -17,8 +17,7 @@ import { createTransaction } from "./actions";
 type Account = { id: string; name: string };
 type Category = { id: string; name: string; kind: string };
 
-// 收支类型的选项与键盘契约已收敛到 `./type-picker`，
-// 这里不再重复维护一份 TYPES 词汇表。
+// 收支类型的词汇表与键盘契约已收敛到 ./type-picker。
 const ACCOUNT_LABEL: Record<string, string> = {
   expense: "账户",
   income: "收入账户",
@@ -31,14 +30,6 @@ const ACCOUNT_PLACEHOLDER: Record<string, string> = {
   transfer: "转出账户",
 };
 
-/**
- * 默认日期 = **上海时区的今天**（`src/lib/ledger/stats.ts` 的 shanghaiDate，全站唯一口径）。
- * 不可用浏览器本地时区：UTC 以西的用户会与 `/data` presets、资产曲线、`/api/*` 月界
- * 在两端看到不同的「今天」，于是记进错的一天。
- *
- * 该函数是**调用时**求值而非模块加载时，所以每次访问取的都是访问日，
- * 不会被静态预渲染冻成构建日。
- */
 function today() {
   return shanghaiDate();
 }
@@ -69,13 +60,6 @@ export default function TransactionForm({
       <input type="hidden" name="type" value={type} />
       <TypePicker value={type} onChange={setType} />
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-        {/* 默认值由 React 通过 defaultValue 拥有，删掉了 useEffect 里
-            `el.defaultValue = …; el.value = …` 的直写。那段直写破坏了 React 的
-            非受控不变量：改完 DOM 后 React 若重渲染并不会把它同步回去。
-
-            `suppressHydrationWarning` 说明的是「这个值本来就可能与服务端预渲染时
-            算出的不同」—— 日期是访问日口径，构建日≠访问日时必然不同，压制的是
-            这一处**预期内**的差异，而不是掩盖真 bug。 */}
         <TextField
           id="tx-date"
           name="date"
@@ -143,9 +127,6 @@ export default function TransactionForm({
             name="channel"
             label={isIncome ? "来源渠道" : "渠道"}
             labelId="tx-channel-label"
-            // 默认值取最中性的「现金 / 银行柜台等不经第三方的直接支付」：
-            // 默认支付宝会把银行转账、现金支出记成支付宝渠道，污染统计。
-            // 与 `actions.ts` 里 `formData.get("channel") ?? "direct"` 的兜底一致。
             defaultValue="direct"
           >
             {CHANNELS.map((c) => (

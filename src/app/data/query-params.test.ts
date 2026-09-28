@@ -1,9 +1,3 @@
-/**
- * 三条契约的可执行验收。跑 `npm test`（Node 内置 `node:test`，无额外依赖）。
- *
- * 重点是「构建后第 2 天访问，chips 仍指向近 7 天」：同一个 `buildPresets` 被两个
- * 不同日期驱动，两次输出必须不同 —— 这要求「今天」必须是入参。
- */
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import { describe, it } from "node:test";
@@ -23,12 +17,6 @@ import {
 import { toFilteredTxStats, toSnapshot } from "./payload.js";
 import { monthEnd, prevMonthKey, shiftDays } from "../../lib/ledger/stats.js";
 
-/*
- * `presets.ts` 用 `@/lib/ledger/stats`，但 Node 的 strip-types 既不解析 `@/` 别名
- * 也不做 `.js`→`.ts` 替换，`scripts/ts-resolve-hooks.mjs` 也只处理相对路径。
- * 故别名在本文件就地解决：注册解析钩子后必须用**动态** import 载入被测模块 ——
- * 静态 import 的解析发生在任何代码执行之前，钩子来不及注册。
- */
 const SRC = new URL("../../../src/", import.meta.url);
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -44,16 +32,10 @@ const { buildPresets } = (await import("./presets.js")) as typeof import("./pres
 const UUID_A = "3f9c1d2e-4a5b-4c6d-8e7f-0a1b2c3d4e5f";
 const UUID_B = "11111111-2222-4333-8444-555555555555";
 
-/** 最小 ParamSource：测试只关心键值映射，不需要真的构造 URLSearchParams。 */
 function params(record: Record<string, string>) {
   return { get: (name: string) => record[name] ?? null };
 }
 
-/**
- * 只保留有值的键。`parseQueryFilter` 总是返回完整的 8 个键（缺失的为 undefined），
- * 这对消费方是对的 —— 无需判断 `in` —— 但与稀疏字面量做 deepEqual 时会因
- * 「显式 undefined」而不等。往返一致性断言要比的是**有效值**。
- */
 function defined(f: QueryFilter): Record<string, unknown> {
   return Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined));
 }
@@ -61,11 +43,9 @@ function defined(f: QueryFilter): Record<string, unknown> {
 describe("acc / cat 的 UUID 校验", () => {
   it("acc 只接受 UUID", () => {
     assert.equal(normalizeAccount(UUID_A), UUID_A);
-    // 过滤注入的载荷：逗号能拆出额外的 or 分支
     assert.equal(normalizeAccount(`1,or(id.not.is.null)`), undefined);
     assert.equal(normalizeAccount("not-a-uuid"), undefined);
     assert.equal(normalizeAccount("'; drop table transactions; --"), undefined);
-    // 大写合法（Postgres uuid 输出可能是大写）
     assert.equal(normalizeAccount(UUID_A.toUpperCase()), UUID_A.toUpperCase());
     assert.equal(normalizeAccount(""), undefined);
     assert.equal(normalizeAccount(null), undefined);
@@ -74,7 +54,6 @@ describe("acc / cat 的 UUID 校验", () => {
   it("cat 接受 UUID 或 none，其余丢弃", () => {
     assert.equal(normalizeCategory(UUID_B), UUID_B);
     assert.equal(normalizeCategory("none"), "none");
-    // "none" 绝不能被 UUID 分支吞掉，也不能掉进 else
     assert.equal(normalizeCategory("None"), undefined);
     assert.equal(normalizeCategory("nope"), undefined);
     assert.equal(normalizeCategory(""), undefined);
@@ -83,7 +62,6 @@ describe("acc / cat 的 UUID 校验", () => {
   it("非 UUID 的 acc 被丢弃：结果与不传该参数完全一致（不报错）", () => {
     const injected = parseQueryFilter(params({ acc: "1,or(id.not.is.null)" }));
     assert.equal(injected.account, undefined);
-    // 其余条件仍照常生效 —— 丢弃的是这一个条件，不是整份查询
     const mixed = parseQueryFilter(params({ acc: "bogus", type: "expense", min: "10" }));
     assert.equal(mixed.account, undefined);
     assert.equal(mixed.type, "expense");
@@ -99,7 +77,6 @@ describe("acc / cat 的 UUID 校验", () => {
 
   it("只有 UUID 才会进入 .or() 过滤器字符串", () => {
     const f = parseQueryFilter(params({ acc: "1,or(id.not.is.null)" }));
-    // 这正是 route.ts 里拼 .or() 的那段逻辑的前提
     const orFilter = f.account
       ? `account_id.eq.${f.account},to_account_id.eq.${f.account}`
       : null;
@@ -116,7 +93,6 @@ describe("acc / cat 的 UUID 校验", () => {
 
 describe("LIKE 元字符转义", () => {
   it("% 被转义，不再是通配符", () => {
-    // 未转义时这里是 "%%%" → 匹配全部行
     assert.equal(escapeLikePattern("%"), "\\%");
   });
 
@@ -134,7 +110,6 @@ describe("LIKE 元字符转义", () => {
   });
 
   it("两层转义：LIKE 转义后再做 .or() 值转义", () => {
-    // 用户输入 `%` → LIKE 层 `\%` → or 值层把 `\` 再转义成 `\\`
     assert.equal(escapeOrValue(`%${escapeLikePattern("%")}%`), '"%\\\\%%"');
   });
 
@@ -144,7 +119,6 @@ describe("LIKE 元字符转义", () => {
 
   it("?q=%25 不会匹配全表：构造出的模式只含一个字面 %", () => {
     const pattern = `%${escapeLikePattern("%")}%`;
-    // 模式里有且只有一个未转义 % 在首尾；中间的 % 全部被反斜杠转义
     assert.equal(pattern, "%\\%%");
     assert.equal(pattern.replace(/\\%/g, ""), "%%", "去掉转义后只剩两端的包裹 %");
   });
@@ -218,7 +192,6 @@ describe("qs 只有一份构造逻辑", () => {
   });
 
   it("同一天数下，链接 qs 与 API qs 逐字符一致", () => {
-    // data-client 的天数 chip 与 /api/data 请求都走这一个函数，只是 days 选项不同
     const forChip = buildQueryString(filter, { days: 30 });
     const forApi = buildQueryString(filter, { days: 30, alwaysDays: true });
     assert.equal(forChip, forApi);
@@ -252,11 +225,9 @@ describe("预设的日期来自访问日，不是构建日", () => {
     const onVisit = buildPresets(visitDay).find((p) => p.label === "近 7 天支出")!;
 
     assert.equal(onBuild.filter.to, buildDay);
-    // 若日期是构建时被烤进 HTML 的，这里会等于 buildDay
     assert.equal(onVisit.filter.to, visitDay);
     assert.notEqual(onVisit.filter.to, buildDay);
 
-    // 且窗口真的是「近 7 天」：含访问日，往前 6 天
     assert.equal(onVisit.filter.from, shiftDays(visitDay, -6));
     const span =
       (Date.parse(`${onVisit.filter.to}T00:00:00Z`) - Date.parse(`${onVisit.filter.from}T00:00:00Z`)) /
@@ -301,7 +272,6 @@ describe("预设的日期来自访问日，不是构建日", () => {
     for (const p of buildPresets(visitDay)) {
       const qs = buildQueryString(p.filter, { days: 90 });
       assert.ok(qs.length > 0, `${p.label} 不应产生空 href`);
-      // 能被读回且语义不变
       assert.deepEqual(defined(parseQueryFilter(params(Object.fromEntries(new URLSearchParams(qs))))), defined(p.filter));
     }
   });
@@ -330,8 +300,6 @@ describe("日期算术（Asia/Shanghai 口径，纯日历运算）", () => {
   });
 
   it("日期算术不受进程时区影响（用的是 UTC 字段，不是本地字段）", () => {
-    // 同一段纯算术在任何 TZ 下都得同一答案；旧实现用 `new Date(y, m-1, d+delta)`
-    // 配本地 getter，跨夏令时切换会掉一天。
     const original = process.env.TZ;
     const results = ["Asia/Shanghai", "America/New_York", "Pacific/Kiritimati"].map((tz) => {
       process.env.TZ = tz;
@@ -380,8 +348,6 @@ describe("§data RPC 载荷收窄", () => {
     assert.equal(stats.expense, 0);
   });
 
-  // string 分支必须有 NaN 防线：生产上真正会命中它的恰恰是主线场景 ——
-  // Postgres 的 numeric 列经 PostgREST 回来就是字符串。
   it("字符串分支的非有限值同样归零（numeric 列回来就是字符串）", () => {
     const stats = toFilteredTxStats({
       count: "abc",
@@ -393,7 +359,6 @@ describe("§data RPC 载荷收窄", () => {
     assert.equal(stats.expense, 0);
     assert.equal(stats.income, 0);
     assert.equal(stats.transfer, 0);
-    // 每一个字段都必须是有限数，否则 JSON 序列化后会以 null 上屏
     for (const [k, v] of Object.entries(stats)) {
       if (typeof v === "number") assert.ok(Number.isFinite(v), `${k} 泄漏了非有限值: ${v}`);
     }

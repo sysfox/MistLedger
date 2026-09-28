@@ -1,12 +1,3 @@
-/**
- * 全站唯一的「上海今天」口径。
- *
- * 记账的日期边界必须按 `Asia/Shanghai` 算，而不是浏览器本地时区：UTC 以西的
- * 用户在两端会看到不同的「今天」，于是记进错的一天。用 `en-CA` 是因为它输出
- * `YYYY-MM-DD`，省掉一次手工拼接。
- *
- * 每次访问现取，不在模块加载时求值 —— 否则会被静态预渲染冻成构建日。
- */
 const SHANGHAI_DATE = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
@@ -14,7 +5,6 @@ const SHANGHAI_DATE = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-/** 上海时区的今天，YYYY-MM-DD。 */
 export function shanghaiDate(d: Date = new Date()): string {
   return SHANGHAI_DATE.format(d);
 }
@@ -23,46 +13,24 @@ function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-/**
- * 把 `YYYY-MM-DD` 平移 delta 天，返回同格式。
- *
- * 全程走 **UTC** 字段，不是本地字段：本地构造的 `new Date(y, m-1, d+delta)`
- * 配本地 getter，跨夏令时切换会掉一天，而答案还随服务器时区变化。UTC 口径下
- * 这段纯算术在任何 TZ 下都得同一结果（`query-params.test.ts` 有断言）。
- *
- * 月份溢出交给 `Date.UTC` 归一化：`2026-01-31 + 1` 直接得到 2026-02-01，
- * 闰年 2 月同样正确，不需要自己处理「本月天数」。
- */
 export function shiftDays(base: string, delta: number): string {
   const [y, m, d] = base.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + delta));
   return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 
-/**
- * 截至 `end`（含）的最近 `days` 个日期键，最旧在前。
- */
 export function lastDayKeys(days: number, end: string): string[] {
   const keys: string[] = [];
   for (let i = days - 1; i >= 0; i--) keys.push(shiftDays(end, -i));
   return keys;
 }
 
-/**
- * 月末的真实最后一天，`YYYY-MM` 进、`YYYY-MM-DD` 出。
- *
- * `Date.UTC(y, m, 0)` 是「下个月的第 0 天」= 本月最后一天，所以 2 月自动
- * 得到 28 或 29（闰年），4 月得 30 —— 不需要 28/30/31 的分支表，也就不会在
- * 2 月写错。注意 `m` 是 1-based 月份，`Date.UTC` 的月份是 0-based，所以这里
- * 传 `m` 而不是 `m-1`。
- */
 export function monthEnd(key: string): string {
   const [y, m] = key.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m, 0));
   return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 
-/** 上一个月的 `YYYY-MM`，跨年正确（2026-01 → 2025-12）。 */
 export function prevMonthKey(key: string): string {
   const [y, m] = key.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 2, 1));
@@ -97,7 +65,6 @@ export function lastMonths(n: number, base = new Date()): string[] {
   return out;
 }
 
-// 最近 n 个月收支（单次遍历分桶）
 export function monthlyTrend(txs: TxLike[], months: string[]) {
   const buckets = new Map(months.map((m) => [m, { expense: 0, income: 0 }]));
   for (const t of txs) {
@@ -112,7 +79,6 @@ export function monthlyTrend(txs: TxLike[], months: string[]) {
   });
 }
 
-// 某月支出按分类（含未分类），转账不计入
 export function categoryShare(
   txs: TxLike[],
   month: string,
@@ -129,7 +95,6 @@ export function categoryShare(
     .sort((a, b) => b.value - a.value);
 }
 
-// 总资产曲线：最近 days 天每日余额（期初 + 累计流水，转账净零）
 export function assetCurve(
   initialTotal: number,
   txs: TxLike[],
@@ -158,7 +123,6 @@ export function assetCurve(
   });
 }
 
-// 数据页：按条件过滤流水（纯函数，供服务端组件调用、可单测）
 export type TxFilter = {
   from?: string; // YYYY-MM-DD（含）
   to?: string; // YYYY-MM-DD（含）
@@ -209,7 +173,6 @@ export function summarizeTxs(txs: TxLike[]): TxSummary {
   };
 }
 
-// 各账户当前余额（只统计传入账户；停用账户的流水不凭空建条目）
 export function accountBalances(
   accounts: { id: string; initial_balance: number | string }[],
   txs: TxLike[],

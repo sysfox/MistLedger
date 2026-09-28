@@ -44,18 +44,11 @@ const SOURCE_LABEL: Record<string, string> = {
   bank_import: "银行明细",
 };
 
-/**
- * PostgREST 的嵌套关系（`category:categories(name)`）返回「一对多时是数组、
- * 一对一（maybeSingle 语义）时是对象」。`Array.isArray` 收窄后 else 分支只剩
- * `{name}`，故这里不需要任何断言 —— 调用点也不得为此加 `as` / `any`。
- */
 function relationName(rel: { name: string }[] | { name: string } | null): string | undefined {
   if (!rel) return undefined;
   return Array.isArray(rel) ? rel[0]?.name : rel.name;
 }
 
-// 「共 N 笔」与数据页统一：数字套 .money 并做千分位。注意 .money 语义上属于
-// 「金额」，此处复用是刻意的，不要顺手改。
 function count(n: number): string {
   return n.toLocaleString("zh-CN");
 }
@@ -266,8 +259,6 @@ function ImportSection({ payload }: { payload: SettingsPayload }) {
         <h3 className="mt-1 font-display text-[17px] font-semibold text-ink">最近导入</h3>
         <ul className="mt-3 flex flex-col gap-2 text-sm">
           {batches.map((b) => (
-            // 这一行不可点（纯展示），去掉 hover:bg-veil 与 transition-colors
-            // —— 不可点的行给 hover 是假 affordance（DESIGN.md §七.3）。
             <li key={b.id} className="flex items-center justify-between gap-3 py-2">
               <span className="min-w-0 flex-1 truncate text-ink">
                 {b.filename}
@@ -293,8 +284,7 @@ function ImportSection({ payload }: { payload: SettingsPayload }) {
           {rules.map((r) => {
             const cat = relationName(r.category);
             return (
-              // 规则是只读数据，不是选择器。`.chip` 的 hover 会转纸墨，
-              // 暗示「可点」；改用等价的静态标签样式（无 hover/active 反馈）。
+// 只读数据不套 .chip：其 hover 会转纸墨，暗示可点。
               <li
                 key={`${r.keyword}-${cat ?? "?"}`}
                 className="rounded-full border border-fogline bg-veil px-3 py-1 text-sm text-dim"
@@ -341,8 +331,6 @@ function ImportFallback() {
   );
 }
 
-// `new Intl.DateTimeFormat` 要解析 locale 与 options，是相对昂贵的构造。
-// 放进组件体等于每次重渲染都重付一次；提到模块作用域，只留一次 format 调用。
 const SHANGHAI_MONTH = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
@@ -359,7 +347,6 @@ export default function SettingsClient() {
   const currentMonth = currentShanghaiMonth();
 
   return (
-    // 根 layout 的「跳到主内容」skip link 指向 #main，四页的 <main> 必须带这个 id。
     <main id="main" className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
         <p className="eyebrow">账房规则</p>
@@ -375,8 +362,6 @@ export default function SettingsClient() {
           <CategoryFallback />
         </>
       ) : error || !data ? (
-        // 账户与分类同属一次请求，故只播报一个错误面板（不是每栏一个），
-        // 并接上 useApiData 的 reload —— 恢复网络后点一下就出数据。
         <SectionError onRetry={reload} label="账户与分类" />
       ) : (
         <>

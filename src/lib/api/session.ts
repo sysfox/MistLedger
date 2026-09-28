@@ -27,19 +27,6 @@ function createSupabaseForRequest(request: NextRequest, refreshed: CookieToSet[]
   );
 }
 
-/**
- * Auth guard for Route Handlers: validates the cookie session, collects token
- * refreshes (they ride on the JSON response), and returns the per-request
- * Supabase client scoped by RLS.
- * Returns a 401 NextResponse when unauthenticated.
- *
- * The 401-vs-503 decision is delegated to `classifyAuthOutcome` rather than
- * re-derived here, because `getClaims()` does *not* throw on an upstream
- * fault — auth-js catches it and returns `{ data: null, error:
- * AuthRetryableFetchError }`, which a plain `if (error) → 401` reads as a
- * logout. A Supabase blip must not sign the user out of the form they are
- * filling in.
- */
 export async function requireApiSession(
   request: NextRequest,
 ): Promise<ApiSession | NextResponse> {
@@ -61,7 +48,7 @@ export function isApiSession(v: ApiSession | NextResponse): v is ApiSession {
   return !(v instanceof NextResponse);
 }
 
-/** JSON response that carries any cookies Supabase refreshed during the call. */
+// 携带本次调用中 Supabase 刷新的 cookie。
 export function sessionResponse(session: ApiSession, body: unknown, init?: ResponseInit) {
   const res = NextResponse.json(body, init);
   for (const cookie of session.refreshed) {

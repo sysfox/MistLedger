@@ -1,13 +1,3 @@
-/**
- * `/data` 的结构骨架 —— 静态壳、`loading.tsx`、client loading 分支共用同一份。
- *
- * 区块顺序严格镜像 `DataClient` 的真实布局（趋势 → 资产曲线 → 常用查询 →
- * 自定义查询 → 查询结果），这是 DESIGN.md §七.2「杜绝加载完成后的布局跳动」的
- * 硬要求，两条加载路径形状必须永远相同。
- *
- * 骨架里**不放任何日期**：预设 chips 渲染成 `SkeletonChip` 灰块而非带 href 的
- * 链接 —— 真实链接的日期在访问时算，烤进静态 HTML 就成了构建日。
- */
 import {
   SkeletonChart,
   SkeletonChip,
@@ -18,10 +8,8 @@ import {
 } from "@/components/page-skeleton";
 import QueryFormFallback from "./query-form-fallback";
 
-/** 页面主容器类：与 `data-client.tsx` 的 `<main>` 逐字一致。 */
 export const PAGE_MAIN_CLASS = "mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6";
 
-/** 页头：真文案（静态，不依赖数据、不含日期），与 `data-client.tsx` 同源。 */
 export function DataHeader() {
   return (
     <div>
@@ -32,10 +20,6 @@ export function DataHeader() {
   );
 }
 
-/**
- * 骨架主体（不含 `<main>`，因为它要能被塞进 `data-client.tsx` 自己的 `<main>` 里 ——
- * 嵌套 `<main>` 是非法 HTML）。
- */
 export function DataShellBody() {
   return (
     <SkeletonStatus>

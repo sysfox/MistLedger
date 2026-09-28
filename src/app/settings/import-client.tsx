@@ -26,24 +26,16 @@ const SOURCES: { value: ImportSource; label: string }[] = [
   { value: "bank_import", label: "银行明细" },
 ];
 
-/** 单次导入硬上限，与 server action 的校验同值（用户看到的是同一句中文） */
 const MAX_ROWS = 2000;
-/** 预览只渲染前 200 笔 —— 全量数据走提交时的 FormData，不进 DOM */
+// 预览只渲染前 200 笔，全量走提交时的 FormData。
 const PREVIEW_ROWS = 200;
 
-/**
- * 行的固有高度（px-3 py-1.5 + 14px 文字 ≈ 37px）。配合 `content-visibility`
- * 让浏览器跳过视口外行的布局与绘制，但必须同时给 contain-intrinsic-size，
- * 否则滚动条长度会随渲染进度来回抖。
- */
 const ROW_INTRINSIC_SIZE = "auto 37px";
 
-/** 与数据页「共 N 笔」同一套排版：等宽 + 千分位 */
 function countLabel(n: number): string {
   return n.toLocaleString("zh-CN");
 }
 
-/** 提交给 server action 的行形状（只挑要入库的字段，note 合并商品与备注） */
 function toPayloadRow(r: DraftRow) {
   return {
     date: r.date,
@@ -146,8 +138,6 @@ export default function ImportClient({
   const parsingRef = useRef(false);
 
   const [state, submitImport, actionPending] = useActionState(submitImportAction, initialImportState);
-  // pending 同时覆盖 action 自己的 pending 与我们手动 startTransition 的那段，
-  // 按钮在两个阶段都显示「导入中…」，不会出现可重复点击的空窗。
   const pending = actionPending || isSubmitting;
 
   useEffect(() => {
@@ -163,10 +153,6 @@ export default function ImportClient({
   const tooMany = rows.length > MAX_ROWS;
   const accountName = accounts.find((a) => a.id === accountId)?.name ?? "";
 
-  // rows 的最新数组只留一份在 ref 里（effect 里一次 O(1) 赋值），序列化推迟到
-  // 提交那一刻做一次：否则每次改任一行的分类都要重算 2000 笔的 JSON 并写进
-  // hidden input（约 500KB–1MB 的 DOM 属性）。副作用是 handleSubmit 保持稳定引用，
-  // 不必把 rows 挂进它的依赖。
   const rowsRef = useRef(rows);
   useEffect(() => {
     rowsRef.current = rows;
@@ -211,11 +197,8 @@ export default function ImportClient({
     [accounts, accountId],
   );
 
-  // 预览只看前 200 笔，且只在 rows 真正变化时才重切一次数组（useMemo 收敛依赖）。
   const previewRows = useMemo(() => rows.slice(0, PREVIEW_ROWS), [rows]);
 
-  // 提交时才把 rows 序列化注入 FormData：表单没有 name="rows" 的 hidden input，
-  // 序列化只在用户点「确认导入」时发生一次。
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
@@ -311,16 +294,6 @@ export default function ImportClient({
               </p>
             ) : null}
             <div className="relative">
-              {/*
- 表格 min-w-[720px]，375px 视口必然横向溢出。此前溢出容器
-                是普通 div —— 不可聚焦，键盘用户只能靠触摸/鼠标横滚，而第 4 列的
-                「分类 / 转入」是每行都要用的核心控件，纯键盘用户在这里直接卡死
-                （WCAG 2.2 SC 2.1.1）。
-
-                tabIndex=0 让容器进入 Tab 序列（可聚焦的溢出容器原生支持 ←/→ 横滚）；
-                role=region + 中文 aria-label 让读屏播报这是什么；焦点环是灯色
-                （DESIGN.md §十一 #9），不用 UA 默认。触摸端与鼠标端行为不变。
-              */}
               <div
                 tabIndex={0}
                 role="region"

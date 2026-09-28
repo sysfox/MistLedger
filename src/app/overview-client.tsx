@@ -6,8 +6,6 @@ import { amountSign, formatMoney, formatSignedMoney, YUAN } from "@/lib/ledger/f
 import { SkeletonBar, SkeletonChart, SkeletonLine, SkeletonPanel, SkeletonRow } from "@/components/page-skeleton";
 import { SectionError } from "@/components/section-error";
 import { useApiData } from "@/lib/api/use-api-data";
-// 关系数据（账户 / 分类 / 预算 + 内嵌分类）由 api/overview 声明并导出，客户端不手写第二份。
-// snapshot 不在此契约内：dashboard_snapshot 在 database.types.ts 里返回 Json，形状只能由此处声明。
 import type { OverviewBudget, OverviewRelations } from "./api/overview/route";
 
 const DIGITS = "零一二三四五六七八九";
@@ -24,7 +22,7 @@ type OverviewPayload = OverviewRelations & {
   snapshot: Partial<Snapshot>;
 };
 
-/** `Intl.DateTimeFormat` 构造要解析 locale 与 options，代价昂贵；本文件在渲染路径上调用，故提到模块作用域。 */
+// Intl.DateTimeFormat 构造昂贵且在渲染路径上，提到模块作用域。
 const SHANGHAI_DATE = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
@@ -32,10 +30,6 @@ const SHANGHAI_DATE = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-/**
- * PostgREST 对 to-one 内嵌关系按生成类型的 `isOneToOne` 定型为数组，运行时却可能是对象。
- * 用 `Array.isArray` 真收窄（类型守卫，非断言），不用 `as unknown as` 掩盖。
- */
 function firstCategory(rel: OverviewBudget["category"]): OverviewRelations["categories"][number] | null {
   if (rel == null) return null;
   return Array.isArray(rel) ? (rel[0] ?? null) : rel;
@@ -156,7 +150,6 @@ function BalanceFallback() {
   );
 }
 
-/** 页面主标题：加载 / 错误 / 有数据三个分支都必须有 h1，标题是文档结构不是数据。 */
 function PageTitle({ month, srOnly = false }: { month?: string; srOnly?: boolean }) {
   return (
     <h1 className={srOnly ? "sr-only" : "eyebrow"}>
@@ -184,8 +177,6 @@ function HeroSection({ payload }: { payload: OverviewPayload }) {
   return (
     <div>
       <PageTitle month={curMonth} />
-      {/* 金额铁律：符号在前、¥ 在后，负数是 U+2212。符号取自 amountSign（`−`），
-          ¥ 单独染成灯色（§二 用色规则 1），两者之间不留空白。 */}
       <p className="money mt-2 text-[clamp(40px,8vw,48px)] font-semibold leading-none tracking-tight text-ink">
         {totalSign ? <span className="text-dim">{totalSign}</span> : null}
         <span className="text-lamp">{YUAN}</span>
@@ -193,8 +184,6 @@ function HeroSection({ payload }: { payload: OverviewPayload }) {
       </p>
       <div className="lamp-line mt-4" aria-hidden="true" />
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        {/* 由 formatSignedMoney 统一出符号，不手写 `−¥` / `+¥`。传 expense/income 时正数带
-            类型前缀；万一 RPC 给出负值，它会吞掉前缀只留一个 U+2212，不会出 `−−¥`。 */}
         <span className="text-dim">
           本月支出{" "}
           <span className="money font-semibold text-ember">
@@ -275,9 +264,6 @@ function BalanceSection({ payload }: { payload: OverviewPayload }) {
       <h2 className="mt-1 font-display text-[17px] font-semibold text-ink">各账户余额</h2>
       <ul className="mt-2 flex flex-col text-sm">
         {payload.accounts.map((a) => (
-          // 整行不可点，故不加 hover:bg-veil，也不带冗余的
-          // transition-colors duration-150（全局已是 150ms）。假 affordance：
-          // 行亮一下却点不动，用户只会以为页面卡了（DESIGN.md §七.3）。
           <li key={a.id} className="flex items-center justify-between px-2 py-2">
             <span className="text-ink">{a.name}</span>
             <span className="money text-ink">{formatSignedMoney(balances.get(a.id) ?? 0)}</span>
@@ -309,13 +295,11 @@ function BudgetSection({ payload }: { payload: OverviewPayload }) {
       </div>
       <ul className="mt-3 flex flex-col gap-3">
         {budgets.map((b) => {
-          // 类型收窄，不硬转。
           const cat = firstCategory(b.category);
           const used = cat ? (spent.get(cat.id) ?? 0) : 0;
           const limit = Number(b.limit_amount);
           const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
           const over = used > limit;
-          // 可见文本与 aria-valuetext 必须用同一格式化结果，两处写法不一致是负数符号出错的土壤。
           const usedText = formatSignedMoney(used);
           const limitText = formatSignedMoney(limit);
           return (
@@ -354,16 +338,12 @@ function BudgetSection({ payload }: { payload: OverviewPayload }) {
 }
 
 export default function OverviewClient() {
-  // 错误态唯一的出路不该是让用户手动 F5 —— 接上 reload，「重试」才是一个真控件。
   const { data, error, loading, reload } = useApiData<OverviewPayload>("/api/overview");
 
   return (
-    // 根 layout 的 skip link 指向 #main，缺了这个 id 跳到主内容就落空。
     <main id="main" className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       {loading ? (
         <>
-          {/* 骨架镜像真实布局（DESIGN.md §七.2），但文档结构不能随数据消失：
-              给一个不含日期的静态 h1，不取「今天」，避免构建日 ≠ 访问日的 hydration 不一致。 */}
           <PageTitle srOnly />
           <HeroFallback />
           <ChartPanelFallback />

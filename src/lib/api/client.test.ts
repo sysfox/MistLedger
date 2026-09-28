@@ -1,12 +1,3 @@
-/**
- * Tests for the client fetcher.
- *
- * `client.ts` is `"use client"` but has no React or DOM *import*, so Node can
- * drive it directly: `fetch` and `window` are the only globals it touches, and
- * both are stubbed below. That matters — the seam this suite exists for lives
- * between `apiGet`'s 401 branch and the cache's session-lost handler, which no
- * cache-only test can reach.
- */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -14,14 +5,11 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { ApiError, apiGet, setSessionLostHandler } from "./client.js";
 import { createApiCache } from "./api-cache.js";
 
-/** Globals the module under test reaches for. */
 const realFetch = globalThis.fetch;
 let redirects: string[] = [];
 
 beforeEach(() => {
   redirects = [];
-  // `apiGet` guards on `typeof window !== "undefined"`, so a bare object is
-  // enough to make the redirect branch observable.
   (globalThis as { window?: unknown }).window = {
     location: { replace: (url: string) => redirects.push(url) },
   };
@@ -33,7 +21,6 @@ afterEach(() => {
   delete (globalThis as { window?: unknown }).window;
 });
 
-/** Respond to every request with `status` and (optionally) a JSON body. */
 function respondWith(status: number, body?: unknown) {
   globalThis.fetch = (async () =>
     new Response(body === undefined ? null : JSON.stringify(body), {
@@ -73,12 +60,6 @@ describe("401 vs 503 分流", () => {
     assert.equal(lost, 0, "an outage is not a session loss");
   });
 
-  // The copy assertion is load-bearing: the assertions above check status 503
-  // + retryable — but the generic `!res.ok` branch produces *exactly* those
-  // for a 503, so deleting the dedicated branch would keep this suite green.
-  // The two differ in one observable way only: this one ignores the server
-  // body and shows fixed outage copy. `respondWith(503, …)` supplies a
-  // machine-readable body precisely so this test can prove it is discarded.
   it("503 shows the outage copy and never the server's machine code", async () => {
     respondWith(503, { error: "service-unavailable" });
 
@@ -153,15 +134,11 @@ describe("401 storm through the real client", () => {
     }) as typeof fetch;
 
     const cache = createApiCache({ fetchJson: apiGet });
-    // The wiring `use-api-data.ts` performs at module scope. Kept as a literal
-    // here on purpose: the next test asserts the real module still says this.
     setSessionLostHandler(() => cache.reset({ silent: true }));
 
     for (const p of ["/api/overview", "/api/ledger", "/api/data", "/api/settings"]) {
       cache.subscribe(p, () => {});
     }
-    // Generous window: if the loop were still self-sustaining this would be
-    // thousands, not four.
     await new Promise((r) => setTimeout(r, 500));
 
     assert.equal(requests, 4, `one request per panel, no re-arm (got ${requests})`);
@@ -170,8 +147,6 @@ describe("401 storm through the real client", () => {
   });
 
   it("use-api-data.ts really does wire the session-lost handler silently", () => {
-    // Guards against the probe above drifting from the module it is meant to
-    // mirror — the wiring is the fix, so it gets its own assertion.
     const source = readFileSync(new URL("./use-api-data.ts", import.meta.url), "utf8");
     assert.match(
       source,

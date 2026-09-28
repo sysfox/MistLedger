@@ -1,12 +1,3 @@
-/**
- * Tests for the 401-vs-503 classification.
- *
- * The case that matters is the one that was broken: auth-js does not *throw* on
- * an upstream fault, it returns `{ data: null, error: AuthRetryableFetchError }`.
- * These tests construct the real error classes rather than a stand-in, because
- * the whole bug is a property of the class hierarchy — `AuthRetryableFetchError
- * extends AuthError`, so `if (error)` was always true for it.
- */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -20,7 +11,6 @@ import { classifyAuthOutcome } from "./session-outcome.js";
 
 const CLAIMS = { sub: "3f1a…-uuid" };
 
-/** The HTTP status a `getClaims` result maps to, or `null` when it succeeds. */
 function statusOf(error: unknown, claims?: { sub?: unknown } | null): number | null {
   const outcome = classifyAuthOutcome(error, claims);
   return outcome.ok ? null : outcome.status;
@@ -28,8 +18,6 @@ function statusOf(error: unknown, claims?: { sub?: unknown } | null): number | n
 
 describe("上游抖动不得被当成登出", () => {
   it("a retryable fetch error is 503, not 401", () => {
-    // Exactly what GoTrueClient.getClaims hands back when Supabase is
-    // unreachable: no claims, and an error that IS an AuthError.
     const outcome = classifyAuthOutcome(
       new AuthRetryableFetchError("TypeError: fetch failed", 0),
       null,
@@ -48,8 +36,6 @@ describe("上游抖动不得被当成登出", () => {
   });
 
   it("the retryable check runs before the generic `if (error)` — proven, not assumed", () => {
-    // If the order were ever swapped, this is the assertion that fails: the
-    // error satisfies BOTH branches, so only the priority distinguishes them.
     const error = new AuthRetryableFetchError("fetch failed", 0);
     assert.ok(error, "precondition: the error object is truthy");
     assert.ok(

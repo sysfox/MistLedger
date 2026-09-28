@@ -1,10 +1,3 @@
-/**
- * Test coverage for the pure modules that carry real logic.
- *
- * Runner: Node's built-in `node:test` (see `npm test`). No extra dependency.
- * Type stripping is enabled explicitly so this runs on Node 22.18+ as well as
- * 23+, where it is the default.
- */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -80,9 +73,6 @@ describe("accountBalances", () => {
   });
 
   it("ignores a transfer that has no destination at all", () => {
-    // The whole transfer branch is gated on `to_account_id`, so a half-formed
-    // transfer row leaves both sides untouched rather than debiting the source
-    // into the void. This is the `map.get(...)!` non-null-assertion guard.
     const map = accountBalances(accounts, [
       tx({ type: "transfer", account_id: "a1", to_account_id: null, amount: 300 }),
     ]);
@@ -215,7 +205,7 @@ describe("categoryShare", () => {
       { name: "购物", value: 70 },
       { name: "餐饮", value: 50 },
     ]);
-    // Transfer rows are excluded regardless of category.
+// 转账行无论分类为何都不计入收支。
     assert.equal(out.some((r) => r.value === 500), false);
   });
 });

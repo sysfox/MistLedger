@@ -30,8 +30,7 @@ type Transaction = {
   note: string | null;
 };
 
-// 收支类型的选项与键盘契约已收敛到 `./type-picker`，
-// 这里不再重复维护一份 TYPES 词汇表。
+// 收支类型的词汇表与键盘契约已收敛到 ./type-picker。
 const ACCOUNT_LABEL: Record<string, string> = {
   expense: "账户",
   income: "收入账户",
@@ -44,17 +43,6 @@ const ACCOUNT_PLACEHOLDER: Record<string, string> = {
   transfer: "转出账户",
 };
 
-/**
- * 「改完还能再改」。
- *
- * 面板的渲染条件只能看 `open`，绝不能写成 `open && !state?.ok`：useActionState 的
- * state 成功后永不复位（React 没有 reset API），key 不变时实例会被复用，于是成功
- * 后面板永不渲染，「修改」按钮变成点得动却没反应的控件。改用 `gen` 递增作面板
- * key，每次展开都是全新子树，受控/非受控初值都回到当前流水。
- *
- * `useActionState` 留在父组件而非下放进面板：面板若在提交途中被卸载，`pending` 与
- * 刷新用的 effect 会一起卸载，数据就不刷新了。
- */
 export default function EditTransactionButton({
   transaction,
   accounts,
@@ -77,8 +65,6 @@ export default function EditTransactionButton({
     setOpen((v) => !v);
   };
 
-  // 成功/失败文案是面板内的一块反馈（role=status / role=alert），描述的是
-  // 「上一次提交的结果」，重新展开时复述它并不失真。
   const justSaved = state?.ok ? state.message : "";
   const saveError = state && !state.ok ? state.message : "";
 
@@ -111,11 +97,6 @@ export default function EditTransactionButton({
   );
 }
 
-/**
- * 修改面板。只在展开时挂载，因此内部的 `useState`/`defaultValue` 天然是「本次编辑」
- * 的初值，不需要任何手动 reset。二次确认交给 `<ConfirmSubmitButton>`，收支类型
- * 交给 `<TypePicker>`。
- */
 function EditPanel({
   transaction,
   accounts,

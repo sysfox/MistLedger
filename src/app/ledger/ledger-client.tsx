@@ -26,16 +26,8 @@ const AMOUNT_COLOR: Record<string, string> = {
 type Account = { id: string; name: string; type: string };
 type Category = { id: string; name: string; kind: string };
 
-/**
- * PostgREST 的嵌入关系形态：一对多返回**数组**，一对一返回**对象**，外键可空时为 `null`。
- * （`api/ledger/route.ts` 的 select 里 `account` / `category` / `to_account` 都是嵌入关系。）
- */
 type Relation = { name: string } | { name: string }[] | null;
 
-/**
- * 归一化嵌入关系的两种形态。`Array.isArray` 收窄后 else 分支只剩
- * `{name} | null`，故这里不需要任何 `as` 断言 —— 旧的 else 分支断言只是让编译器闭嘴。
- */
 function relationName(rel: Relation): string | null {
   if (rel === null) return null;
   return Array.isArray(rel) ? (rel[0]?.name ?? null) : rel.name;
@@ -183,8 +175,7 @@ export default function LedgerClient() {
   const { data, error, loading } = useApiData<LedgerPayload>("/api/ledger");
 
   return (
-    // [D-17 联动] layout.tsx 的「跳到主内容」指向 #main，缺了这个 id
-    // 键盘用户点了跳转链接只会得到「当前页面」而不是主内容（WCAG SC 2.4.1）。
+// layout 的 skip link 指向 #main，四页 <main> 必须带这个 id。
     <main id="main" className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6">
       <div>
         <p className="eyebrow">流水</p>
@@ -194,7 +185,6 @@ export default function LedgerClient() {
             <SkeletonLine className="mt-2 h-3.5 w-64" />
           </div>
         ) : (data?.accounts.length ?? 0) === 0 ? (
-          // 指向设置页的账户分区（`.link-subtle` 自带灯色焦点环，globals.css:216-236）。
           <p className="mt-1 text-sm text-dim">
             还没有账户，先在
             <Link href="/settings#accounts" className="link-subtle">

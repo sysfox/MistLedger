@@ -1,14 +1,3 @@
-/**
- * 金额书写铁律（DESIGN.md 第三节）的回归测试。
- *
- * 铁律：支出前缀 `−`（U+2212）、收入前缀 `+`、转账前缀 `⇄`，`¥` 紧跟其后。
- * 关键点是**符号在前、¥ 在后**：负数写 `−¥12.50`，不写 `¥-12.50`。
- *
- * 必须直接 import 真实实现：抄一份在文件头部再断言那份抄本的话，
- * 「format.ts 改了、断言没同步」时测试照样全绿。
- *
- * 运行：npm test（Node 内置 node:test，见 package.json）
- */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -34,7 +23,7 @@ describe("formatMoney —— 符号下沉后的纯数字", () => {
   it("负数的负号是 U+2212，不是 ASCII hyphen-minus", () => {
     const out = formatMoney(-12.5);
     assert.equal(out[0].codePointAt(0), 0x2212);
-    // 显式排除 ASCII：toLocaleString("zh-CN") 原本产出的是 U+002D
+// 显式排除 ASCII：toLocaleString("zh-CN") 原本产出 U+002D。
     assert.notEqual(out[0], "-");
     assert.equal(out, `${MINUS}12.50`);
   });
@@ -48,7 +37,6 @@ describe("formatSignedMoney —— 符号在前、¥ 紧跟其后", () => {
   it("负数输出 `−¥`，符号在 ¥ 之前", () => {
     assert.equal(formatSignedMoney(-12.5), `${MINUS}${Y}12.50`);
     assert.equal(formatSignedMoney(-1234), `${MINUS}${Y}1,234.00`);
-    // 位置断言：索引 0 是减号，索引 1 才是 ¥
     const out = formatSignedMoney(-12.5);
     assert.equal(out.codePointAt(0), 0x2212);
     assert.equal(out[1], Y);
@@ -66,7 +54,6 @@ describe("formatSignedMoney —— 符号在前、¥ 紧跟其后", () => {
   });
 
   it("负数吞掉 kind 的前缀 —— 不出 `−−¥`（DESIGN.md 明确要求的组合）", () => {
-    // expense 的前缀本身就是 −，负数若不吞掉就会叠成 −−¥12.50
     assert.equal(formatSignedMoney(-12.5, "expense"), `${MINUS}${Y}12.50`);
     assert.equal(formatSignedMoney(-12.5, "income"), `${MINUS}${Y}12.50`);
     assert.equal(formatSignedMoney(-12.5, "transfer"), `${MINUS}${Y}12.50`);
@@ -97,15 +84,11 @@ describe("迁移前后的行为一致性", () => {
   });
 
   it("自带前缀的旧调用点传入负数也不出双符号（prefix + |formatMoney| 的组合）", () => {
-    // 若某调用点把负数金额喂给「自带前缀」写法，正确降级是取绝对值：
-    // formatMoney(Math.abs(n)) 恒不带符号，故整串至多一个减号（expense 的那个）。
     for (const type of ["expense", "income", "transfer"] as const) {
       const defensive = `${AMOUNT_PREFIX[type]}${Y}${formatMoney(Math.abs(-12.5))}`;
       assert.equal(defensive, `${AMOUNT_PREFIX[type]}${Y}12.50`);
       assert.ok(defensive.split(MINUS).length - 1 <= 1, `${type} 出现双减号: ${defensive}`);
     }
-    // 对照：漏掉 Math.abs 时，前缀的 − 与 formatMoney 的 − 会同时出现（虽不邻接，
-    // 仍是一个字符串里两个减号）—— 正确形态是下面的 formatSignedMoney 那样只留一个。
     const buggy = `${AMOUNT_PREFIX.expense}${Y}${formatMoney(-12.5)}`;
     assert.equal(buggy, `${MINUS}${Y}${MINUS}12.50`);
     assert.equal(buggy.split(MINUS).length - 1, 2, "对照组应确实含两个减号");
@@ -126,7 +109,6 @@ describe("amountSign —— 只取符号（供 ¥ 单独染灯色的 hero 场景
     ];
     for (const [n, kind] of cases) {
       const sign = amountSign(n, kind);
-      // 拼回去应与 formatSignedMoney 的前导符号段一致
       assert.ok(
         formatSignedMoney(n, kind).startsWith(`${sign}${Y}`),
         `amountSign(${n}, ${kind}) 与 formatSignedMoney 不一致`,

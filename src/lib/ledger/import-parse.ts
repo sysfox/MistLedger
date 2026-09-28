@@ -10,7 +10,6 @@ export type ParsedRow = {
   product: string;
   externalId: string;
   note: string;
-  /** 转账建议转入方（钱包名关键字，如 零钱/零钱通），UI 可据此预选 */
   transferHint?: string;
 };
 
@@ -23,7 +22,6 @@ function parseAmount(v: unknown): number {
   return Number.isFinite(n) ? Math.abs(n) : NaN;
 }
 
-// YYYY-MM-DD | M/D/YY | M/D/YYYY | YYYYMMDD
 export function parseDate(v: unknown): string | null {
   const s = norm(v);
   let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -54,9 +52,6 @@ function colIndex(header: string[], ...names: string[]): number {
   return -1;
 }
 
-// 支付宝交易明细（CSV GBK / xlsx）：
-// 表头含 交易订单号/交易时间/交易分类/交易对方/商品说明/收/支/金额/收付款方式/交易状态
-// 收/支=不计收支（充值提现/退款）与 交易关闭 跳过，由银行对账单记账，避免重复
 export function parseAlipay(rows: string[][]): ParsedRow[] {
   const hi = findHeaderRow(rows, ["交易订单号", "交易时间"]);
   if (hi < 0) throw new Error("没找到支付宝表头（需要含“交易订单号 / 交易时间”列）");
@@ -100,10 +95,6 @@ export function parseAlipay(rows: string[][]): ParsedRow[] {
   return out;
 }
 
-// 微信支付账单：
-// - 已转入零钱通 / 已存入零钱 / 已转账 / 对方已收钱 都是有效资金流动，不能只认“支付成功”
-// - 收/支="/" 的中性行：转入零钱通-来自零钱记为转账（零钱→零钱通），银行卡直充跳过（走银行侧）
-// - 退款类收入保留（与历史支出轧差）；银行卡出资行走银行侧记账，跳过避免重复
 export function parseWechat(rows: string[][]): ParsedRow[] {
   const hi = findHeaderRow(rows, ["交易单号", "交易时间"]);
   if (hi < 0) throw new Error("没找到微信表头（需要含“交易单号 / 交易时间”列）");
@@ -141,12 +132,11 @@ export function parseWechat(rows: string[][]): ParsedRow[] {
       if (norm(r[c.type2]).includes("转入零钱通")) {
         out.push({ ...base, type: "transfer", transferHint: "零钱通" });
       }
-      // 银行卡零钱充值：走银行侧，跳过
       continue;
     }
     if (direction !== "支出" && direction !== "收入") continue;
     if (/银行/.test(pay)) continue; // 银行卡出资：走银行对账单，跳过避免重复
-    // 支出侧的退款状态行要保留（ paired 退款收入会冲回，净额正确）
+// 支出侧退款状态行要保留：配对退款收入会冲回，净额才正确。
     out.push({ ...base, type: direction === "支出" ? "expense" : "income" });
   }
   return out;
@@ -161,8 +151,6 @@ function shortHash(s: string): string {
   return (h >>> 0).toString(36);
 }
 
-// 建行活期明细（hqmx xls）：序号/摘要/交易日期(YYYYMMDD)/交易金额(负=出)/账户余额/附言/对方
-// 数字人民币钱包内兑出/兑回跳过（钱包未建账且收支相抵）；其余按附言定渠道
 export function parseCCB(rows: string[][]): ParsedRow[] {
   const hi = findHeaderRow(rows, ["交易日期", "交易金额"]);
   if (hi < 0) throw new Error("没找到建行表头（需要含“交易日期 / 交易金额”列）");

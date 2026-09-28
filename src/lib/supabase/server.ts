@@ -18,7 +18,7 @@ export async function createClient() {
               cookieStore.set(name, value, options),
             );
           } catch {
-            // Called from a Server Component without write access; middleware refreshes the session.
+// 从 Server Component 调用时无写权限；会话刷新由 proxy.ts 负责。
           }
         },
       },

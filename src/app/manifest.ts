@@ -9,7 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    // 数据密度不低的工具（趋势图 + 长流水列表），桌面端安装后不该被强制竖屏。
+// 工具型应用不锁竖屏。
     orientation: "any",
     lang: "zh-CN",
     dir: "ltr",

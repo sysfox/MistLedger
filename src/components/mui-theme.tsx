@@ -1,14 +1,7 @@
 "use client";
 
-// MUI 试验主题：把 DESIGN.md 第二节的令牌映射到 MUI palette，
-// 组件覆写复刻 globals.css 第八节 .input / .btn 的观感。
-// 约束：禁用渐变与大面积灯色；金额不在此处设字体——金额一律用 .money（mono）。
-// 注意：MUI 默认含若干标准色（info 蓝等），此处把 warning/info 指回灯色/远雾，
-// 不引入任何新标准色（DESIGN §十一 #1）。
-
 import { createTheme } from "@mui/material/styles";
 
-// 与 globals.css @theme 同值（DESIGN.md 第二节）
 export const mistNightTokens = {
   night: "#0A0E14",
   ink: "#E9E4D8",
@@ -18,23 +11,16 @@ export const mistNightTokens = {
   mist: "#111826",
   veil: "#1B2436",
   fogline: "#28324A",
-  // 交互控件边界：与 globals.css 的 --color-fogline-strong 同值。
-  // MUI OutlinedInput 的 notchedOutline 是输入框唯一的边界线索，
-  // 原先与 .input 一样用 fogline（对 veil 1.22:1，低于 SC 1.4.11 的 3:1）。
   foglineStrong: "#5E6F8C",
   dim: "#8B93A7",
 } as const;
 
-// prefers-contrast: more 下 globals.css 会把令牌提亮；MUI 主题是 JS 常量、
-// 读不到 CSS 变量，故在此复刻同一组覆盖值，保证两套控件同步。
-// 实际生效值以 globals.css 为准（CSS 变量优先），此处仅保证 MUI 侧不落回低对比。
 const HIGH_CONTRAST = {
   fogline: "#46516E",
   foglineStrong: "#8B98B8",
   dim: "#B6BED1",
 } as const;
 
-// 与 .input:focus-visible / .btn-ghost:focus-visible 同一灯环（DESIGN.md 第七节）
 const LAMP_RING = "0 0 0 2px rgba(227, 179, 65, 0.6)";
 
 const muiTheme = createTheme({
@@ -43,19 +29,16 @@ const muiTheme = createTheme({
     primary: { main: mistNightTokens.lamp, contrastText: mistNightTokens.night },
     error: { main: mistNightTokens.ember, contrastText: mistNightTokens.night },
     success: { main: mistNightTokens.jade, contrastText: mistNightTokens.night },
-    // 复用令牌，不引入 MUI 默认的琥珀/蓝色系新色
     warning: { main: mistNightTokens.lamp, contrastText: mistNightTokens.night },
     info: { main: mistNightTokens.dim, contrastText: mistNightTokens.night },
     background: { default: mistNightTokens.night, paper: mistNightTokens.mist },
     text: { primary: mistNightTokens.ink, secondary: mistNightTokens.dim },
     divider: mistNightTokens.fogline,
   },
-  // 指回 layout 经 next/font 挂在 html 上的正文字体变量（DESIGN.md 第三节）
   typography: {
     fontFamily: "var(--font-noto-sans-sc), ui-sans-serif, system-ui, sans-serif",
   },
   shape: { borderRadius: 6 },
-  // 微交互与契约一致：仅 150ms 颜色过渡，单次动画 ≤500ms（DESIGN §十一 #8）
   transitions: {
     duration: {
       shortest: 150,
@@ -70,7 +53,6 @@ const muiTheme = createTheme({
   components: {
     MuiCssBaseline: {
       styleOverrides: {
-        // 与 globals.css body 完全同值：只为 CssBaseline 的全局注入钉死，不产生回归
         body: {
           backgroundColor: mistNightTokens.night,
           color: mistNightTokens.ink,
@@ -78,7 +60,6 @@ const muiTheme = createTheme({
       },
     },
     MuiButtonBase: {
-      // TouchRipple 默认 550ms，超过 §十一 #8 上限；按压反馈改用 active 位移（见 MuiButton）
       defaultProps: { disableRipple: true },
     },
     MuiButton: {
@@ -95,8 +76,6 @@ const muiTheme = createTheme({
           "&:focus-visible": { outline: "none", boxShadow: LAMP_RING },
           "&:active": { transform: "translateY(1px)" },
         },
-        // v9 起 variant 与 color 拆键：用 variant 键 + 颜色类组合选择器
-        // 复刻 .btn-primary：灯底 + 夜空字，无渐变、无辉光
         contained: {
           "&.MuiButton-colorPrimary": {
             backgroundColor: mistNightTokens.lamp,
@@ -107,7 +86,6 @@ const muiTheme = createTheme({
             },
           },
         },
-        // 复刻 .btn-ghost：远雾字，hover 转纸墨
         text: {
           "&.MuiButton-colorPrimary": {
             color: mistNightTokens.dim,
@@ -128,12 +106,10 @@ const muiTheme = createTheme({
     },
     MuiOutlinedInput: {
       styleOverrides: {
-        // 复刻 .input：纱底 + 雾线边 + 灯焦点环
         root: {
           backgroundColor: mistNightTokens.veil,
           borderRadius: 6,
           color: mistNightTokens.ink,
-          // 边界用 fogline-strong（对 veil 3.05:1），不再是装饰级 fogline
           "& .MuiOutlinedInput-notchedOutline": {
             borderColor: mistNightTokens.foglineStrong,
           },
@@ -148,7 +124,6 @@ const muiTheme = createTheme({
             color: "rgba(139, 147, 167, 0.7)",
             opacity: 1,
           },
-          // 同步 globals.css 的 prefers-contrast: more 覆盖
           "@media (prefers-contrast: more)": {
             "& .MuiOutlinedInput-notchedOutline": {
               borderColor: HIGH_CONTRAST.foglineStrong,
@@ -176,7 +151,6 @@ const muiTheme = createTheme({
         icon: { color: mistNightTokens.dim },
       },
     },
-    // 下拉纸面：雾面 + 雾线边，无阴影堆叠（§十一 #10）
     MuiMenu: {
       styleOverrides: {
         paper: {
@@ -203,14 +177,12 @@ const muiTheme = createTheme({
     },
     MuiChip: {
       styleOverrides: {
-        // 复刻 .chip / .chip-active
         root: {
           backgroundColor: mistNightTokens.veil,
           border: `1px solid ${mistNightTokens.fogline}`,
           color: mistNightTokens.dim,
           borderRadius: 9999,
           "&:focus-visible": { outline: "none", boxShadow: LAMP_RING },
-          // 按压反馈：pointer-down 即时响应（transform 不参与 150ms 过渡）
           "&.MuiChip-clickable:hover": { color: mistNightTokens.ink },
           "&.MuiChip-clickable:active": { transform: "scale(0.97)" },
         },
@@ -231,7 +203,6 @@ const muiTheme = createTheme({
     },
     MuiDialog: {
       styleOverrides: {
-        // 复刻 .panel：雾面 + 雾线边 + 极轻内高光，无拟物阴影堆叠
         paper: {
           backgroundColor: mistNightTokens.mist,
           border: `1px solid ${mistNightTokens.fogline}`,
@@ -251,7 +222,6 @@ const muiTheme = createTheme({
     },
     MuiBackdrop: {
       styleOverrides: {
-        // 确认框背后的世界「起雾」后退：轻模糊 + 夜空压暗，把焦点交给纸面
         root: {
           backgroundColor: "rgba(10, 14, 20, 0.7)",
           backdropFilter: "blur(6px)",
